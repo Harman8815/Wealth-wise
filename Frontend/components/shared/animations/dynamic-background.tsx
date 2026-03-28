@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 /**
  * DynamicBackground Component
@@ -12,8 +12,20 @@ import { useState, useEffect } from "react";
  */
 export function DynamicBackground() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [mounted, setMounted] = useState(false);
+
+  // Generate random positions only on client to avoid hydration mismatch
+  const circles = useMemo(() => {
+    return [...Array(6)].map((_, i) => ({
+      id: i,
+      width: 100 + i * 150,
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+    }));
+  }, []);
 
   useEffect(() => {
+    setMounted(true);
     const handleMouseMove = (e: MouseEvent) => {
       setMousePos({
         x: (e.clientX / window.innerWidth - 0.5) * 40,
@@ -24,52 +36,67 @@ export function DynamicBackground() {
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
 
+  // Don't render animated circles until mounted to avoid hydration mismatch
+  if (!mounted) {
+    return (
+      <div className="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
+        {/* Static orbs for SSR */}
+        <div className="absolute top-[10%] left-[10%] w-[400px] h-[400px] bg-indigo-600 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[10%] right-[10%] w-[500px] h-[500px] bg-cyan-500 rounded-full blur-[150px]" />
+        <div className="absolute top-[40%] right-[20%] w-[300px] h-[300px] bg-purple-600 rounded-full blur-[100px]" />
+        <div className="absolute top-[20%] left-[20%] w-[350px] h-[350px] bg-blue-600 rounded-full blur-[100px]" />
+        <div className="absolute bottom-[30%] left-[60%] w-[450px] h-[450px] bg-blue-500 rounded-full blur-[120px]" />
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
       {/* Interactive Floating Orbs */}
       <motion.div
         animate={{ x: mousePos.x * 1.5, y: mousePos.y * 1.5 }}
         transition={{ type: "spring", damping: 30, stiffness: 50 }}
-        className="absolute top-[10%] left-[10%] w-[400px] h-[400px] bg-indigo-600/20 rounded-full blur-[120px]"
+        className="absolute top-[10%] left-[10%] w-[400px] h-[400px] bg-indigo-600 rounded-full blur-[120px]"
       />
       <motion.div
         animate={{ x: -mousePos.x * 2, y: -mousePos.y * 2 }}
         transition={{ type: "spring", damping: 30, stiffness: 50 }}
-        className="absolute bottom-[10%] right-[10%] w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[150px]"
+        className="absolute bottom-[10%] right-[10%] w-[500px] h-[500px] bg-cyan-500 rounded-full blur-[150px]"
       />
       <motion.div
         animate={{ x: mousePos.x * 0.8, y: -mousePos.y * 0.8 }}
         transition={{ type: "spring", damping: 30, stiffness: 50 }}
-        className="absolute top-[40%] right-[20%] w-[300px] h-[300px] bg-purple-600/15 rounded-full blur-[100px]"
+        className="absolute top-[40%] right-[20%] w-[300px] h-[300px] bg-purple-600 rounded-full blur-[100px]"
       />
 
-      {/* Subtle Animated Circles */}
-      {[...Array(6)].map((_, i) => (
-        <motion.div
-          key={i}
-          initial={{ opacity: 0 }}
-          animate={{
-            opacity: [0.1, 0.3, 0.1],
-            scale: [1, 1.2, 1],
-            x: [0, Math.random() * 50 - 25, 0],
-            y: [0, Math.random() * 50 - 25, 0],
-          }}
-          transition={{
-            duration: 10 + Math.random() * 10,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: i * 2,
-          }}
-          className="absolute border border-white/5 rounded-full"
-          style={{
-            width: `${100 + i * 150}px`,
-            height: `${100 + i * 150}px`,
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            transform: "translate(-50%, -50%)",
-          }}
-        />
-      ))}
+      {/* Blue Gradient Orbs with Floating Animation */}
+      <motion.div
+        animate={{
+          y: [0, -30, 0],
+          scale: [1, 1.1, 1],
+        }}
+        transition={{
+          duration: 8,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+        className="absolute top-[10%] left-[10%] w-[650px] h-[650px] bg-sky-500 rounded-full blur-[200px]"
+      />
+      <motion.div
+        animate={{
+          y: [0, 40, 0],
+          scale: [1, 1.15, 1],
+        }}
+        transition={{
+          duration: 10,
+          repeat: Infinity,
+          ease: "easeInOut",
+          delay: 2
+        }}
+        className="absolute bottom-[20%] left-[70%] w-[550px] h-[550px] bg-blue-500 rounded-full blur-[160px]"
+      />
+
+
     </div>
   );
 }

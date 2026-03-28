@@ -11,17 +11,32 @@ import { useState, useEffect } from "react";
  * <LiveClock />
  */
 export function LiveClock() {
-  const [time, setTime] = useState(new Date());
+  const [time, setTime] = useState<string>("");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
+    setMounted(true);
+    setTime(new Date().toLocaleTimeString());
+    const timer = setInterval(() => {
+      setTime(new Date().toLocaleTimeString());
+    }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return (
+      <div className="flex items-center gap-2 font-mono text-[10px] text-slate-500 tracking-widest uppercase">
+        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+        <span>System Time: --:--:--</span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-2 font-mono text-[10px] text-slate-500 tracking-widest uppercase">
       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-      <span>System Time: {time.toLocaleTimeString()}</span>
+      <span>System Time: {time}</span>
     </div>
   );
 }

@@ -12,7 +12,7 @@ import { CursorEffect, DynamicBackground } from "@/components/shared/animations"
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-[#020617] selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-[#020617]/80 selection:bg-indigo-500/30">
       <CursorEffect />
       <DynamicBackground />
       <Navbar />

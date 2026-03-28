@@ -4,7 +4,7 @@ import { TrendingUp } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="py-20 border-t border-white/5 bg-black/40 backdrop-blur-xl">
+    <footer className="py-10 pb-5 border-t border-white/5 bg-black/10 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid md:grid-cols-4 gap-16 mb-20">
           <div className="col-span-1 md:col-span-1">
