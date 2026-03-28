@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, Search, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MagneticButton } from "./magnetic-button";
-import { LiveClock } from "./live-clock";
+import { MagneticButton } from "@/components/shared/ui/magnetic-button";
+import { LiveClock } from "@/components/shared/ui/live-clock";
 import confetti from "canvas-confetti";
 
 export function Navbar() {

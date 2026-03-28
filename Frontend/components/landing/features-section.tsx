@@ -1,7 +1,7 @@
 "use client";
 
 import { Globe, ShieldCheck, Zap, Layers } from "lucide-react";
-import { GlassCard } from "./glass-card";
+import { GlassCard } from "@/components/shared/ui/glass-card";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
 
 const chartData = [

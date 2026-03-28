@@ -4,9 +4,9 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { useMemo } from "react";
 import { ArrowRight, ArrowUpRight, CreditCard, Globe, Activity, Zap, ShieldCheck } from "lucide-react";
 import { AreaChart, Area, Tooltip, ResponsiveContainer } from "recharts";
-import { GlassCard, CountUp } from "./glass-card";
-import { MagneticButton } from "./magnetic-button";
-import { DataStream } from "./data-stream";
+import { GlassCard, CountUp } from "@/components/shared/ui";
+import { MagneticButton } from "@/components/shared/ui";
+import { DataStream } from "@/components/shared/animations";
 
 const chartData = [
   { name: "Mon", value: 4200, expense: 2100 },

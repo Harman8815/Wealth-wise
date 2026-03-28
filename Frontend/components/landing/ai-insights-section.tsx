@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Activity, PieChart, Globe } from "lucide-react";
-import { GlassCard } from "./glass-card";
+import { GlassCard } from "@/components/shared/ui/glass-card";
 import { AIInsightPanel } from "./ai-insight-panel";
 
 const features = [

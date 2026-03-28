@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { MagneticButton } from "./magnetic-button";
+import { MagneticButton } from "@/components/shared/ui/magnetic-button";
 import confetti from "canvas-confetti";
 
 export function CTASection() {
