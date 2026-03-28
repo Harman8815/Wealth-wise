@@ -7,157 +7,48 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Menu, Search, Download, Plus, ArrowUpRight, ArrowDownLeft } from "lucide-react"
-
-interface Transaction {
-  id: number
-  date: string
-  description: string
-  category: string
-  amount: number
-  type: "income" | "expense"
-  status: "completed" | "pending"
-  account: string
-}
+import { useTransactions, useTransactionSummary } from "@/hooks"
 
 export function TransactionsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterCategory, setFilterCategory] = useState("all")
-  const [filterType, setFilterType] = useState("all")
+  const [filterType, setFilterType] = useState<"all" | "income" | "expense">("all")
   const [sortBy, setSortBy] = useState("date")
+  const [page, setPage] = useState(1)
 
-  const [transactions] = useState<Transaction[]>([
+  const { data: transactionsData, isLoading: isLoadingTransactions } = useTransactions(
     {
-      id: 1,
-      date: "2024-12-12",
-      description: "Grocery Shopping - Big Bazaar",
-      category: "Food & Dining",
-      amount: -2450,
-      type: "expense",
-      status: "completed",
-      account: "HDFC Bank",
+      category: filterCategory === "all" ? undefined : filterCategory,
+      type: filterType === "all" ? undefined : filterType,
     },
-    {
-      id: 2,
-      date: "2024-12-10",
-      description: "Salary Credit",
-      category: "Income",
-      amount: 85000,
-      type: "income",
-      status: "completed",
-      account: "HDFC Bank",
-    },
-    {
-      id: 3,
-      date: "2024-12-11",
-      description: "Uber Ride to Office",
-      category: "Transportation",
-      amount: -320,
-      type: "expense",
-      status: "completed",
-      account: "Credit Card",
-    },
-    {
-      id: 4,
-      date: "2024-12-09",
-      description: "Netflix Subscription",
-      category: "Entertainment",
-      amount: -649,
-      type: "expense",
-      status: "pending",
-      account: "Credit Card",
-    },
-    {
-      id: 5,
-      date: "2024-12-08",
-      description: "Coffee Shop - Starbucks",
-      category: "Food & Dining",
-      amount: -180,
-      type: "expense",
-      status: "completed",
-      account: "Debit Card",
-    },
-    {
-      id: 6,
-      date: "2024-12-07",
-      description: "Freelance Payment",
-      category: "Income",
-      amount: 15000,
-      type: "income",
-      status: "completed",
-      account: "HDFC Bank",
-    },
-    {
-      id: 7,
-      date: "2024-12-06",
-      description: "Electricity Bill",
-      category: "Bills & Utilities",
-      amount: -2100,
-      type: "expense",
-      status: "completed",
-      account: "HDFC Bank",
-    },
-    {
-      id: 8,
-      date: "2024-12-05",
-      description: "Amazon Shopping",
-      category: "Shopping",
-      amount: -3200,
-      type: "expense",
-      status: "completed",
-      account: "Credit Card",
-    },
-    {
-      id: 9,
-      date: "2024-12-04",
-      description: "Gym Membership",
-      category: "Healthcare",
-      amount: -1500,
-      type: "expense",
-      status: "completed",
-      account: "HDFC Bank",
-    },
-    {
-      id: 10,
-      date: "2024-12-03",
-      description: "Movie Tickets",
-      category: "Entertainment",
-      amount: -800,
-      type: "expense",
-      status: "completed",
-      account: "Credit Card",
-    },
-  ])
+    page,
+    10
+  )
+  const { data: summary, isLoading: isLoadingSummary } = useTransactionSummary()
 
-  const categories = [
-    "all",
-    "Food & Dining",
-    "Transportation",
-    "Entertainment",
-    "Shopping",
-    "Bills & Utilities",
-    "Healthcare",
-    "Income",
-  ]
+  const transactions = transactionsData?.results || []
+  const totalCount = transactionsData?.count || 0
 
   const filteredTransactions = transactions
     .filter((transaction) => {
       const matchesSearch =
         transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
         transaction.category.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesCategory = filterCategory === "all" || transaction.category === filterCategory
-      const matchesType = filterType === "all" || transaction.type === filterType
-
-      return matchesSearch && matchesCategory && matchesType
+      return matchesSearch
     })
     .sort((a, b) => {
       if (sortBy === "date") return new Date(b.date).getTime() - new Date(a.date).getTime()
-      if (sortBy === "amount") return Math.abs(b.amount) - Math.abs(a.amount)
+      if (sortBy === "amount") return Math.abs(Number(b.amount)) - Math.abs(Number(a.amount))
       return 0
     })
 
-  const totalIncome = transactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0)
-  const totalExpenses = transactions.filter((t) => t.type === "expense").reduce((sum, t) => sum + Math.abs(t.amount), 0)
+  const totalIncome = summary?.income || 0
+  const totalExpenses = summary?.expense || 0
+  const netFlow = summary?.net || 0
+
+  const categories = ["all", "Food & Dining", "Transportation", "Entertainment", "Shopping", "Bills & Utilities", "Healthcare", "Income"]
 
   return (
     <div className="min-h-screen">
@@ -216,9 +107,9 @@ export function TransactionsPage() {
             </CardHeader>
             <CardContent>
               <div
-                className={`text-3xl font-bold ${totalIncome - totalExpenses >= 0 ? "text-green-600" : "text-red-600"}`}
+                className={`text-3xl font-bold ${netFlow >= 0 ? "text-green-600" : "text-red-600"}`}
               >
-                ₹{(totalIncome - totalExpenses).toLocaleString()}
+                ₹{Math.abs(netFlow).toLocaleString()}
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">This month</p>
             </CardContent>
@@ -255,7 +146,7 @@ export function TransactionsPage() {
                 </SelectContent>
               </Select>
 
-              <Select value={filterType} onValueChange={setFilterType}>
+              <Select value={filterType} onValueChange={(v) => setFilterType(v as any)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
@@ -284,7 +175,7 @@ export function TransactionsPage() {
           <CardHeader>
             <CardTitle>Transaction History</CardTitle>
             <CardDescription>
-              Showing {filteredTransactions.length} of {transactions.length} transactions
+              Showing {filteredTransactions.length} of {totalCount} transactions
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -325,7 +216,7 @@ export function TransactionsPage() {
                       <TableCell>
                         <Badge variant="outline">{transaction.category}</Badge>
                       </TableCell>
-                      <TableCell className="text-gray-600 dark:text-gray-400">{transaction.account}</TableCell>
+                      <TableCell className="text-gray-600 dark:text-gray-400">{transaction.account_name || "-"}</TableCell>
                       <TableCell>
                         <Badge variant={transaction.status === "completed" ? "default" : "secondary"}>
                           {transaction.status}
@@ -339,7 +230,7 @@ export function TransactionsPage() {
                               : "text-red-600 dark:text-red-400"
                           }`}
                         >
-                          {transaction.type === "income" ? "+" : ""}₹{Math.abs(transaction.amount).toLocaleString()}
+                          {transaction.type === "income" ? "+" : "-"}₹{Number(transaction.amount).toLocaleString()}
                         </span>
                       </TableCell>
                     </TableRow>

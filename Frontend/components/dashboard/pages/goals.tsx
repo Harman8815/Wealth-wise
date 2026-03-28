@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog,
   DialogContent,
@@ -17,67 +18,16 @@ import {
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Menu, Plus, Target, Calendar, TrendingUp, Edit, Trash2 } from "lucide-react"
-
-interface Goal {
-  id: number
-  title: string
-  description: string
-  targetAmount: number
-  currentAmount: number
-  targetDate: string
-  category: string
-  priority: "high" | "medium" | "low"
-  status: "active" | "completed" | "paused"
-}
+import { useGoals, useGoalProgress, useCreateGoal, useDeleteGoal } from "@/hooks"
 
 export function GoalsPage() {
-  const [goals, setGoals] = useState<Goal[]>([
-    {
-      id: 1,
-      title: "Emergency Fund",
-      description: "Build 6 months of expenses as emergency fund",
-      targetAmount: 300000,
-      currentAmount: 180000,
-      targetDate: "2024-06-30",
-      category: "Emergency",
-      priority: "high",
-      status: "active",
-    },
-    {
-      id: 2,
-      title: "Vacation to Europe",
-      description: "Save for a 2-week European vacation",
-      targetAmount: 200000,
-      currentAmount: 85000,
-      targetDate: "2024-12-31",
-      category: "Travel",
-      priority: "medium",
-      status: "active",
-    },
-    {
-      id: 3,
-      title: "New Laptop",
-      description: "MacBook Pro for work and personal use",
-      targetAmount: 150000,
-      currentAmount: 150000,
-      targetDate: "2024-01-15",
-      category: "Technology",
-      priority: "high",
-      status: "completed",
-    },
-    {
-      id: 4,
-      title: "Car Down Payment",
-      description: "Save for down payment on new car",
-      targetAmount: 500000,
-      currentAmount: 125000,
-      targetDate: "2025-03-31",
-      category: "Transportation",
-      priority: "medium",
-      status: "active",
-    },
-  ])
+  const { data: goalsData, isLoading: isLoadingGoals } = useGoals()
+  const { data: progress, isLoading: isLoadingProgress } = useGoalProgress()
+  const createGoal = useCreateGoal()
+  const deleteGoal = useDeleteGoal()
 
+  const goals = goalsData?.results || []
+  
   const [isAddGoalOpen, setIsAddGoalOpen] = useState(false)
   const [newGoal, setNewGoal] = useState({
     title: "",
@@ -90,33 +40,54 @@ export function GoalsPage() {
 
   const activeGoals = goals.filter((goal) => goal.status === "active")
   const completedGoals = goals.filter((goal) => goal.status === "completed")
-  const totalTargetAmount = activeGoals.reduce((sum, goal) => sum + goal.targetAmount, 0)
-  const totalCurrentAmount = activeGoals.reduce((sum, goal) => sum + goal.currentAmount, 0)
+  const totalTargetAmount = progress?.total_target || 0
+  const totalCurrentAmount = progress?.total_saved || 0
+
+  if (isLoadingGoals || isLoadingProgress) {
+    return (
+      <div className="min-h-screen p-6 space-y-6">
+        <Skeleton className="h-12 w-64" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i} className="h-32">
+              <Skeleton className="h-full" />
+            </Card>
+          ))}
+        </div>
+        <Card className="h-96">
+          <Skeleton className="h-full" />
+        </Card>
+      </div>
+    )
+  }
 
   const handleAddGoal = () => {
     if (newGoal.title && newGoal.targetAmount && newGoal.targetDate) {
-      const goal: Goal = {
-        id: Math.max(...goals.map((g) => g.id)) + 1,
+      createGoal.mutate({
         title: newGoal.title,
         description: newGoal.description,
-        targetAmount: Number(newGoal.targetAmount),
-        currentAmount: 0,
-        targetDate: newGoal.targetDate,
-        category: newGoal.category || "Other",
+        target_amount: Number(newGoal.targetAmount),
+        target_date: newGoal.targetDate,
+        category: newGoal.category as any,
         priority: newGoal.priority,
-        status: "active",
-      }
-      setGoals([...goals, goal])
-      setNewGoal({
-        title: "",
-        description: "",
-        targetAmount: "",
-        targetDate: "",
-        category: "",
-        priority: "medium",
+      }, {
+        onSuccess: () => {
+          setIsAddGoalOpen(false)
+          setNewGoal({
+            title: "",
+            description: "",
+            targetAmount: "",
+            targetDate: "",
+            category: "",
+            priority: "medium",
+          })
+        }
       })
-      setIsAddGoalOpen(false)
     }
+  }
+
+  const handleDeleteGoal = (id: string) => {
+    deleteGoal.mutate(id)
   }
 
   const getPriorityColor = (priority: string) => {
@@ -217,7 +188,7 @@ export function GoalsPage() {
                     <Label htmlFor="category">Category</Label>
                     <Select
                       value={newGoal.category}
-                      onValueChange={(value) => setNewGoal({ ...newGoal, category: value })}
+                      onValueChange={(value: string) => setNewGoal({ ...newGoal, category: value })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select category" />
@@ -315,8 +286,8 @@ export function GoalsPage() {
           <CardContent>
             <div className="space-y-6">
               {activeGoals.map((goal) => {
-                const progress = (goal.currentAmount / goal.targetAmount) * 100
-                const remaining = goal.targetAmount - goal.currentAmount
+                const progress = (goal.current_amount / goal.target_amount) * 100
+                const remaining = goal.target_amount - goal.current_amount
 
                 return (
                   <div key={goal.id} className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg">
@@ -330,35 +301,24 @@ export function GoalsPage() {
                         <p className="text-gray-600 dark:text-gray-400 mb-2">{goal.description}</p>
                         <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
                           <div className="flex items-center">
-                            <Target className="w-4 h-4 mr-1" />₹{goal.targetAmount.toLocaleString()}
+                            <Target className="w-4 h-4 mr-1" />₹{goal.target_amount.toLocaleString()}
                           </div>
                           <div className="flex items-center">
                             <Calendar className="w-4 h-4 mr-1" />
-                            {getTimeRemaining(goal.targetDate)}
+                            {getTimeRemaining(goal.target_date)}
                           </div>
                         </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline">
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>
-                          Progress: ₹{goal.currentAmount.toLocaleString()} / ₹{goal.targetAmount.toLocaleString()}
-                        </span>
-                        <span>{progress.toFixed(1)}%</span>
-                      </div>
-                      <Progress value={progress} className="h-3" />
-                      <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
-                        <span>Remaining: ₹{remaining.toLocaleString()}</span>
-                        <span>Target: {new Date(goal.targetDate).toLocaleDateString()}</span>
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium">
+                            Progress: ₹{goal.current_amount.toLocaleString()} / ₹{goal.target_amount.toLocaleString()}
+                          </span>
+                          <span>{progress.toFixed(1)}%</span>
+                        </div>
+                        <Progress value={progress} className="h-3" />
+                        <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                          <span>Remaining: ₹{remaining.toLocaleString()}</span>
+                          <span>Target: {new Date(goal.target_date).toLocaleDateString()}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -391,7 +351,7 @@ export function GoalsPage() {
                         <p className="text-sm text-green-700 dark:text-green-300">{goal.description}</p>
                       </div>
                       <div className="text-right">
-                        <div className="text-lg font-bold text-green-600">₹{goal.targetAmount.toLocaleString()}</div>
+                        <div className="text-lg font-bold text-green-600">₹{goal.target_amount.toLocaleString()}</div>
                         <Badge className="bg-green-600 text-white">Completed</Badge>
                       </div>
                     </div>
