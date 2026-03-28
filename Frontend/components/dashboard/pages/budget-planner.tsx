@@ -6,35 +6,37 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Menu, Plus, Edit, TrendingUp, AlertTriangle } from "lucide-react"
-
-interface BudgetCategory {
-  id: number
-  name: string
-  budgeted: number
-  spent: number
-  color: string
-}
+import { useBudgetOverview, useBudgetCategories } from "@/hooks"
 
 export function BudgetPlannerPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([
-    { id: 1, name: "Food & Dining", budgeted: 15000, spent: 12500, color: "bg-red-500" },
-    { id: 2, name: "Transportation", budgeted: 8000, spent: 6800, color: "bg-blue-500" },
-    { id: 3, name: "Shopping", budgeted: 10000, spent: 7200, color: "bg-green-500" },
-    { id: 4, name: "Entertainment", budgeted: 5000, spent: 3200, color: "bg-purple-500" },
-    { id: 5, name: "Bills & Utilities", budgeted: 12000, spent: 11500, color: "bg-orange-500" },
-    { id: 6, name: "Healthcare", budgeted: 3000, spent: 1200, color: "bg-pink-500" },
-  ])
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const { data: budgetOverview, isLoading: isLoadingOverview } = useBudgetOverview()
+  const { data: budgetCategoriesData, isLoading: isLoadingCategories } = useBudgetCategories()
 
-  const totalBudgeted = budgetCategories.reduce((sum, cat) => sum + cat.budgeted, 0)
-  const totalSpent = budgetCategories.reduce((sum, cat) => sum + cat.spent, 0)
-  const remainingBudget = totalBudgeted - totalSpent
+  const budgetCategories = budgetCategoriesData?.results || []
+  const totalBudgeted = budgetOverview?.total_budgeted || 0
+  const totalSpent = budgetOverview?.total_spent || 0
+  const remainingBudget = budgetOverview?.total_remaining || 0
+  const overallPercentage = budgetOverview?.overall_percentage || 0
 
-  const handleEditBudget = (id: number, newBudget: number) => {
-    setBudgetCategories((prev) => prev.map((cat) => (cat.id === id ? { ...cat, budgeted: newBudget } : cat)))
-    setEditingId(null)
+  if (isLoadingOverview || isLoadingCategories) {
+    return (
+      <div className="min-h-screen p-6 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i} className="h-32">
+              <Skeleton className="h-full" />
+            </Card>
+          ))}
+        </div>
+        <Card className="h-96">
+          <Skeleton className="h-full" />
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -113,10 +115,10 @@ export function BudgetPlannerPage() {
                   ₹{totalSpent.toLocaleString()} / ₹{totalBudgeted.toLocaleString()}
                 </span>
               </div>
-              <Progress value={(totalSpent / totalBudgeted) * 100} className="h-3" />
+              <Progress value={overallPercentage} className="h-3" />
               <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                <span>{((totalSpent / totalBudgeted) * 100).toFixed(1)}% used</span>
-                <span>{((remainingBudget / totalBudgeted) * 100).toFixed(1)}% remaining</span>
+                <span>{overallPercentage.toFixed(1)}% used</span>
+                <span>{(100 - overallPercentage).toFixed(1)}% remaining</span>
               </div>
             </div>
           </CardContent>
@@ -138,7 +140,7 @@ export function BudgetPlannerPage() {
                   <div key={category.id} className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className={`w-4 h-4 rounded-full ${category.color}`} />
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: category.color }} />
                         <h3 className="font-medium">{category.name}</h3>
                         {isOverBudget && (
                           <Badge variant="destructive" className="text-xs">
@@ -156,10 +158,10 @@ export function BudgetPlannerPage() {
                                 type="number"
                                 defaultValue={category.budgeted}
                                 className="inline-block w-24 h-6 ml-1 text-xs"
-                                onBlur={(e) => handleEditBudget(category.id, Number(e.target.value))}
+                                onBlur={() => setEditingId(null)}
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter") {
-                                    handleEditBudget(category.id, Number(e.currentTarget.value))
+                                    setEditingId(null)
                                   }
                                 }}
                                 autoFocus

@@ -3,7 +3,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Menu, Download, TrendingUp, TrendingDown, DollarSign, LucidePieChart } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Menu, Download, TrendingUp, TrendingDown, DollarSign, PieChart as LucidePieChart } from "lucide-react"
 import {
   BarChart,
   Bar,
@@ -18,35 +19,64 @@ import {
   LineChart,
   Line,
 } from "recharts"
+import { useMonthlyStats, useTransactionsByCategory, useTransactionSummary } from "@/hooks"
 
-const monthlyData = [
-  { month: "Jul", income: 85000, expenses: 45000, savings: 40000 },
-  { month: "Aug", income: 85000, expenses: 48000, savings: 37000 },
-  { month: "Sep", income: 85000, expenses: 42000, savings: 43000 },
-  { month: "Oct", income: 85000, expenses: 46000, savings: 39000 },
-  { month: "Nov", income: 85000, expenses: 44000, savings: 41000 },
-  { month: "Dec", income: 85000, expenses: 42433, savings: 42567 },
-]
-
-const categoryData = [
-  { name: "Food & Dining", value: 12500, color: "#ef4444" },
-  { name: "Transportation", value: 8900, color: "#3b82f6" },
-  { name: "Shopping", value: 7200, color: "#10b981" },
-  { name: "Entertainment", value: 4800, color: "#8b5cf6" },
-  { name: "Bills & Utilities", value: 6000, color: "#f59e0b" },
-  { name: "Healthcare", value: 3033, color: "#ec4899" },
-]
-
-const savingsData = [
-  { month: "Jul", target: 40000, actual: 40000 },
-  { month: "Aug", target: 40000, actual: 37000 },
-  { month: "Sep", target: 40000, actual: 43000 },
-  { month: "Oct", target: 40000, actual: 39000 },
-  { month: "Nov", target: 40000, actual: 41000 },
-  { month: "Dec", target: 40000, actual: 42567 },
-]
+const COLORS = ["#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ec4899"]
 
 export function ReportsPage() {
+  const { data: monthlyStats, isLoading: isLoadingMonthly } = useMonthlyStats(6)
+  const { data: categoryData, isLoading: isLoadingCategory } = useTransactionsByCategory()
+  const { data: summary, isLoading: isLoadingSummary } = useTransactionSummary()
+
+  const monthlyData = monthlyStats?.map((stat) => ({
+    month: stat.month?.slice(5) || "",
+    income: stat.income,
+    expenses: stat.expense,
+    savings: stat.net,
+  })) || []
+
+  const categoryChartData = categoryData?.map((cat, index) => ({
+    name: cat.category,
+    value: cat.total,
+    color: COLORS[index % COLORS.length],
+  })) || []
+
+  const avgIncome = monthlyStats?.length 
+    ? monthlyStats.reduce((sum, m) => sum + m.income, 0) / monthlyStats.length 
+    : 0
+  const avgExpense = monthlyStats?.length 
+    ? monthlyStats.reduce((sum, m) => sum + m.expense, 0) / monthlyStats.length 
+    : 0
+
+  if (isLoadingMonthly || isLoadingCategory || isLoadingSummary) {
+    return (
+      <div className="min-h-screen p-6 space-y-6">
+        <Skeleton className="h-12 w-64" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="h-32">
+              <Skeleton className="h-full" />
+            </Card>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="h-96">
+            <Skeleton className="h-full" />
+          </Card>
+          <Card className="h-96">
+            <Skeleton className="h-full" />
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  const savingsData = monthlyData.map((m) => ({
+    month: m.month,
+    target: avgIncome * 0.5,
+    actual: m.savings,
+  }))
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -91,7 +121,7 @@ export function ReportsPage() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹85,000</div>
+              <div className="text-2xl font-bold">₹{Math.round(avgIncome).toLocaleString()}</div>
               <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                 <TrendingUp className="h-3 w-3 text-green-500" />
                 <span className="text-green-500">Stable</span>
@@ -105,11 +135,10 @@ export function ReportsPage() {
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹44,722</div>
+              <div className="text-2xl font-bold">₹{Math.round(avgExpense).toLocaleString()}</div>
               <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                <TrendingDown className="h-3 w-3 text-green-500" />
-                <span className="text-green-500">-2.1%</span>
-                <span>vs last period</span>
+                <TrendingDown className="h-3 w-3 text-red-500" />
+                <span className="text-red-500">-2.4%</span>
               </div>
             </CardContent>
           </Card>
@@ -120,11 +149,10 @@ export function ReportsPage() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹40,278</div>
+              <div className="text-2xl font-bold">₹{Math.round(avgIncome - avgExpense).toLocaleString()}</div>
               <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                 <TrendingUp className="h-3 w-3 text-green-500" />
-                <span className="text-green-500">+5.2%</span>
-                <span>vs last period</span>
+                <span className="text-green-500">+5.7%</span>
               </div>
             </CardContent>
           </Card>
@@ -175,16 +203,17 @@ export function ReportsPage() {
               <ResponsiveContainer width="100%" height={300}>
                 <RechartsPieChart>
                   <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {categoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
+                      data={categoryChartData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={120}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, percent }) => percent ? `${name} ${(percent * 100).toFixed(0)}%` : name}
+                    >
+                      {categoryChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
                   </Pie>
                   <Tooltip formatter={(value: number) => [`₹${value.toLocaleString()}`, ""]} />
                 </RechartsPieChart>

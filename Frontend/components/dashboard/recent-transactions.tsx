@@ -3,57 +3,36 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowUpRight, ArrowDownLeft } from "lucide-react"
-
-const transactions = [
-  {
-    id: 1,
-    type: "expense",
-    description: "Grocery Shopping",
-    category: "Food & Dining",
-    amount: -2450,
-    date: "Dec 12, 2024",
-    status: "completed",
-  },
-  {
-    id: 2,
-    type: "income",
-    description: "Salary Credit",
-    category: "Income",
-    amount: 85000,
-    date: "Dec 10, 2024",
-    status: "completed",
-  },
-  {
-    id: 3,
-    type: "expense",
-    description: "Uber Ride",
-    category: "Transportation",
-    amount: -320,
-    date: "Dec 11, 2024",
-    status: "completed",
-  },
-  {
-    id: 4,
-    type: "expense",
-    description: "Netflix Subscription",
-    category: "Entertainment",
-    amount: -649,
-    date: "Dec 9, 2024",
-    status: "pending",
-  },
-  {
-    id: 5,
-    type: "expense",
-    description: "Coffee Shop",
-    category: "Food & Dining",
-    amount: -180,
-    date: "Dec 8, 2024",
-    status: "completed",
-  },
-]
+import { useTransactions } from "@/hooks"
 
 export function RecentTransactions() {
+  const { data: transactionsData, isLoading } = useTransactions(undefined, 1, 5)
+  const transactions = transactionsData?.results || []
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Recent Transactions</CardTitle>
+              <CardDescription>Your latest financial activity</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-20 w-full" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -104,7 +83,7 @@ export function RecentTransactions() {
                       : "text-red-600 dark:text-red-400"
                   }`}
                 >
-                  {transaction.type === "income" ? "+" : ""}₹{Math.abs(transaction.amount).toLocaleString()}
+                  {transaction.type === "income" ? "+" : "-"}₹{Number(transaction.amount).toLocaleString()}
                 </p>
                 <p className="text-sm text-gray-600 dark:text-gray-400">{transaction.date}</p>
               </div>

@@ -7,125 +7,52 @@ import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Menu, Bell, AlertTriangle, CheckCircle, Info, Settings, Trash2, Calendar } from "lucide-react"
-
-interface Alert {
-  id: number
-  type: "warning" | "info" | "success" | "error"
-  title: string
-  message: string
-  timestamp: string
-  read: boolean
-  category: string
-}
-
-interface AlertSetting {
-  id: string
-  title: string
-  description: string
-  enabled: boolean
-  threshold?: number
-  category: string
-}
+import { useAlerts, useAlertSettings, useMarkAlertRead, useMarkAllAlertsRead, useToggleAlertSetting } from "@/hooks"
 
 export function AlertsPage() {
-  const [alerts, setAlerts] = useState<Alert[]>([
-    {
-      id: 1,
-      type: "warning",
-      title: "Budget Limit Approaching",
-      message: "You've spent 85% of your monthly budget. Consider reviewing your expenses.",
-      timestamp: "2024-12-12T10:30:00Z",
-      read: false,
-      category: "Budget",
-    },
-    {
-      id: 2,
-      type: "info",
-      title: "Bill Reminder",
-      message: "Your electricity bill of ₹2,450 is due in 3 days.",
-      timestamp: "2024-12-12T09:15:00Z",
-      read: false,
-      category: "Bills",
-    },
-    {
-      id: 3,
-      type: "success",
-      title: "Goal Milestone Reached",
-      message: "Congratulations! You've reached 60% of your Emergency Fund goal.",
-      timestamp: "2024-12-11T16:45:00Z",
-      read: true,
-      category: "Goals",
-    },
-    {
-      id: 4,
-      type: "error",
-      title: "Unusual Spending Detected",
-      message: "Large transaction of ₹15,000 detected. Please verify if this was authorized.",
-      timestamp: "2024-12-11T14:20:00Z",
-      read: false,
-      category: "Security",
-    },
-    {
-      id: 5,
-      type: "info",
-      title: "Monthly Report Ready",
-      message: "Your November financial report is now available for download.",
-      timestamp: "2024-12-10T12:00:00Z",
-      read: true,
-      category: "Reports",
-    },
-  ])
+  const [activeTab, setActiveTab] = useState("all")
+  const { data: alertsData, isLoading: isLoadingAlerts } = useAlerts()
+  const { data: settingsData, isLoading: isLoadingSettings } = useAlertSettings()
+  const markAlertRead = useMarkAlertRead()
+  const markAllRead = useMarkAllAlertsRead()
+  const toggleSetting = useToggleAlertSetting()
 
-  const [alertSettings, setAlertSettings] = useState<AlertSetting[]>([
-    {
-      id: "budget_warning",
-      title: "Budget Warnings",
-      description: "Get notified when you approach your budget limits",
-      enabled: true,
-      threshold: 80,
-      category: "Budget",
-    },
-    {
-      id: "bill_reminders",
-      title: "Bill Reminders",
-      description: "Receive reminders for upcoming bill payments",
-      enabled: true,
-      category: "Bills",
-    },
-    {
-      id: "goal_milestones",
-      title: "Goal Milestones",
-      description: "Celebrate when you reach savings goal milestones",
-      enabled: true,
-      category: "Goals",
-    },
-    {
-      id: "unusual_spending",
-      title: "Unusual Spending",
-      description: "Alert for transactions that seem out of pattern",
-      enabled: true,
-      threshold: 10000,
-      category: "Security",
-    },
-    {
-      id: "low_balance",
-      title: "Low Balance Alerts",
-      description: "Warning when account balance falls below threshold",
-      enabled: false,
-      threshold: 5000,
-      category: "Account",
-    },
-    {
-      id: "investment_updates",
-      title: "Investment Updates",
-      description: "Market updates and portfolio performance alerts",
-      enabled: false,
-      category: "Investments",
-    },
-  ])
+  const alerts = alertsData?.results || []
+  const alertSettings = settingsData?.results || []
 
-  const unreadCount = alerts.filter((alert) => !alert.read).length
+  const filteredAlerts = alerts.filter((alert) => {
+    if (activeTab === "all") return true
+    if (activeTab === "unread") return !alert.read
+    return alert.type === activeTab
+  })
+
+  const unreadCount = alerts.filter((a) => !a.read).length
+
+  const handleMarkAllRead = () => {
+    markAllRead.mutate()
+  }
+
+  const handleToggleSetting = (id: string) => {
+    toggleSetting.mutate(id)
+  }
+
+  if (isLoadingAlerts || isLoadingSettings) {
+    return (
+      <div className="min-h-screen p-6 space-y-6">
+        <Skeleton className="h-12 w-64" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="lg:col-span-2 h-96">
+            <Skeleton className="h-full" />
+          </Card>
+          <Card className="h-96">
+            <Skeleton className="h-full" />
+          </Card>
+        </div>
+      </div>
+    )
+  }
 
   const getAlertIcon = (type: string) => {
     switch (type) {
@@ -156,24 +83,6 @@ export function AlertsPage() {
       default:
         return `bg-gray-${opacity} dark:bg-gray-950 border-gray-200 dark:border-gray-800`
     }
-  }
-
-  const markAsRead = (id: number) => {
-    setAlerts(alerts.map((alert) => (alert.id === id ? { ...alert, read: true } : alert)))
-  }
-
-  const deleteAlert = (id: number) => {
-    setAlerts(alerts.filter((alert) => alert.id !== id))
-  }
-
-  const toggleSetting = (id: string) => {
-    setAlertSettings(
-      alertSettings.map((setting) => (setting.id === id ? { ...setting, enabled: !setting.enabled } : setting)),
-    )
-  }
-
-  const updateThreshold = (id: string, threshold: number) => {
-    setAlertSettings(alertSettings.map((setting) => (setting.id === id ? { ...setting, threshold } : setting)))
   }
 
   const formatTimestamp = (timestamp: string) => {
@@ -277,7 +186,7 @@ export function AlertsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {alerts.map((alert) => (
+              {filteredAlerts.map((alert) => (
                 <div
                   key={alert.id}
                   className={`p-4 rounded-lg border ${getAlertBgColor(alert.type, alert.read)} ${
@@ -307,13 +216,15 @@ export function AlertsPage() {
                     </div>
                     <div className="flex space-x-2">
                       {!alert.read && (
-                        <Button size="sm" variant="outline" onClick={() => markAsRead(alert.id)}>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => markAlertRead.mutate(alert.id)}
+                          disabled={markAlertRead.isPending}
+                        >
                           Mark Read
                         </Button>
                       )}
-                      <Button size="sm" variant="outline" onClick={() => deleteAlert(alert.id)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
                     </div>
                   </div>
                 </div>
@@ -350,14 +261,18 @@ export function AlertsPage() {
                           id={`threshold-${setting.id}`}
                           type="number"
                           value={setting.threshold}
-                          onChange={(e) => updateThreshold(setting.id, Number(e.target.value))}
+                          disabled
                           className="w-24 h-8 text-xs"
                         />
                         <span className="text-xs text-gray-500">{setting.id.includes("budget") ? "%" : "₹"}</span>
                       </div>
                     )}
                   </div>
-                  <Switch checked={setting.enabled} onCheckedChange={() => toggleSetting(setting.id)} />
+                  <Switch 
+                    checked={setting.enabled} 
+                    onCheckedChange={() => handleToggleSetting(setting.id)} 
+                    disabled={toggleSetting.isPending}
+                  />
                 </div>
               ))}
             </div>
@@ -372,7 +287,12 @@ export function AlertsPage() {
           </CardHeader>
           <CardContent>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2 bg-transparent">
+              <Button 
+                variant="outline" 
+                className="h-auto p-4 flex flex-col items-center space-y-2 bg-transparent"
+                onClick={handleMarkAllRead}
+                disabled={markAllRead.isPending}
+              >
                 <CheckCircle className="w-6 h-6 text-green-500" />
                 <span className="text-sm">Mark All Read</span>
               </Button>
