@@ -1,134 +1,147 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Menu, Plus, Lightbulb, Calendar } from "lucide-react"
-import { OverviewCards } from "./overview-cards"
-import { RecentTransactions } from "./recent-transactions"
-import { ExpenseTracker } from "./expense-tracker"
-import { MonthlyChart } from "./monthly-chart"
+import { Button } from "@/shared/components/button";
+import { GlassCard, AIInsightsCard } from "@/shared/components";
+import { Menu, Plus, Calendar, Sparkles } from "lucide-react";
+import { OverviewCards } from "./overview-cards";
+import { RecentTransactions } from "./recent-transactions";
+import { MonthlyChart } from "./monthly-chart";
+import { cn } from "@/lib/utils";
 
 interface MainContentProps {
-  onMenuClick: () => void
+  onMenuClick: () => void;
 }
+
+// Sample AI insights data - would come from API in production
+const sampleInsights = [
+  {
+    id: "1",
+    type: "spending" as const,
+    title: "Spending Alert",
+    description: "You've spent 15% more on dining out this month compared to last month. Consider setting a dining budget.",
+    impact: "negative" as const,
+    metadata: { percentage: 15, category: "Dining" },
+    action: { label: "Set Budget", onClick: () => {} },
+  },
+  {
+    id: "2",
+    type: "saving" as const,
+    title: "Savings Opportunity",
+    description: "You could save ₹2,500 monthly by switching to a different subscription plan for your streaming services.",
+    impact: "positive" as const,
+    metadata: { amount: 2500 },
+    action: { label: "View Details", onClick: () => {} },
+  },
+  {
+    id: "3",
+    type: "investment" as const,
+    title: "Investment Tip",
+    description: "Based on your savings pattern, consider investing ₹5,000 monthly in SIP for better returns.",
+    impact: "positive" as const,
+    metadata: { amount: 5000 },
+    action: { label: "Learn More", onClick: () => {} },
+  },
+];
 
 export function MainContent({ onMenuClick }: MainContentProps) {
   return (
-    <div className="flex-1 ">
+    <div className="flex-1 min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+      <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/80 border-b border-border/50 px-6 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenuClick}>
-              <Menu className="w-5 h-5" />
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="lg:hidden"
+              onClick={onMenuClick}
+            >
+              <Menu className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Welcome back, Alex 👋</h1>
-              <p className="text-gray-600 dark:text-gray-400">Here's what's happening with your money today</p>
+              <h1 className="text-xl font-semibold text-foreground">Welcome back</h1>
+              <p className="text-sm text-muted-foreground">Here's what's happening with your finances</p>
             </div>
           </div>
-          <div className="flex space-x-2">
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" className="hidden sm:flex">
+              <Calendar className="h-4 w-4 mr-2" />
+              This Month
+            </Button>
+            <Button size="sm">
+              <Plus className="h-4 w-4 mr-2" />
               Add Transaction
             </Button>
-            <Button variant="outline">Generate Report</Button>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="p-6 space-y-6">
+      <main className="p-6 space-y-6 max-w-7xl mx-auto">
         {/* Overview Cards */}
-        <OverviewCards />
+        <section className="animate-fade-in">
+          <OverviewCards />
+        </section>
 
-        {/* Charts and Tables Grid */}
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Monthly Chart */}
-          <MonthlyChart />
+        {/* Charts and Insights Grid */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Monthly Chart - Takes up 2/3 */}
+          <div className="lg:col-span-2 animate-slide-up stagger-1">
+            <GlassCard className="h-full">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold text-lg">Cash Flow</h3>
+                  <p className="text-sm text-muted-foreground">Income vs Expenses over time</p>
+                </div>
+              </div>
+              <MonthlyChart />
+            </GlassCard>
+          </div>
 
-          {/* AI Insights */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Lightbulb className="w-5 h-5 mr-2 text-yellow-500" />
-                AI Insights
-              </CardTitle>
-              <CardDescription>Smart recommendations based on your spending patterns</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
-                <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">💡 Spending Alert</h4>
-                <p className="text-sm text-blue-700 dark:text-blue-300">
-                  You've spent 15% more on dining out this month compared to last month. Consider setting a dining
-                  budget.
-                </p>
-              </div>
-              <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
-                <h4 className="font-medium text-green-900 dark:text-green-100 mb-2">🎯 Savings Opportunity</h4>
-                <p className="text-sm text-green-700 dark:text-green-300">
-                  You could save ₹2,500 monthly by switching to a different subscription plan for your streaming
-                  services.
-                </p>
-              </div>
-              <div className="p-4 bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-200 dark:border-purple-800">
-                <h4 className="font-medium text-purple-900 dark:text-purple-100 mb-2">📈 Investment Tip</h4>
-                <p className="text-sm text-purple-700 dark:text-purple-300">
-                  Based on your savings pattern, consider investing ₹5,000 monthly in SIP for better returns.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          {/* AI Insights - Takes up 1/3 */}
+          <div className="animate-slide-up stagger-2">
+            <AIInsightsCard insights={sampleInsights} />
+          </div>
         </div>
 
         {/* Recent Transactions */}
-        <RecentTransactions />
+        <section className="animate-slide-up stagger-3">
+          <RecentTransactions />
+        </section>
 
-        {/* Expense Tracker */}
-        <ExpenseTracker />
-
-        {/* Upcoming Bills */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Calendar className="w-5 h-5 mr-2 text-orange-500" />
-              Upcoming Bills & Reminders
-            </CardTitle>
-            <CardDescription>Don't miss these upcoming payments</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[
-                { name: "Electricity Bill", amount: "₹2,450", due: "Dec 15", status: "pending" },
-                { name: "Internet Bill", amount: "₹899", due: "Dec 18", status: "pending" },
-                { name: "Credit Card Payment", amount: "₹15,670", due: "Dec 20", status: "urgent" },
-              ].map((bill, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
-                >
-                  <div>
-                    <h4 className="font-medium">{bill.name}</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Due: {bill.due}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold">{bill.amount}</p>
-                    <span
-                      className={`text-xs px-2 py-1 rounded-full ${
-                        bill.status === "urgent"
-                          ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-                          : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
-                      }`}
-                    >
-                      {bill.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
+        {/* Quick Stats Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-slide-up stagger-4">
+          <GlassCard hover className="flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-blue-500/10 text-blue-500">
+              <Calendar className="h-5 w-5" />
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Upcoming Bills</p>
+              <p className="text-lg font-semibold">3 due this week</p>
+            </div>
+          </GlassCard>
+
+          <GlassCard hover className="flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-500">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">AI Recommendations</p>
+              <p className="text-lg font-semibold">5 new insights</p>
+            </div>
+          </GlassCard>
+
+          <GlassCard hover className="flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-purple-500/10 text-purple-500">
+              <Calendar className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Next Payday</p>
+              <p className="text-lg font-semibold">In 5 days</p>
+            </div>
+          </GlassCard>
+        </div>
       </main>
     </div>
-  )
+  );
 }

@@ -1,5 +1,10 @@
-import { DashboardLayout } from "@/components/dashboard/layout"
+"use client";
+
+import { MainContent } from "@/components/dashboard/main-content";
+import { useState } from "react";
 
 export default function DashboardPage() {
-  return <DashboardLayout />
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  return <MainContent onMenuClick={() => setIsSidebarOpen(true)} />;
 }
