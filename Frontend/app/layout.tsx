@@ -11,7 +11,12 @@ export const metadata: Metadata = {
   title: "WealthWise - Track. Analyze. Grow.",
   description:
     "Transform your financial future with intelligent tracking, AI-powered insights, and personalized recommendations.",
-    generator: 'v0.dev'
+  generator: 'v0.dev',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/icon.svg',
+  },
 }
 
 export default function RootLayout({
