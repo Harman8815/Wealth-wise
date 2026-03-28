@@ -1,27 +1,29 @@
-import { Navbar } from "@/components/navbar"
-import { HeroSection } from "@/components/hero-section"
-import { FeaturesSection } from "@/components/features-section"
-import { GallerySection } from "@/components/gallery-section"
-import { TestimonialsSection } from "@/components/testimonials-section"
-import { ContactSection } from "@/components/contact-section"
-import { NewsletterSection } from "@/components/newsletter-section"
-import { FinanceTipsSection } from "@/components/finance-tips-section"
-import { PricingSection } from "@/components/pricing-section"
-import { Footer } from "@/components/footer"
+"use client";
+
+import {
+  CursorEffect,
+  DynamicBackground,
+  Navbar,
+  HeroSection,
+  AIInsightsSection,
+  FeaturesSection,
+  CTASection,
+  Footer,
+} from "@/components/landing";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-[#020617] selection:bg-indigo-500/30">
+      <CursorEffect />
+      <DynamicBackground />
       <Navbar />
-      <HeroSection />
-      <FeaturesSection />
-      <GallerySection />
-      <TestimonialsSection />
-      <PricingSection />
-      <FinanceTipsSection />
-      <ContactSection />
-      <NewsletterSection />
+      <main>
+        <HeroSection />
+        <AIInsightsSection />
+        <FeaturesSection />
+        <CTASection />
+      </main>
       <Footer />
     </div>
-  )
+  );
 }
