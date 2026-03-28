@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  CursorEffect,
-  DynamicBackground,
   Navbar,
   HeroSection,
   AIInsightsSection,
@@ -10,6 +8,7 @@ import {
   CTASection,
   Footer,
 } from "@/components/landing";
+import { CursorEffect, DynamicBackground } from "@/components/shared/animations";
 
 export default function LandingPage() {
   return (
