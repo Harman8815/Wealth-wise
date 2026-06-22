@@ -9,8 +9,9 @@ import {
   Target,
   Bell,
   Settings,
-  ArrowLeft,
   BarChart,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { usePathname, useRouter } from "next/navigation"
@@ -19,6 +20,8 @@ interface SidebarProps {
   isOpen: boolean
   onClose: () => void
   onSettingsClick: () => void
+  isCollapsed?: boolean
+  onToggleCollapse?: () => void
 }
 
 const navigationItems = [
@@ -30,74 +33,116 @@ const navigationItems = [
   { icon: Bell, label: "Alerts & Notifications", href: "/dashboard/alerts" },
 ]
 
-function SidebarContent({ onSettingsClick }: { onSettingsClick: () => void }) {
+function SidebarContent({ 
+  onSettingsClick, 
+  isCollapsed, 
+  onToggleCollapse 
+}: { 
+  onSettingsClick: () => void
+  isCollapsed: boolean
+  onToggleCollapse?: () => void
+}) {
   const pathname = usePathname()
   const router = useRouter()
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+    <div className="flex flex-col h-full bg-[#020617]/80 backdrop-blur-md text-slate-200 border-r border-slate-800 transition-all duration-300">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center space-x-2 mb-4">
-          <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+      <div className={cn("p-4 border-b border-slate-800 flex items-center justify-between transition-all duration-300", isCollapsed ? "justify-center" : "")}>
+        <div className={cn("flex items-center space-x-2 overflow-hidden", isCollapsed ? "w-0 hidden" : "w-auto flex")}>
+          <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shrink-0">
             <BarChart className="w-5 h-5 text-white" />
           </div>
-          <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent truncate">
             WealthWise
           </span>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full justify-start bg-transparent"
-          onClick={() => router.push("/")}
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Home
-        </Button>
+        {isCollapsed && (
+          <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shrink-0 mb-2 mt-1">
+            <BarChart className="w-5 h-5 text-white" />
+          </div>
+        )}
+        
+        {onToggleCollapse && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden lg:flex text-slate-400 hover:text-white hover:bg-slate-800 shrink-0"
+            onClick={onToggleCollapse}
+          >
+            {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          </Button>
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 p-3 space-y-2 overflow-y-auto overflow-x-hidden">
         {navigationItems.map((item) => {
           const isActive = pathname === item.href
           return (
             <Button
               key={item.label}
               variant={isActive ? "default" : "ghost"}
-              className={cn("w-full justify-start", isActive && "bg-blue-600 text-white hover:bg-blue-700")}
+              className={cn(
+                "w-full transition-all duration-300",
+                isCollapsed ? "justify-center px-2" : "justify-start px-4",
+                isActive 
+                  ? "bg-blue-600 text-white hover:bg-blue-700" 
+                  : "text-slate-300 hover:text-white hover:bg-slate-800/50"
+              )}
               onClick={() => router.push(item.href)}
+              title={isCollapsed ? item.label : undefined}
             >
-              <item.icon className="w-5 h-5 mr-3" />
-              {item.label}
+              <item.icon className={cn("w-5 h-5", isCollapsed ? "mr-0" : "mr-3 shrink-0")} />
+              {!isCollapsed && <span className="truncate">{item.label}</span>}
             </Button>
           )
         })}
       </nav>
 
       {/* Settings */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-        <Button variant="ghost" className="w-full justify-start" onClick={onSettingsClick}>
-          <Settings className="w-5 h-5 mr-3" />
-          Settings
+      <div className="p-3 border-t border-slate-800">
+        <Button 
+          variant="ghost" 
+          className={cn(
+            "w-full transition-all duration-300 text-slate-300 hover:text-white hover:bg-slate-800/50",
+            isCollapsed ? "justify-center px-2" : "justify-start px-4"
+          )} 
+          onClick={onSettingsClick}
+          title={isCollapsed ? "Settings" : undefined}
+        >
+          <Settings className={cn("w-5 h-5", isCollapsed ? "mr-0" : "mr-3 shrink-0")} />
+          {!isCollapsed && <span className="truncate">Settings</span>}
         </Button>
       </div>
     </div>
   )
 }
 
-export function Sidebar({ isOpen, onClose, onSettingsClick }: SidebarProps) {
+export function Sidebar({ isOpen, onClose, onSettingsClick, isCollapsed = false, onToggleCollapse }: SidebarProps) {
   return (
     <>
       {/* Desktop Sidebar */}
-      <div className="hidden lg:block w-64 h-screen fixed left-0 top-0 z-40">
-        <SidebarContent onSettingsClick={onSettingsClick} />
+      <div 
+        className={cn(
+          "hidden lg:block h-screen fixed left-0 top-0 z-40 transition-all duration-300",
+          isCollapsed ? "w-20" : "w-64"
+        )}
+      >
+        <SidebarContent 
+          onSettingsClick={onSettingsClick} 
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggleCollapse}
+        />
       </div>
 
       {/* Mobile Sidebar */}
       <Sheet open={isOpen} onOpenChange={onClose}>
-        <SheetContent side="left" className="p-0 w-64">
-          <SidebarContent onSettingsClick={onSettingsClick} />
+        <SheetContent side="left" className="p-0 w-64 border-r-0 bg-transparent">
+          <SidebarContent 
+            onSettingsClick={onSettingsClick} 
+            isCollapsed={false} 
+          />
         </SheetContent>
       </Sheet>
     </>
