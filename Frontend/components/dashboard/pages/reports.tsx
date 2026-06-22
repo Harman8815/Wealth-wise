@@ -114,7 +114,7 @@ export function ReportsPage() {
       </header>
 
       {/* Main Content */}
-      <main className="p-6 space-y-6 max-w-7xl mx-auto animate-fade-in">
+      <main className="p-6 md:p-8 space-y-6 w-full animate-fade-in">
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card>

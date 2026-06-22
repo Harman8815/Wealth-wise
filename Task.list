@@ -1,17 +1,13 @@
-Task 1 
 
-Could not find a declaration file for module 'canvas-confetti'. 'd:/CODING/project/TODO Projects/wealthwise-Nextjs/Wealth wise/Frontend/node_modules/canvas-confetti/src/confetti.js' implicitly has an 'any' type.
-  Try `npm i --save-dev @types/canvas-confetti` if it exists or add a new declaration (.d.ts) file containing `declare module 'canvas-confetti';`ts(7016)
+ task4
+ match the budge and transactiona dn other subpages to dashbord home page design and  collor scheme
+ have small animation and improve the gap between border and other thigns mkae it flexible and versatile
 
-Task 2
-commit all changes till now
-remove back to home button from sidebar on /dashboard page
-and add a collapseable sidebar button
 
-task3
-commit all changes till now 
- improve sidebar design 
- use color from hom page like these on sidebar and have a darker tone to it
- bg-[#020617]/80
- add little basic animation for open and close of sidebar
+task 5
+ add notification setting on profile setting page 
  
+
+
+ taks 6 
+ on home page "this month " and add tranasaction arent working make them working 

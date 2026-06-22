@@ -77,7 +77,7 @@ export function MainContent({ onMenuClick }: MainContentProps) {
       </header>
 
       {/* Main Content */}
-      <main className="p-6 space-y-6 max-w-7xl mx-auto">
+      <main className="p-6 md:p-8 space-y-6 w-full">
         {/* Overview Cards */}
         <section className="animate-fade-in">
           <OverviewCards />
