@@ -20,10 +20,12 @@ import {
   Line,
 } from "recharts"
 import { useMonthlyStats, useTransactionsByCategory, useTransactionSummary } from "@/hooks"
+import { useSidebar } from "@/contexts/sidebar-context"
 
 const COLORS = ["#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ec4899"]
 
 export function ReportsPage() {
+  const { setIsSidebarOpen } = useSidebar()
   const { data: monthlyStats, isLoading: isLoadingMonthly } = useMonthlyStats(6)
   const { data: categoryData, isLoading: isLoadingCategory } = useTransactionsByCategory()
   const { data: summary, isLoading: isLoadingSummary } = useTransactionSummary()
@@ -50,7 +52,7 @@ export function ReportsPage() {
 
   if (isLoadingMonthly || isLoadingCategory || isLoadingSummary) {
     return (
-      <div className="min-h-screen p-6 space-y-6">
+      <div className="flex-1 min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-6 space-y-6">
         <Skeleton className="h-12 w-64" />
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (

@@ -19,12 +19,14 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Menu, Plus, Target, Calendar, TrendingUp, Edit, Trash2 } from "lucide-react"
 import { useGoals, useGoalProgress, useCreateGoal, useDeleteGoal } from "@/hooks"
+import { useSidebar } from "@/contexts/sidebar-context"
 
 export function GoalsPage() {
   const { data: goalsData, isLoading: isLoadingGoals } = useGoals()
   const { data: progress, isLoading: isLoadingProgress } = useGoalProgress()
   const createGoal = useCreateGoal()
   const deleteGoal = useDeleteGoal()
+  const { setIsSidebarOpen } = useSidebar()
 
   const goals = goalsData?.results || []
   
@@ -45,7 +47,7 @@ export function GoalsPage() {
 
   if (isLoadingGoals || isLoadingProgress) {
     return (
-      <div className="min-h-screen p-6 space-y-6">
+      <div className="flex-1 min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-6 space-y-6">
         <Skeleton className="h-12 w-64" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[...Array(3)].map((_, i) => (

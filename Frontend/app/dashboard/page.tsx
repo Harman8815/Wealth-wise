@@ -1,10 +1,10 @@
 "use client";
 
 import { MainContent } from "@/components/dashboard/main-content";
-import { useState } from "react";
+import { useSidebar } from "@/contexts/sidebar-context";
 
 export default function DashboardPage() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { setIsSidebarOpen } = useSidebar();
 
   return <MainContent onMenuClick={() => setIsSidebarOpen(true)} />;
 }

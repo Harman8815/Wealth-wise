@@ -10,8 +10,10 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Menu, Search, Download, Plus, ArrowUpRight, ArrowDownLeft } from "lucide-react"
 import { useTransactions, useTransactionSummary } from "@/hooks"
+import { useSidebar } from "@/contexts/sidebar-context"
 
 export function TransactionsPage() {
+  const { setIsSidebarOpen } = useSidebar()
   const [searchTerm, setSearchTerm] = useState("")
   const [filterCategory, setFilterCategory] = useState("all")
   const [filterType, setFilterType] = useState<"all" | "income" | "expense">("all")

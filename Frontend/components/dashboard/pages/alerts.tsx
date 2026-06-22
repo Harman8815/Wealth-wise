@@ -10,8 +10,10 @@ import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Menu, Bell, AlertTriangle, CheckCircle, Info, Settings, Trash2, Calendar } from "lucide-react"
 import { useAlerts, useAlertSettings, useMarkAlertRead, useMarkAllAlertsRead, useToggleAlertSetting } from "@/hooks"
+import { useSidebar } from "@/contexts/sidebar-context"
 
 export function AlertsPage() {
+  const { setIsSidebarOpen } = useSidebar()
   const [activeTab, setActiveTab] = useState("all")
   const { data: alertsData, isLoading: isLoadingAlerts } = useAlerts()
   const { data: settingsData, isLoading: isLoadingSettings } = useAlertSettings()
@@ -40,7 +42,7 @@ export function AlertsPage() {
 
   if (isLoadingAlerts || isLoadingSettings) {
     return (
-      <div className="min-h-screen p-6 space-y-6">
+      <div className="flex-1 min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-6 space-y-6">
         <Skeleton className="h-12 w-64" />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2 h-96">

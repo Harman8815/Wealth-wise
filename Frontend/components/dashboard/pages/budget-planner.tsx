@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Menu, Plus, Edit, TrendingUp, AlertTriangle } from "lucide-react"
 import { useBudgetOverview, useBudgetCategories } from "@/hooks"
+import { useSidebar } from "@/contexts/sidebar-context"
 
 export function BudgetPlannerPage() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const { setIsSidebarOpen } = useSidebar()
   const [editingId, setEditingId] = useState<string | null>(null)
   const { data: budgetOverview, isLoading: isLoadingOverview } = useBudgetOverview()
   const { data: budgetCategoriesData, isLoading: isLoadingCategories } = useBudgetCategories()
@@ -24,7 +25,7 @@ export function BudgetPlannerPage() {
 
   if (isLoadingOverview || isLoadingCategories) {
     return (
-      <div className="min-h-screen p-6 space-y-6">
+      <div className="flex-1 min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-6 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[...Array(3)].map((_, i) => (
             <Card key={i} className="h-32">
