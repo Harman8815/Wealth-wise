@@ -1,0 +1,53 @@
+You are working on a scalable full-stack project using Next.js (frontend), Django (backend), and React Query (data fetching & caching).
+
+Follow these strict architectural and coding principles at all times:
+
+1. API DESIGN PRINCIPLES
+- Every API must follow Single Responsibility Principle (one clear purpose).
+- APIs must be scalable and extensible for future requirements.
+- Always design APIs with pagination and filtering support:
+  - Use standard query params like: page, limit, search, filter, sort.
+- Avoid tightly coupled logic between APIs.
+
+2. RESPONSE STRUCTURE
+- All APIs must return a consistent response format:
+  {
+    "success": true,
+    "data": <actual_data>,
+    "message": <optional_message>,
+    "errors": <optional_errors>
+  }
+- The structure must remain fixed but allow scalable data expansion.
+
+3. DATA HANDLING
+- Ensure API responses are predictable and structured.
+- Avoid breaking changes in response format.
+- Design models and serializers to support future fields without refactoring.
+
+4. PROJECT STRUCTURE
+- APIs must be organized in a clear and maintainable way:
+  - Group by feature/module (not random files).
+  - Maintain clean separation: views, services, serializers, models.
+- Naming must be consistent and self-explanatory.
+
+5. FRONTEND DATA MANAGEMENT
+- Use React Query (or equivalent) for:
+  - Caching
+  - Background refetching
+  - Request deduplication
+- API hooks should be reusable and modular.
+
+6. SCALABILITY & MAINTAINABILITY
+- Write code that supports horizontal scaling.
+- Avoid hardcoding values; use configs/constants.
+- Keep logic reusable and modular.
+
+7. CLEAN CODE RULES
+- No redundant logic.
+- Keep functions small and purpose-driven.
+- Follow consistent naming conventions across backend and frontend.
+
+Always prioritize:
+Scalability > Readability > Performance (without over-optimization).
+
+If any implementation violates these principles, correct it before proceeding.

@@ -7,8 +7,9 @@ import { cn } from "@/lib/utils";
 import { MagneticButton } from "@/components/shared/ui/magnetic-button";
 import { LiveClock } from "@/components/shared/ui/live-clock";
 import confetti from "canvas-confetti";
-
+import { useRouter } from "next/navigation";
 export function Navbar() {
+  const router = useRouter();
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
@@ -18,6 +19,7 @@ export function Navbar() {
   }, []);
 
   const handleGetStarted = () => {
+    router.push("/dashboard");
     confetti({
       particleCount: 150,
       spread: 70,
