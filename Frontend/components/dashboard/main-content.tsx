@@ -11,10 +11,7 @@ import { useSeedHistoricalData } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { AddTransactionDialog } from "./add-transaction-dialog";
-
-interface MainContentProps {
-  onMenuClick: () => void;
-}
+import { useDashboardSidebar } from "@/components/dashboard/sidebar-context";
 
 // Sample AI insights data - would come from API in production
 const sampleInsights = [
@@ -47,7 +44,8 @@ const sampleInsights = [
   },
 ];
 
-export function MainContent({ onMenuClick }: MainContentProps) {
+export function MainContent() {
+  const { openSidebar } = useDashboardSidebar();
   const seedMutation = useSeedHistoricalData();
   const [isAddOpen, setIsAddOpen] = useState(false);
 
@@ -76,7 +74,7 @@ export function MainContent({ onMenuClick }: MainContentProps) {
               variant="ghost"
               size="icon-sm"
               className="lg:hidden"
-              onClick={onMenuClick}
+              onClick={openSidebar}
             >
               <Menu className="h-5 w-5" />
             </Button>

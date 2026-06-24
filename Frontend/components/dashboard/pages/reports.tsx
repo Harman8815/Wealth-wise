@@ -19,11 +19,13 @@ import {
   LineChart,
   Line,
 } from "recharts"
+import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import { useMonthlyStats, useTransactionsByCategory, useTransactionSummary } from "@/hooks"
 
 const COLORS = ["#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ec4899"]
 
 export function ReportsPage() {
+  const { openSidebar } = useDashboardSidebar()
   const { data: monthlyStats, isLoading: isLoadingMonthly } = useMonthlyStats(6)
   const { data: categoryData, isLoading: isLoadingCategory } = useTransactionsByCategory()
   const { data: summary, isLoading: isLoadingSummary } = useTransactionSummary()
@@ -83,7 +85,7 @@ export function ReportsPage() {
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="icon" className="lg:hidden">
+            <Button variant="ghost" size="icon" className="lg:hidden" onClick={openSidebar}>
               <Menu className="w-5 h-5" />
             </Button>
             <div>

@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Menu, Plus, Edit, TrendingUp, AlertTriangle } from "lucide-react"
 import { useBudgetOverview, useBudgetCategories } from "@/hooks"
+import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 
 export function BudgetPlannerPage() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const { openSidebar } = useDashboardSidebar()
   const [editingId, setEditingId] = useState<string | null>(null)
   const { data: budgetOverview, isLoading: isLoadingOverview } = useBudgetOverview()
   const { data: budgetCategoriesData, isLoading: isLoadingCategories } = useBudgetCategories()
@@ -45,7 +46,7 @@ export function BudgetPlannerPage() {
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setIsSidebarOpen(true)}>
+            <Button variant="ghost" size="icon" className="lg:hidden" onClick={openSidebar}>
               <Menu className="w-5 h-5" />
             </Button>
             <div>

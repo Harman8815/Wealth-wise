@@ -19,8 +19,10 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Menu, Plus, Target, Calendar, TrendingUp, Edit, Trash2 } from "lucide-react"
 import { useGoals, useGoalProgress, useCreateGoal, useDeleteGoal } from "@/hooks"
+import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 
 export function GoalsPage() {
+  const { openSidebar } = useDashboardSidebar()
   const { data: goalsData, isLoading: isLoadingGoals } = useGoals()
   const { data: progress, isLoading: isLoadingProgress } = useGoalProgress()
   const createGoal = useCreateGoal()
@@ -123,7 +125,7 @@ export function GoalsPage() {
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="icon" className="lg:hidden">
+            <Button variant="ghost" size="icon" className="lg:hidden" onClick={openSidebar}>
               <Menu className="w-5 h-5" />
             </Button>
             <div>

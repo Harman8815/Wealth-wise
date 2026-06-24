@@ -15,10 +15,9 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { usePathname, useRouter } from "next/navigation"
+import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 
 interface SidebarProps {
-  isOpen: boolean
-  onClose: () => void
   onSettingsClick: () => void
   isCollapsed?: boolean
   onToggleCollapse?: () => void
@@ -119,7 +118,9 @@ function SidebarContent({
   )
 }
 
-export function Sidebar({ isOpen, onClose, onSettingsClick, isCollapsed = false, onToggleCollapse }: SidebarProps) {
+export function Sidebar({ onSettingsClick, isCollapsed = false, onToggleCollapse }: SidebarProps) {
+  const { isSidebarOpen, openSidebar, closeSidebar } = useDashboardSidebar()
+
   return (
     <>
       {/* Desktop Sidebar */}
@@ -137,7 +138,16 @@ export function Sidebar({ isOpen, onClose, onSettingsClick, isCollapsed = false,
       </div>
 
       {/* Mobile Sidebar */}
-      <Sheet open={isOpen} onOpenChange={onClose}>
+      <Sheet
+        open={isSidebarOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            openSidebar()
+          } else {
+            closeSidebar()
+          }
+        }}
+      >
         <SheetContent side="left" className="p-0 w-64 border-r-0 bg-transparent">
           <SidebarContent 
             onSettingsClick={onSettingsClick} 

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { SettingsDialog } from "@/components/dashboard/settings-dialog"
+import { DashboardSidebarProvider } from "@/components/dashboard/sidebar-context"
 import { useIsAuthenticated } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 
@@ -16,7 +17,6 @@ export default function DashboardLayout({
   const router = useRouter()
   const { isAuthenticated, isLoading } = useIsAuthenticated()
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
 
   useEffect(() => {
@@ -34,30 +34,30 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="flex">
-        {/* Sidebar */}
-        <Sidebar
-          isOpen={isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
-          onSettingsClick={() => setIsSettingsOpen(true)}
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        />
+    <DashboardSidebarProvider>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="flex">
+          {/* Sidebar */}
+          <Sidebar
+            onSettingsClick={() => setIsSettingsOpen(true)}
+            isCollapsed={isSidebarCollapsed}
+            onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          />
 
-        {/* Main Content */}
-        <div
-          className={cn(
-            "flex-1 transition-all duration-300",
-            isSidebarCollapsed ? "lg:ml-20" : "lg:ml-64"
-          )}
-        >
-          {children}
+          {/* Main Content */}
+          <div
+            className={cn(
+              "flex-1 transition-all duration-300",
+              isSidebarCollapsed ? "lg:ml-20" : "lg:ml-64"
+            )}
+          >
+            {children}
+          </div>
+
+          {/* Settings Dialog */}
+          <SettingsDialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
         </div>
-
-        {/* Settings Dialog */}
-        <SettingsDialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       </div>
-    </div>
+    </DashboardSidebarProvider>
   )
 }
