@@ -5,10 +5,10 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowUpRight, ArrowDownLeft } from "lucide-react"
-import { useTransactions } from "@/hooks"
+import { useSWRRecentTransactions } from "@/hooks/use-transactions-swr"
 
 export function RecentTransactions() {
-  const { data: transactionsData, isLoading } = useTransactions(undefined, 1, 5)
+  const { data: transactionsData, isLoading } = useSWRRecentTransactions(5)
   const transactions = transactionsData?.results || []
 
   if (isLoading) {

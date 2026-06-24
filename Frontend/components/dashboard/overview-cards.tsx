@@ -1,6 +1,7 @@
 "use client";
 
-import { useAccountSummary, useTransactionSummary, useBudgetOverview, useGoalProgress } from "@/hooks";
+import { useAccountSummary, useBudgetOverview, useGoalProgress } from "@/hooks";
+import { useSWRTransactionSummary } from "@/hooks/use-transactions-swr";
 import { GlassCard } from "@/shared/components";
 import { ProgressBar } from "@/shared/components/progress";
 import { AnimatedNumber } from "@/shared/components/animated-number";
@@ -88,7 +89,7 @@ function StatCard({
 
 export function OverviewCards() {
   const { data: accountSummary, isLoading: isLoadingAccounts } = useAccountSummary() as { data: AccountSummary | undefined; isLoading: boolean };
-  const { data: transactionSummary, isLoading: isLoadingTransactions } = useTransactionSummary() as { data: TransactionSummary | undefined; isLoading: boolean };
+  const { data: transactionSummary, isLoading: isLoadingTransactions } = useSWRTransactionSummary() as { data: TransactionSummary | undefined; isLoading: boolean };
   const { data: budgetOverview, isLoading: isLoadingBudget } = useBudgetOverview() as { data: BudgetOverview | undefined; isLoading: boolean };
   const { data: goalProgress, isLoading: isLoadingGoals } = useGoalProgress() as { data: GoalProgress | undefined; isLoading: boolean };
 
