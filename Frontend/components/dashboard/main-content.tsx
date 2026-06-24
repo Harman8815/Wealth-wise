@@ -7,6 +7,8 @@ import { OverviewCards } from "./overview-cards";
 import { RecentTransactions } from "./recent-transactions";
 import { MonthlyChart } from "./monthly-chart";
 import { cn } from "@/lib/utils";
+import { useSeedHistoricalData } from "@/hooks/use-auth";
+import { toast } from "@/hooks/use-toast";
 
 interface MainContentProps {
   onMenuClick: () => void;
@@ -44,6 +46,23 @@ const sampleInsights = [
 ];
 
 export function MainContent({ onMenuClick }: MainContentProps) {
+  const seedMutation = useSeedHistoricalData();
+
+  const handleSeedData = async () => {
+    try {
+      const result = await seedMutation.mutateAsync(undefined);
+      toast({
+        title: "Seed data generated",
+        description: result?.message || "Demo data has been populated for your account.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Failed to seed data",
+        description: err.response?.data?.detail || err.message || "Please try again.",
+      });
+    }
+  };
+
   return (
     <div className="flex-1 min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       {/* Header */}
@@ -67,6 +86,16 @@ export function MainContent({ onMenuClick }: MainContentProps) {
             <Button variant="outline" size="sm" className="hidden sm:flex">
               <Calendar className="h-4 w-4 mr-2" />
               This Month
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="hidden sm:flex"
+              onClick={handleSeedData}
+              loading={seedMutation.isPending}
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              Seed Demo Data
             </Button>
             <Button size="sm">
               <Plus className="h-4 w-4 mr-2" />
