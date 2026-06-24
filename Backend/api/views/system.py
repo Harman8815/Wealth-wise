@@ -15,6 +15,43 @@ from ..models import (
     Goal, Alert, AlertSetting, Expense
 )
 
+DEFAULT_DEMO_USER_EMAIL = "demo@wealthwise.com"
+DEFAULT_DEMO_USER_PASSWORD = "WealthWise123!"
+
+
+def get_or_create_default_user():
+    user, created = User.objects.get_or_create(
+        email=DEFAULT_DEMO_USER_EMAIL,
+        defaults={
+            "name": "Demo User",
+            "currency": "INR",
+            "language": "en",
+            "theme": "system",
+            "is_active": True,
+            "email_verified": True,
+        },
+    )
+    if created or not user.check_password(DEFAULT_DEMO_USER_PASSWORD):
+        user.set_password(DEFAULT_DEMO_USER_PASSWORD)
+        user.is_active = True
+        user.email_verified = True
+        user.save(update_fields=["password", "is_active", "email_verified"])
+    return user, created
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def default_user_info(request):
+    """Ensure a demo user exists and return the default login credentials."""
+    _, created = get_or_create_default_user()
+    return Response({
+        "email": DEFAULT_DEMO_USER_EMAIL,
+        "password": DEFAULT_DEMO_USER_PASSWORD,
+        "created": created,
+        "message": "Default demo user is ready.",
+    })
+
+
 
 @api_view(['GET'])
 @permission_classes([AllowAny])

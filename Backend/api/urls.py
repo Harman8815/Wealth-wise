@@ -17,6 +17,7 @@ from .views import (
     ExpenseViewSet,
     health_check,
     seed_historical_data,
+    default_user_info,
 )
 
 # Create router and register viewsets
@@ -42,4 +43,5 @@ urlpatterns = [
     # System endpoints
     path('health/', health_check, name='health_check'),
     path('seed-data/', seed_historical_data, name='seed_data'),
+    path('default-user/', default_user_info, name='default_user_info'),
 ]
