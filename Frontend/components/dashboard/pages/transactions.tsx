@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Menu, Search, Download, Plus, ArrowUpRight, ArrowDownLeft } from "lucide-react"
 import { useTransactions, useTransactionSummary } from "@/hooks"
+import { AddTransactionDialog } from "../add-transaction-dialog"
 
 export function TransactionsPage() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -17,6 +18,7 @@ export function TransactionsPage() {
   const [filterType, setFilterType] = useState<"all" | "income" | "expense">("all")
   const [sortBy, setSortBy] = useState("date")
   const [page, setPage] = useState(1)
+  const [isAddOpen, setIsAddOpen] = useState(false)
 
   const { data: transactionsData, isLoading: isLoadingTransactions } = useTransactions(
     {
@@ -69,13 +71,15 @@ export function TransactionsPage() {
               <Download className="w-4 h-4 mr-2" />
               Export
             </Button>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Transaction
-            </Button>
+              <Button onClick={() => setIsAddOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Transaction
+              </Button>
           </div>
         </div>
       </header>
+
+        <AddTransactionDialog isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
 
       {/* Main Content */}
       <main className="p-6 space-y-6">
