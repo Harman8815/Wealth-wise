@@ -36,8 +36,31 @@ class ApiClient {
 
     // Response interceptor - handle token refresh
     this.client.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        try {
+          const method = response.config?.method || ''
+          const isGet = method.toLowerCase() === 'get'
+          const notifier = typeof window !== 'undefined' ? (window as any).wealthwiseToast : undefined
+
+          if (!isGet) {
+            const message = response.data?.message || 'Request successful'
+            if (notifier) notifier({ title: message })
+          }
+        } catch (e) {
+          // swallow notifier errors
+        }
+
+        return response
+      },
       async (error: AxiosError) => {
+        try {
+          const notifier = typeof window !== 'undefined' ? (window as any).wealthwiseToast : undefined
+          const message = error.response?.data?.detail || error.message || 'Request failed'
+          if (notifier) notifier({ title: message })
+        } catch (e) {
+          // ignore notifier errors
+        }
+
         const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
         if (error.response?.status === 401 && !originalRequest._retry) {
