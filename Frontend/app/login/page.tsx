@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useLogin } from "@/hooks";
-import { DynamicBackground } from "@/components/shared/animations";
+import { useLogin, useEnsureDefaultUser } from "@/hooks";
 import { Mail, Lock, LogIn, Chrome, ArrowLeft, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
+
+const DEFAULT_USER_EMAIL = "demo@wealthwise.com";
+const DEFAULT_USER_PASSWORD = "WealthWise123!";
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
@@ -15,6 +17,7 @@ export default function LoginPage() {
     const router = useRouter();
 
     const loginMutation = useLogin();
+    const ensureDefaultUserMutation = useEnsureDefaultUser();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -24,6 +27,20 @@ export default function LoginPage() {
             router.push("/dashboard");
         } catch (err: any) {
             setError(err.response?.data?.detail || "Invalid credentials");
+        }
+    };
+
+    const handleLoginWithDefault = async () => {
+        setError("");
+        try {
+            await ensureDefaultUserMutation.mutateAsync();
+            await loginMutation.mutateAsync({
+                email: DEFAULT_USER_EMAIL,
+                password: DEFAULT_USER_PASSWORD,
+            });
+            router.push("/dashboard");
+        } catch (err: any) {
+            setError(err.response?.data?.detail || "Unable to login with default credentials");
         }
     };
 
@@ -271,10 +288,10 @@ export default function LoginPage() {
 
                         <button
                             type="submit"
-                            disabled={loginMutation.isPending}
+                            disabled={loginMutation.isPending || ensureDefaultUserMutation.isPending}
                             className="w-full py-5 bg-white text-slate-900 rounded-2xl font-bold shadow-2xl shadow-white/5 flex items-center justify-center gap-3 hover:bg-cyan-400 hover:text-white transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {loginMutation.isPending ? (
+                            {loginMutation.isPending || ensureDefaultUserMutation.isPending ? (
                                 "AUTHENTICATING..."
                             ) : (
                                 <>
@@ -284,6 +301,22 @@ export default function LoginPage() {
                             )}
                         </button>
                     </form>
+
+                    <button
+                        type="button"
+                        onClick={handleLoginWithDefault}
+                        disabled={loginMutation.isPending || ensureDefaultUserMutation.isPending}
+                        className="w-full mt-3 py-4 bg-slate-800 border border-white/10 text-white rounded-2xl font-bold hover:bg-slate-700 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {loginMutation.isPending || ensureDefaultUserMutation.isPending ? (
+                            "LOGIN WITH DEFAULT DATA..."
+                        ) : (
+                            <>
+                                <LogIn className="w-5 h-5" />
+                                Login with Default Data
+                            </>
+                        )}
+                    </button>
 
                     <div className="relative my-10">
                         <div className="absolute inset-0 flex items-center">
