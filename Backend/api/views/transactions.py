@@ -7,7 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Sum, Q
+from django.db.models import Sum, Count, Q
 
 from ..models import Transaction
 from ..serializers import TransactionSerializer
@@ -98,7 +98,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
         
         categories = queryset.values('category').annotate(
             total=Sum('amount'),
-            count=Sum('id')
+            count=Count('id')
         ).order_by('-total')
         
         return Response([
