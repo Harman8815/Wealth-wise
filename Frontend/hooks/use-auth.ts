@@ -3,7 +3,7 @@
  * React Query hooks for authentication
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { authApi, LoginInput, RegisterInput, userApi } from '@/api/services';
+import { authApi, systemApi, LoginInput, RegisterInput, userApi } from '@/api/services';
 import { queryKeys } from '@/api/query-client';
 
 // Login hook
@@ -20,6 +20,25 @@ export const useLogin = () => {
     },
     onSuccess: () => {
       // Invalidate user queries to trigger refetch
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.me });
+    },
+  });
+};
+
+// Ensure default demo user exists
+export const useEnsureDefaultUser = () => {
+  return useMutation({
+    mutationFn: systemApi.getDefaultUser,
+  });
+};
+
+// Seed historical demo data for current user
+export const useSeedHistoricalData = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (years?: number) => systemApi.seedHistoricalData(years),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.me });
     },
   });

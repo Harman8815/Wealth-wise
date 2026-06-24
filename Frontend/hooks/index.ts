@@ -8,6 +8,8 @@ export {
   useLogout,
   useMe,
   useIsAuthenticated,
+  useEnsureDefaultUser,
+  useSeedHistoricalData,
 } from './use-auth';
 
 export {
