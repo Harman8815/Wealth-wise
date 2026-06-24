@@ -9,6 +9,8 @@ import { MonthlyChart } from "./monthly-chart";
 import { cn } from "@/lib/utils";
 import { useSeedHistoricalData } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
+import { useState } from "react";
+import { AddTransactionDialog } from "./add-transaction-dialog";
 
 interface MainContentProps {
   onMenuClick: () => void;
@@ -47,6 +49,7 @@ const sampleInsights = [
 
 export function MainContent({ onMenuClick }: MainContentProps) {
   const seedMutation = useSeedHistoricalData();
+  const [isAddOpen, setIsAddOpen] = useState(false);
 
   const handleSeedData = async () => {
     try {
@@ -97,13 +100,15 @@ export function MainContent({ onMenuClick }: MainContentProps) {
               <Sparkles className="h-4 w-4 mr-2" />
               Seed Demo Data
             </Button>
-            <Button size="sm">
+            <Button size="sm" onClick={() => setIsAddOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Transaction
             </Button>
           </div>
         </div>
       </header>
+
+      <AddTransactionDialog isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
 
       {/* Main Content */}
       <main className="p-6 space-y-6 max-w-7xl mx-auto">
