@@ -2,3 +2,5 @@
 * text=auto
 context.ai.model
 *.list
+./Task.list
+**/Task.list
