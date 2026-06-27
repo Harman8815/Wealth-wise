@@ -130,17 +130,17 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
                 'name': c.name,
                 'budgeted': float(c.budgeted),
                 'spent': spent_float,
-                'remaining': float(max(0, c.budgeted - spent)),
+                'remaining': float(max(0, float(c.budgeted) - spent_float)),
                 'percentage_used': round((spent_float / float(c.budgeted)) * 100, 2) if c.budgeted > 0 else 0,
                 'color': c.color,
                 'icon': c.icon
             })
         
-        total_remaining = total_budgeted - total_spent
+        total_remaining = float(total_budgeted) - total_spent
         
         overall_percentage = 0
         if total_budgeted > 0:
-            overall_percentage = (total_spent / total_budgeted) * 100
+            overall_percentage = (total_spent / float(total_budgeted)) * 100
         
         return Response({
             'total_budgeted': float(total_budgeted),
