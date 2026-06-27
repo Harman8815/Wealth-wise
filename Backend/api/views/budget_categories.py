@@ -50,8 +50,20 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        """Return budget categories for current user."""
-        return BudgetCategory.objects.filter(user=self.request.user)
+        """Return budget categories for current user with auto-updated spent values."""
+        queryset = BudgetCategory.objects.filter(user=self.request.user)
+        # Auto-update spent values when queried to ensure sync with transactions
+        for category in queryset:
+            category_name = normalize_category_name(category.name)
+            spent = Transaction.objects.filter(
+                user=self.request.user,
+                category=category_name,
+                type='expense'
+            ).aggregate(total=Sum('amount'))['total'] or 0
+            if category.spent != spent:
+                category.spent = spent
+                category.save(update_fields=['spent'])
+        return queryset
 
     def perform_create(self, serializer):
         """Create budget category with current user as owner. Update if exists."""
