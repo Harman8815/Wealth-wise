@@ -7,9 +7,21 @@ import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Menu, Plus, Edit, TrendingUp, AlertTriangle } from "lucide-react"
+import { Menu, Plus, Edit, TrendingUp, AlertTriangle, Eye, ShoppingBag, Car, Film, ShoppingCart, Receipt, HeartPulse, Coffee, DollarSign, Home, Zap } from "lucide-react"
 import { useBudgetOverview, useBudgetCategories } from "@/hooks"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
+import Link from "next/link"
+
+const defaultCategoryIcons: Record<string, { icon: React.ReactNode; color: string; bgColor: string }> = {
+  "Food & Dining": { icon: <Coffee className="w-5 h-5" />, color: "text-orange-600", bgColor: "bg-orange-100 dark:bg-orange-900" },
+  "Transportation": { icon: <Car className="w-5 h-5" />, color: "text-blue-600", bgColor: "bg-blue-100 dark:bg-blue-900" },
+  "Entertainment": { icon: <Film className="w-5 h-5" />, color: "text-purple-600", bgColor: "bg-purple-100 dark:bg-purple-900" },
+  "Shopping": { icon: <ShoppingCart className="w-5 h-5" />, color: "text-pink-600", bgColor: "bg-pink-100 dark:bg-pink-900" },
+  "Bills & Utilities": { icon: <Zap className="w-5 h-5" />, color: "text-yellow-600", bgColor: "bg-yellow-100 dark:bg-yellow-900" },
+  "Healthcare": { icon: <HeartPulse className="w-5 h-5" />, color: "text-red-600", bgColor: "bg-red-100 dark:bg-red-900" },
+  "Income": { icon: <DollarSign className="w-5 h-5" />, color: "text-green-600", bgColor: "bg-green-100 dark:bg-green-900" },
+  "default": { icon: <ShoppingBag className="w-5 h-5" />, color: "text-gray-600", bgColor: "bg-gray-100 dark:bg-gray-900" },
+}
 
 export function BudgetPlannerPage() {
   const { openSidebar } = useDashboardSidebar()
@@ -22,6 +34,13 @@ export function BudgetPlannerPage() {
   const totalSpent = budgetOverview?.total_spent || 0
   const remainingBudget = budgetOverview?.total_remaining || 0
   const overallPercentage = budgetOverview?.overall_percentage || 0
+
+  // Sort categories by highest consumption (spent/budgeted ratio)
+  const sortedCategories = [...budgetCategories].sort((a, b) => {
+    const pctA = (a.spent / a.budgeted) * 100
+    const pctB = (b.spent / b.budgeted) * 100
+    return pctB - pctA
+  })
 
   if (isLoadingOverview || isLoadingCategories) {
     return (
@@ -133,15 +152,19 @@ export function BudgetPlannerPage() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-6">
-              {budgetCategories.map((category) => {
+              {sortedCategories.map((category) => {
                 const percentage = (category.spent / category.budgeted) * 100
                 const isOverBudget = category.spent > category.budgeted
+                const isNearLimit = percentage >= 90 && !isOverBudget
+                const categoryIcon = defaultCategoryIcons[category.name] || defaultCategoryIcons.default
 
                 return (
                   <div key={category.id} className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: category.color }} />
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${categoryIcon.bgColor}`}>
+                          <span className={categoryIcon.color}>{categoryIcon.icon}</span>
+                        </div>
                         <h3 className="font-medium">{category.name}</h3>
                         {isOverBudget && (
                           <Badge variant="destructive" className="text-xs">
@@ -149,8 +172,14 @@ export function BudgetPlannerPage() {
                             Over Budget
                           </Badge>
                         )}
+                        {isNearLimit && (
+                          <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300">
+                            <AlertTriangle className="w-3 h-3 mr-1" />
+                            Near Limit
+                          </Badge>
+                        )}
                       </div>
-                      <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-2">
                         <div className="text-right">
                           <div className="text-sm font-medium">
                             ₹{category.spent.toLocaleString()} /
@@ -178,6 +207,11 @@ export function BudgetPlannerPage() {
                           </div>
                           <div className="text-xs text-gray-600 dark:text-gray-400">{percentage.toFixed(1)}% used</div>
                         </div>
+                        <Link href={`/dashboard/budget/${encodeURIComponent(category.name)}`}>
+                          <Button size="sm" variant="ghost">
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </Link>
                         <Button
                           size="sm"
                           variant="outline"
@@ -189,7 +223,7 @@ export function BudgetPlannerPage() {
                     </div>
                     <Progress
                       value={Math.min(percentage, 100)}
-                      className={`h-2 ${isOverBudget ? "[&>div]:bg-red-500" : ""}`}
+                      className={`h-2 ${isOverBudget ? "[&>div]:bg-red-500" : isNearLimit ? "[&>div]:bg-orange-500" : ""}`}
                     />
                     <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
                       <span>Remaining: ₹{Math.max(0, category.budgeted - category.spent).toLocaleString()}</span>
