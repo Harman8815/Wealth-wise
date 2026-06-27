@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { usePathname } from "next/navigation"
 
 interface DashboardSidebarContextValue {
   isSidebarOpen: boolean
@@ -12,7 +13,13 @@ interface DashboardSidebarContextValue {
 const DashboardSidebarContext = React.createContext<DashboardSidebarContextValue | null>(null)
 
 export function DashboardSidebarProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false)
+
+  // Auto-close sidebar on route change
+  React.useEffect(() => {
+    setIsSidebarOpen(false)
+  }, [pathname])
 
   const openSidebar = React.useCallback(() => setIsSidebarOpen(true), [])
   const closeSidebar = React.useCallback(() => setIsSidebarOpen(false), [])
