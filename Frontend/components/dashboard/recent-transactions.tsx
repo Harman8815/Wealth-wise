@@ -91,8 +91,9 @@ export function RecentTransactions() {
         <CardContent>
           <div className="space-y-3">
             {transactions.map((transaction) => {
-              const iconData = categoryColors[transaction.category] || categoryColors.default
-              const IconComponent = categoryIcons[transaction.category] || <ShoppingBag className="w-5 h-5" />
+              const categoryName = typeof transaction.category === 'object' ? transaction.category?.name : transaction.category
+              const iconData = categoryColors[categoryName] || categoryColors.default
+              const IconComponent = categoryIcons[categoryName] || <ShoppingBag className="w-5 h-5" />
               
               return (
                 <div
@@ -107,7 +108,7 @@ export function RecentTransactions() {
                     </div>
                     <div>
                       <p className="font-medium text-sm">{transaction.description}</p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">{transaction.category}</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">{categoryName}</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -160,7 +161,7 @@ export function RecentTransactions() {
                 </div>
                 <div>
                   <p className="font-medium">{viewTransaction.description}</p>
-                  <Badge variant="outline" className="text-xs">{viewTransaction.category}</Badge>
+                  <Badge variant="outline" className="text-xs">{typeof viewTransaction.category === 'object' ? viewTransaction.category?.name : viewTransaction.category}</Badge>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">

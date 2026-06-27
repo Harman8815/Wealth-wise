@@ -399,7 +399,7 @@ export function TransactionsPage() {
                            </div>
                          </TableCell>
                          <TableCell>
-                           <Badge variant="outline">{transaction.category}</Badge>
+                            <Badge variant="outline">{transaction.category?.name}</Badge>
                          </TableCell>
                          <TableCell className="text-gray-600 dark:text-gray-400">{transaction.account_name || "-"}</TableCell>
                          <TableCell>
