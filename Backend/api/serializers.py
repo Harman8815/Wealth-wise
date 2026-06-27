@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Account, Transaction, BudgetCategory, Goal, Alert, AlertSetting, Expense
+from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -32,6 +32,13 @@ class TransactionSerializer(serializers.ModelSerializer):
         model = Transaction
         fields = ['id', 'date', 'description', 'category', 'amount', 'type', 'status', 'account', 'account_name', 'created_at', 'updated_at']
         read_only_fields = ['id', 'account_name', 'created_at', 'updated_at']
+
+
+class TransactionHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TransactionHistory
+        fields = ['id', 'transaction', 'changed_at', 'field_name', 'old_value', 'new_value']
+        read_only_fields = ['id', 'transaction', 'changed_at', 'field_name', 'old_value', 'new_value']
 
 
 class BudgetCategorySerializer(serializers.ModelSerializer):

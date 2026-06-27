@@ -10,8 +10,8 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Sum, Count, Q
 
-from ..models import Transaction
-from ..serializers import TransactionSerializer
+from ..models import Transaction, TransactionHistory
+from ..serializers import TransactionSerializer, TransactionHistorySerializer
 from ..base import StandardResultsSetPagination, IsOwner
 
 
@@ -46,6 +46,31 @@ class TransactionViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Create transaction with current user as owner."""
         serializer.save(user=self.request.user)
+
+    def perform_update(self, serializer):
+        """Update transaction and track changes in history."""
+        transaction = serializer.instance
+        user = self.request.user
+        
+        # Track changes before saving
+        old_values = {}
+        for field in ['date', 'description', 'category', 'amount', 'type', 'status']:
+            old_values[field] = getattr(transaction, field)
+        
+        super().perform_update(serializer)
+        
+        # Create history records for changed fields
+        changed_fields = serializer.changed_data
+        for field in changed_fields:
+            if field in old_values:
+                TransactionHistory.objects.create(
+                    transaction=transaction,
+                    user=user,
+                    changed_by=user,
+                    field_name=field,
+                    old_value=str(old_values[field]),
+                    new_value=str(serializer.validated_data[field])
+                )
 
     @action(detail=False, methods=['get'])
     def summary(self, request):
@@ -144,4 +169,25 @@ class TransactionViewSet(viewsets.ModelViewSet):
                 'net': float((item['income'] or 0) - (item['expense'] or 0))
             }
             for item in monthly_data
+        ])
+
+    @action(detail=True, methods=['get'])
+    def history(self, request, pk=None):
+        """
+        Get edit history for a specific transaction.
+        
+        Returns:
+            List of changes made to the transaction.
+        """
+        transaction = self.get_object()
+        history = TransactionHistory.objects.filter(transaction=transaction).order_by('-changed_at')
+        return Response([
+            {
+                'id': str(h.id),
+                'changed_at': h.changed_at,
+                'field_name': h.field_name,
+                'old_value': h.old_value,
+                'new_value': h.new_value
+            }
+            for h in history
         ])

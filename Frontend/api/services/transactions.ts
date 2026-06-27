@@ -58,6 +58,15 @@ export interface MonthlyStats {
   net: number;
 }
 
+export interface TransactionHistory {
+  id: string;
+  transaction: string;
+  changed_at: string;
+  field_name: string;
+  old_value: string;
+  new_value: string;
+}
+
 export const transactionApi = {
   getAll: async (filters?: {
     category?: string;
@@ -115,6 +124,11 @@ export const transactionApi = {
     const response = await apiClient.get<MonthlyStats[]>('/transactions/monthly_stats/', {
       params: { months },
     });
+    return response.data;
+  },
+
+  getHistory: async (id: string) => {
+    const response = await apiClient.get<TransactionHistory[]>(`/transactions/${id}/history/`);
     return response.data;
   },
 };

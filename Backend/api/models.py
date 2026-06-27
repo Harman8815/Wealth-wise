@@ -137,6 +137,29 @@ class Transaction(models.Model):
         super().save(*args, **kwargs)
 
 
+class TransactionHistory(models.Model):
+    """Track all changes made to transactions"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    transaction = models.ForeignKey(Transaction, on_delete=models.CASCADE, related_name='history')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transaction_history')
+    changed_at = models.DateTimeField(auto_now_add=True)
+    changed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='changes_made')
+    field_name = models.CharField(max_length=50)
+    old_value = models.TextField(blank=True)
+    new_value = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'transaction_history'
+        ordering = ['-changed_at']
+        indexes = [
+            models.Index(fields=['transaction']),
+            models.Index(fields=['user']),
+        ]
+
+    def __str__(self):
+        return f"Change to {self.transaction.description} at {self.changed_at}"
+
+
 class BudgetCategory(models.Model):
     """Budget allocation per category"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

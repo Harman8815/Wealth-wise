@@ -10,13 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Menu, Search, Plus, ArrowUpRight, ArrowDownLeft, ChevronLeft, ChevronRight, X, Eye, Pencil, Trash2 } from "lucide-react"
-import { useTransactions, useTransactionSummary, useUpdateTransaction, useDeleteTransaction } from "@/hooks"
+import { Menu, Search, Plus, ArrowUpRight, ArrowDownLeft, ChevronLeft, ChevronRight, X, Eye, Pencil, Trash2, History } from "lucide-react"
+import { useTransactions, useTransactionSummary, useUpdateTransaction, useDeleteTransaction, useTransactionHistory } from "@/hooks"
 import { AddTransactionDialog } from "../add-transaction-dialog"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import { Transaction } from "@/api/services"
 import { toast } from "@/hooks/use-toast"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 const PAGE_SIZE = 10
 
@@ -47,6 +46,7 @@ export function TransactionsPage() {
   const { data: summary, isLoading: isLoadingSummary } = useTransactionSummary()
   const updateMutation = useUpdateTransaction()
   const deleteMutation = useDeleteTransaction()
+  const { data: history, isLoading: isLoadingHistory } = useTransactionHistory(viewTransaction?.id || "")
 
   const transactions = transactionsData?.results || []
   const totalCount = transactionsData?.count || 0
@@ -121,7 +121,7 @@ export function TransactionsPage() {
         <AddTransactionDialog isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
 
       <Dialog open={!!viewTransaction} onOpenChange={(open) => !open && setViewTransaction(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>View Transaction</DialogTitle>
           </DialogHeader>
@@ -163,6 +163,34 @@ export function TransactionsPage() {
                   <p className="text-sm">{viewTransaction.account_name || "-"}</p>
                 </div>
               </div>
+
+              {/* Edit History */}
+              <div className="pt-4 border-t">
+                <div className="flex items-center space-x-2 mb-2">
+                  <History className="w-4 h-4" />
+                  <h3 className="font-medium">Edit History</h3>
+                </div>
+                {isLoadingHistory ? (
+                  <Skeleton className="h-20 w-full" />
+                ) : history && history.length > 0 ? (
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {history.map((h) => (
+                      <div key={h.id} className="text-sm p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                        <div className="flex justify-between">
+                          <span className="font-medium">{h.field_name}</span>
+                          <span className="text-gray-500">{new Date(h.changed_at).toLocaleString()}</span>
+                        </div>
+                        <div className="text-gray-600">
+                          {h.old_value} → {h.new_value}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No edit history available</p>
+                )}
+              </div>
+
               <div className="flex justify-end space-x-2 pt-4">
                 <Button variant="outline" onClick={() => { setIsEditOpen(true); setViewTransaction(null) }}>
                   <Pencil className="w-4 h-4 mr-2" />

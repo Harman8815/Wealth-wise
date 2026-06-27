@@ -99,3 +99,12 @@ export const useDeleteTransaction = () => {
     },
   });
 };
+
+// Get transaction history
+export const useTransactionHistory = (id: string) => {
+  return useQuery({
+    queryKey: queryKeys.transactions.history(id),
+    queryFn: () => transactionApi.getHistory(id),
+    enabled: !!id,
+  });
+};

@@ -42,6 +42,7 @@ export const queryKeys = {
     summary: ['transactions', 'summary'] as const,
     byCategory: ['transactions', 'by-category'] as const,
     monthlyStats: ['transactions', 'monthly-stats'] as const,
+    history: (id: string) => ['transactions', id, 'history'] as const,
   },
   budgetCategories: {
     all: ['budget-categories'] as const,
