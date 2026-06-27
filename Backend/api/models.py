@@ -96,22 +96,12 @@ class Transaction(models.Model):
         ('pending', 'Pending'),
     ]
 
-    CATEGORIES = [
-        ('Food & Dining', 'Food & Dining'),
-        ('Transportation', 'Transportation'),
-        ('Shopping', 'Shopping'),
-        ('Entertainment', 'Entertainment'),
-        ('Bills & Utilities', 'Bills & Utilities'),
-        ('Healthcare', 'Healthcare'),
-        ('Income', 'Income'),
-    ]
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transactions')
     account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
     date = models.DateField()
     description = models.CharField(max_length=500)
-    category = models.CharField(max_length=100, choices=CATEGORIES)
+    category = models.ForeignKey('Category', on_delete=models.PROTECT, null=True, blank=True, related_name='transactions')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='completed')
@@ -188,6 +178,7 @@ class BudgetCategory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='budget_categories')
     name = models.CharField(max_length=100)
+    category = models.ForeignKey('Category', on_delete=models.PROTECT, null=True, blank=True, related_name='budget_allocations')
     budgeted = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     spent = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     color = models.CharField(max_length=7, default='#3b82f6')
@@ -420,20 +411,10 @@ class Category(models.Model):
 
 class Expense(models.Model):
     """Quick expense tracking for daily expenses"""
-    CATEGORIES = [
-        ('Food & Dining', 'Food & Dining'),
-        ('Transportation', 'Transportation'),
-        ('Shopping', 'Shopping'),
-        ('Entertainment', 'Entertainment'),
-        ('Bills', 'Bills'),
-        ('Healthcare', 'Healthcare'),
-        ('Other', 'Other'),
-    ]
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='expenses')
     date = models.DateField()
-    category = models.CharField(max_length=100, choices=CATEGORIES)
+    category = models.ForeignKey('Category', on_delete=models.PROTECT, related_name='expenses')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     note = models.CharField(max_length=500)
     receipt_url = models.CharField(max_length=500, blank=True)
