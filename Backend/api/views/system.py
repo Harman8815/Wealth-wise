@@ -12,7 +12,7 @@ import random
 
 from ..models import (
     User, Account, Transaction, BudgetCategory, 
-    Goal, Alert, AlertSetting, Expense
+    Goal, Alert, AlertSetting, Expense, Category
 )
 
 DEFAULT_DEMO_USER_EMAIL = "demo@wealthwise.com"
@@ -128,6 +128,36 @@ def seed_historical_data(request):
             account = Account.objects.create(user=user, **acc_data)
             accounts.append(account)
         
+        # Categories for transactions
+        categories_data = [
+            {'name': 'Income', 'type': 'income', 'color': '#22c55e', 'icon': 'briefcase', 'symbol': 'briefcase'},
+            {'name': 'Food & Dining', 'type': 'expense', 'color': '#ef4444', 'icon': 'utensils', 'symbol': 'utensils'},
+            {'name': 'Transportation', 'type': 'expense', 'color': '#3b82f6', 'icon': 'car', 'symbol': 'car'},
+            {'name': 'Shopping', 'type': 'expense', 'color': '#10b981', 'icon': 'shopping-cart', 'symbol': 'shopping-cart'},
+            {'name': 'Entertainment', 'type': 'expense', 'color': '#8b5cf6', 'icon': 'film', 'symbol': 'film'},
+            {'name': 'Bills & Utilities', 'type': 'expense', 'color': '#f59e0b', 'icon': 'zap', 'symbol': 'zap'},
+            {'name': 'Healthcare', 'type': 'expense', 'color': '#ec4899', 'icon': 'heart-pulse', 'symbol': 'heart-pulse'},
+        ]
+
+        category_lookup = {}
+        for cat_data in categories_data:
+            cat, _ = Category.objects.get_or_create(
+                user=user,
+                name=cat_data['name'],
+                type=cat_data['type'],
+                defaults={
+                    'color': cat_data['color'],
+                    'text_color': '#ffffff',
+                    'icon': cat_data['icon'],
+                    'symbol': cat_data['symbol'],
+                    'is_default': True,
+                }
+            )
+            category_lookup[cat_data['name']] = cat
+
+        income_category = category_lookup['Income']
+        expense_categories = [category_lookup['Food & Dining'], category_lookup['Transportation'], category_lookup['Shopping'], category_lookup['Entertainment'], category_lookup['Bills & Utilities'], category_lookup['Healthcare']]
+
         # Create budget categories
         budget_categories_data = [
             {'name': 'Food & Dining', 'budgeted': 18000, 'color': '#ef4444', 'icon': 'utensils'},
@@ -196,7 +226,7 @@ def seed_historical_data(request):
                     account=accounts[1],
                     date=current_date,
                     description=f"Salary - {current_date.strftime('%B %Y')}",
-                    category='Income',
+                    category=income_category,
                     amount=85000 + random.randint(-5000, 5000),
                     type='income',
                     status='completed',
@@ -206,13 +236,12 @@ def seed_historical_data(request):
             
             # Random expenses
             if random.random() < 0.3:  # 30% chance of expense per day
-                categories = ['Food & Dining', 'Transportation', 'Shopping', 'Entertainment']
-                category = random.choice(categories)
+                category = random.choice(expense_categories)
                 Transaction.objects.create(
                     user=user,
                     account=random.choice(accounts[2:5]),
                     date=current_date,
-                    description=f'{category} expense',
+                    description=f'{category.name} expense',
                     category=category,
                     amount=random.randint(100, 5000),
                     type='expense',
