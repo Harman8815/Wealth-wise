@@ -362,6 +362,62 @@ class AlertSetting(models.Model):
         return f"{self.title} - {self.user.email}"
 
 
+class Category(models.Model):
+    """Shared category system across the application."""
+    CATEGORY_TYPES = [
+        ('expense', 'Expense'),
+        ('income', 'Income'),
+        ('goal', 'Goal'),
+        ('budget', 'Budget'),
+    ]
+
+    ICON_SYMBOLS = [
+        ('utensils', 'Utensils'),
+        ('car', 'Car'),
+        ('shopping-cart', 'Shopping Cart'),
+        ('film', 'Film'),
+        ('home', 'Home'),
+        ('heart-pulse', 'Healthcare'),
+        ('fuel', 'Fuel'),
+        ('wifi', 'Internet'),
+        ('phone', 'Phone'),
+        ('credit-card', 'Credit Card'),
+        ('gift', 'Gift'),
+        ('coffee', 'Coffee'),
+        ('book', 'Education'),
+        ('plane', 'Travel'),
+        ('dumbbell', 'Fitness'),
+        ('music', 'Music'),
+        ('shirt', 'Shopping'),
+        ('zap', 'Utilities'),
+        ('piggy-bank', 'Savings'),
+        ('briefcase', 'Work'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='categories')
+    name = models.CharField(max_length=100)
+    type = models.CharField(max_length=20, choices=CATEGORY_TYPES, default='expense')
+    color = models.CharField(max_length=7, default='#3b82f6')
+    text_color = models.CharField(max_length=7, default='#ffffff')
+    icon = models.CharField(max_length=50, blank=True, default='utensils')
+    symbol = models.CharField(max_length=50, blank=True, default='utensils', choices=ICON_SYMBOLS)
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'categories'
+        unique_together = [['user', 'name', 'type']]
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['type']),
+        ]
+
+    def __str__(self):
+        return f"{self.name} - {self.user.email}"
+
+
 class Expense(models.Model):
     """Quick expense tracking for daily expenses"""
     CATEGORIES = [
