@@ -39,6 +39,7 @@ export {
   useCreateTransaction,
   useUpdateTransaction,
   useDeleteTransaction,
+  useTransactionHistory,
 } from './use-transactions';
 
 export {
