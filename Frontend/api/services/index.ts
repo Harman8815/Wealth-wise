@@ -3,6 +3,16 @@
  * Central export for all API services
  */
 export {
+  authApi,
+  type LoginInput,
+  type LoginResponse,
+  type RefreshResponse,
+  type RegisterInput,
+} from './auth';
+export { systemApi, type DefaultUserResponse, type SeedDataResponse } from './system';
+export { userApi, type User, type CreateUserInput, type UpdateUserInput } from './users';
+export { accountApi, type Account, type CreateAccountInput, type UpdateAccountInput, type AccountSummary } from './accounts';
+export {
   transactionApi,
   type Transaction,
   type CreateTransactionInput,
