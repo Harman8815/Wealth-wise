@@ -43,6 +43,16 @@ export {
 } from './use-transactions';
 
 export {
+  useCategories,
+  useCategory,
+  useSearchCategories,
+  useDefaultCategories,
+  useCreateCategory,
+  useUpdateCategory,
+  useDeleteCategory,
+} from './use-categories';
+
+export {
   useBudgetCategories,
   useBudgetCategory,
   useBudgetOverview,

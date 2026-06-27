@@ -3,6 +3,7 @@
  * API functions for transaction management
  */
 import { apiClient, PaginatedResponse } from '../client';
+import type { Category } from './categories';
 
 export interface Transaction {
   id: string;
@@ -10,7 +11,7 @@ export interface Transaction {
   account_name: string;
   date: string;
   description: string;
-  category: string;
+  category: Category;
   amount: number;
   type: 'income' | 'expense';
   status: 'completed' | 'pending';
@@ -22,7 +23,7 @@ export interface CreateTransactionInput {
   account: string;
   date: string;
   description: string;
-  category: string;
+  category_name: string;
   amount: number;
   type: 'income' | 'expense';
   status?: 'completed' | 'pending';
@@ -32,7 +33,7 @@ export interface UpdateTransactionInput {
   account?: string;
   date?: string;
   description?: string;
-  category?: string;
+  category_name?: string;
   amount?: number;
   type?: 'income' | 'expense';
   status?: 'completed' | 'pending';

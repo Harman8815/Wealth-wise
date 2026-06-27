@@ -2,11 +2,12 @@
  * Expense API Services
  */
 import { apiClient, PaginatedResponse } from '../client';
+import type { Category } from './categories';
 
 export interface Expense {
   id: string;
   date: string;
-  category: 'Food & Dining' | 'Transportation' | 'Shopping' | 'Entertainment' | 'Bills' | 'Healthcare' | 'Other';
+  category: Category;
   amount: number;
   note: string;
   receipt_url?: string;
@@ -16,7 +17,7 @@ export interface Expense {
 
 export interface CreateExpenseInput {
   date: string;
-  category: Expense['category'];
+  category_name: string;
   amount: number;
   note: string;
   receipt_url?: string;
@@ -24,7 +25,7 @@ export interface CreateExpenseInput {
 
 export interface UpdateExpenseInput {
   date?: string;
-  category?: Expense['category'];
+  category_name?: string;
   amount?: number;
   note?: string;
   receipt_url?: string;

@@ -49,6 +49,12 @@ export const queryKeys = {
     detail: (id: string) => ['budget-categories', id] as const,
     overview: ['budget-categories', 'overview'] as const,
   },
+  categories: {
+    all: ['categories'] as const,
+    detail: (id: string) => ['categories', id] as const,
+    search: (query: string, type?: string) => ['categories', 'search', query, type] as const,
+    defaults: ['categories', 'defaults'] as const,
+  },
   goals: {
     all: ['goals'] as const,
     detail: (id: string) => ['goals', id] as const,

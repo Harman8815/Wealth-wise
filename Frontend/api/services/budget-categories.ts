@@ -2,10 +2,12 @@
  * Budget Category API Services
  */
 import { apiClient, PaginatedResponse } from '@/api/client';
+import type { Category } from './categories';
 
 export interface BudgetCategory {
   id: string;
   name: string;
+  category?: Category;
   budgeted: number;
   spent: number;
   color: string;
@@ -42,6 +44,7 @@ export interface BudgetOverview {
   categories: Array<{
     id: string;
     name: string;
+    category?: string;
     budgeted: number;
     spent: number;
     remaining: number;
