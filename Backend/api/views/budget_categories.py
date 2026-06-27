@@ -125,9 +125,11 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
                 category__in=variations,
                 type='expense'
             ).aggregate(total=Sum('amount'))['total'] or 0
-            if category.spent != spent:
-                category.spent = spent
-                category.save(update_fields=['spent'])
+            # Convert to Decimal for proper comparison - ensure consistent type
+            from decimal import Decimal
+            spent_decimal = Decimal('0') if spent == 0 else Decimal(str(spent))
+            category.spent = spent_decimal
+            category.save(update_fields=['spent'])
         return queryset
 
     def perform_create(self, serializer):
