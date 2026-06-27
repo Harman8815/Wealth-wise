@@ -10,7 +10,7 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Sum, Count, Q
 
-from ..models import Transaction, TransactionHistory
+from ..models import Transaction, TransactionHistory, Category
 from ..serializers import TransactionSerializer, TransactionHistorySerializer
 from ..base import StandardResultsSetPagination, IsOwner
 
@@ -24,7 +24,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
     - expense: Purchases, bills, etc.
     
     Filterable fields:
-    - category: Food & Dining, Transportation, etc.
+    - category: Category ID or name (if auto-created)
     - type: income, expense
     - status: completed, pending
     - date: Transaction date
@@ -33,18 +33,36 @@ class TransactionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsOwner]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['category', 'type', 'status', 'date']
-    search_fields = ['description', 'category', 'account__name', 'status']
-    ordering_fields = ['date', 'amount', 'category', 'created_at']
+    search_fields = ['description', 'category__name', 'account__name', 'status']
+    ordering_fields = ['date', 'amount', 'category__name', 'created_at']
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
         """Return transactions for current user, ordered by date."""
         return Transaction.objects.filter(
             user=self.request.user
-        ).order_by('-date', '-created_at')
+        ).select_related('category').order_by('-date', '-created_at')
 
     def perform_create(self, serializer):
-        """Create transaction with current user as owner."""
+        """Create transaction with current user as owner.
+        Auto-create category if category name is provided as string.
+        """
+        category = serializer.validated_data.get('category')
+        if category is None:
+            category_name = serializer.validated_data.get('category_name')
+            if category_name:
+                category, _ = Category.objects.get_or_create(
+                    user=self.request.user,
+                    name=category_name,
+                    type='expense' if serializer.validated_data.get('type') == 'expense' else 'income',
+                    defaults={
+                        'color': '#3b82f6',
+                        'text_color': '#ffffff',
+                        'icon': 'utensils',
+                        'symbol': 'utensils',
+                        'is_default': False,
+                    }
+                )
         serializer.save(user=self.request.user)
 
     def perform_update(self, serializer):
@@ -63,13 +81,18 @@ class TransactionViewSet(viewsets.ModelViewSet):
         changed_fields = serializer.changed_data
         for field in changed_fields:
             if field in old_values:
+                old_value = old_values[field]
+                new_value = serializer.validated_data.get(field)
+                if field == 'category':
+                    old_value = str(old_value.id) if old_value else None
+                    new_value = str(new_value.id) if new_value else None
                 TransactionHistory.objects.create(
                     transaction=transaction,
                     user=user,
                     changed_by=user,
                     field_name=field,
-                    old_value=str(old_values[field]),
-                    new_value=str(serializer.validated_data[field])
+                    old_value=str(old_value),
+                    new_value=str(new_value)
                 )
 
     @action(detail=False, methods=['get'])

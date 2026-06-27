@@ -7,94 +7,11 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum
+from decimal import Decimal
 
-from ..models import BudgetCategory, Transaction
+from ..models import BudgetCategory, Transaction, Category
 from ..serializers import BudgetCategorySerializer
 from ..base import StandardResultsSetPagination, IsOwner
-
-
-# Category name mapping for flexible matching
-CATEGORY_NAME_MAPPING = {
-    # Food & Dining variations
-    'Food': 'Food & Dining',
-    'Dining': 'Food & Dining',
-    'food': 'Food & Dining',
-    'dining': 'Food & Dining',
-    'Food & dining': 'Food & Dining',
-    # Transportation variations
-    'Transport': 'Transportation',
-    'transport': 'Transportation',
-    'Travel': 'Transportation',
-    'travel': 'Transportation',
-    'Car': 'Transportation',
-    'car': 'Transportation',
-    'Fuel': 'Transportation',
-    'fuel': 'Transportation',
-    # Entertainment variations
-    'Entertainment': 'Entertainment',
-    'entertainment': 'Entertainment',
-    'Movies': 'Entertainment',
-    'movies': 'Entertainment',
-    'Fun': 'Entertainment',
-    'fun': 'Entertainment',
-    # Shopping variations
-    'Shop': 'Shopping',
-    'shop': 'Shopping',
-    'Groceries': 'Shopping',
-    'groceries': 'Shopping',
-    'Grocery': 'Shopping',
-    'grocery': 'Shopping',
-    'Retail': 'Shopping',
-    'retail': 'Shopping',
-    # Bills & Utilities variations
-    'Bills': 'Bills & Utilities',
-    'bills': 'Bills & Utilities',
-    'Utilities': 'Bills & Utilities',
-    'utilities': 'Bills & Utilities',
-    'Electricity': 'Bills & Utilities',
-    'electricity': 'Bills & Utilities',
-    'Water': 'Bills & Utilities',
-    'water': 'Bills & Utilities',
-    'Internet': 'Bills & Utilities',
-    'internet': 'Bills & Utilities',
-    # Healthcare variations
-    'Health': 'Healthcare',
-    'health': 'Healthcare',
-    'Medical': 'Healthcare',
-    'medical': 'Healthcare',
-    'Doctor': 'Healthcare',
-    'doctor': 'Healthcare',
-    'Medicine': 'Healthcare',
-    'medicine': 'Healthcare',
-}
-
-def normalize_category_name(name):
-    """Normalize category name for matching - try exact match first, then case-insensitive."""
-    if not name:
-        return name
-    # Try exact match
-    mapped = CATEGORY_NAME_MAPPING.get(name)
-    if mapped:
-        return mapped
-    # Try case-insensitive match
-    lower_name = name.lower()
-    for key, value in CATEGORY_NAME_MAPPING.items():
-        if key.lower() == lower_name:
-            return value
-    return name
-
-
-def get_all_category_variations(normalized_name):
-    """Get all possible variations of a category name for matching transactions."""
-    variations_map = {
-        'Food & Dining': ['Food & Dining', 'Food', 'Dining', 'food', 'dining'],
-        'Transportation': ['Transportation', 'Transport', 'Travel', 'Car', 'Fuel'],
-        'Entertainment': ['Entertainment', 'Movies', 'Fun'],
-        'Shopping': ['Shopping', 'Shop', 'Groceries', 'Grocery', 'Retail'],
-        'Bills & Utilities': ['Bills & Utilities', 'Bills', 'Utilities', 'Electricity', 'Water', 'Internet'],
-        'Healthcare': ['Healthcare', 'Health', 'Medical', 'Doctor', 'Medicine'],
-    }
-    return variations_map.get(normalized_name, [normalized_name])
 
 
 class BudgetCategoryViewSet(viewsets.ModelViewSet):
@@ -108,6 +25,7 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
     - percentage_used: (spent / budgeted) * 100
     
     Includes color and icon for UI display.
+    Links to universal Category model for shared categorization.
     """
     serializer_class = BudgetCategorySerializer
     permission_classes = [IsAuthenticated, IsOwner]
@@ -118,32 +36,45 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
         queryset = BudgetCategory.objects.filter(user=self.request.user)
         # Auto-update spent values when queried to ensure sync with transactions
         for category in queryset:
-            category_name = normalize_category_name(category.name)
-            variations = get_all_category_variations(category_name)
-            spent = Transaction.objects.filter(
-                user=self.request.user,
-                category__in=variations,
-                type='expense'
-            ).aggregate(total=Sum('amount'))['total'] or 0
-            # Convert to Decimal for proper comparison - ensure consistent type
-            from decimal import Decimal
-            spent_decimal = Decimal('0') if spent == 0 else Decimal(str(spent))
-            category.spent = spent_decimal
-            category.save(update_fields=['spent'])
+            if category.category:
+                spent = Transaction.objects.filter(
+                    user=self.request.user,
+                    category=category.category,
+                    type='expense'
+                ).aggregate(total=Sum('amount'))['total'] or 0
+                category.spent = Decimal('0') if spent == 0 else Decimal(str(spent))
+                category.save(update_fields=['spent'])
         return queryset
 
     def perform_create(self, serializer):
-        """Create budget category with current user as owner. Update if exists."""
+        """Create budget category with current user as owner. Auto-create Category if needed."""
+        category_instance = serializer.validated_data.get('category')
         name = serializer.validated_data.get('name')
+        
+        if not category_instance:
+            category_instance, _ = Category.objects.get_or_create(
+                user=self.request.user,
+                name=name,
+                type='budget',
+                defaults={
+                    'color': '#3b82f6',
+                    'text_color': '#ffffff',
+                    'icon': 'utensils',
+                    'symbol': 'utensils',
+                    'is_default': False,
+                }
+            )
+        
         try:
             existing = BudgetCategory.objects.get(user=self.request.user, name=name)
-            # Update existing category
+            existing.category = category_instance
             for attr, value in serializer.validated_data.items():
-                setattr(existing, attr, value)
+                if attr != 'category':
+                    setattr(existing, attr, value)
             existing.save()
             serializer.instance = existing
         except BudgetCategory.DoesNotExist:
-            serializer.save(user=self.request.user)
+            serializer.save(user=self.request.user, category=category_instance)
 
     @action(detail=True, methods=['post'])
     def update_spent(self, request, pk=None):
@@ -158,17 +89,16 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
         """
         category = self.get_object()
         
-        # Normalize category name for matching transactions
-        category_name = normalize_category_name(category.name)
-        variations = get_all_category_variations(category_name)
-        total_spent = Transaction.objects.filter(
-            user=request.user,
-            category__in=variations,
-            type='expense'
-        ).aggregate(total=Sum('amount'))['total'] or 0
+        if category.category:
+            total_spent = Transaction.objects.filter(
+                user=request.user,
+                category=category.category,
+                type='expense'
+            ).aggregate(total=Sum('amount'))['total'] or 0
+        else:
+            total_spent = 0
         
-        spent_decimal = category.spent.__class__() if total_spent == 0 else category.spent.__class__(str(total_spent))
-        category.spent = spent_decimal
+        category.spent = Decimal('0') if total_spent == 0 else Decimal(str(total_spent))
         category.save(update_fields=['spent'])
         
         serializer = self.get_serializer(category)
@@ -188,7 +118,7 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
         """
         categories = self.get_queryset()
         
-        # Use updated spent values from get_queryset which already matched variations
+        # Use updated spent values from get_queryset which already matched by FK
         total_budgeted = sum(c.budgeted for c in categories)
         total_spent = sum(c.spent for c in categories)
         
@@ -203,7 +133,8 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
                 'color': c.color,
                 'text_color': c.text_color,
                 'icon': c.icon,
-                'symbol': c.symbol
+                'symbol': c.symbol,
+                'category': str(c.category.id) if c.category else None,
             }
             for c in categories
         ]

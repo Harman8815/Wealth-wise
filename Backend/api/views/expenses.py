@@ -9,7 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Sum
 
-from ..models import Expense
+from ..models import Expense, Category
 from ..serializers import ExpenseSerializer
 from ..base import StandardResultsSetPagination, IsOwner
 
@@ -19,15 +19,8 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     ViewSet for managing quick expense entries.
     
     Categories:
-    - Food & Dining
-    - Transportation
-    - Shopping
-    - Entertainment
-    - Bills
-    - Healthcare
-    - Other
-    
-    Used for rapid expense logging without full transaction details.
+    - Shared across transactions and budget via Category model
+    - Used for rapid expense logging without full transaction details.
     Can include receipt images via receipt_url.
     """
     serializer_class = ExpenseSerializer
@@ -40,10 +33,28 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         """Return expenses for current user, ordered by date."""
         return Expense.objects.filter(
             user=self.request.user
-        ).order_by('-date')
+        ).select_related('category').order_by('-date')
 
     def perform_create(self, serializer):
-        """Create expense with current user as owner."""
+        """Create expense with current user as owner.
+        Auto-create category if category name is provided as string.
+        """
+        category = serializer.validated_data.get('category')
+        if category is None:
+            category_name = serializer.validated_data.get('category_name')
+            if category_name:
+                category, _ = Category.objects.get_or_create(
+                    user=self.request.user,
+                    name=category_name,
+                    type='expense',
+                    defaults={
+                        'color': '#3b82f6',
+                        'text_color': '#ffffff',
+                        'icon': 'utensils',
+                        'symbol': 'utensils',
+                        'is_default': False,
+                    }
+                )
         serializer.save(user=self.request.user)
 
     @action(detail=False, methods=['get'])
