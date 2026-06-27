@@ -84,6 +84,19 @@ def normalize_category_name(name):
     return name
 
 
+def get_all_category_variations(normalized_name):
+    """Get all possible variations of a category name for matching transactions."""
+    variations_map = {
+        'Food & Dining': ['Food & Dining', 'Food', 'Dining', 'food', 'dining'],
+        'Transportation': ['Transportation', 'Transport', 'Travel', 'Car', 'Fuel'],
+        'Entertainment': ['Entertainment', 'Movies', 'Fun'],
+        'Shopping': ['Shopping', 'Shop', 'Groceries', 'Grocery', 'Retail'],
+        'Bills & Utilities': ['Bills & Utilities', 'Bills', 'Utilities', 'Electricity', 'Water', 'Internet'],
+        'Healthcare': ['Healthcare', 'Health', 'Medical', 'Doctor', 'Medicine'],
+    }
+    return variations_map.get(normalized_name, [normalized_name])
+
+
 class BudgetCategoryViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing budget categories.
@@ -106,9 +119,10 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
         # Auto-update spent values when queried to ensure sync with transactions
         for category in queryset:
             category_name = normalize_category_name(category.name)
+            variations = get_all_category_variations(category_name)
             spent = Transaction.objects.filter(
                 user=self.request.user,
-                category=category_name,
+                category__in=variations,
                 type='expense'
             ).aggregate(total=Sum('amount'))['total'] or 0
             if category.spent != spent:
