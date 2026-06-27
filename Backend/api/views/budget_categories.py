@@ -167,7 +167,8 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
             type='expense'
         ).aggregate(total=Sum('amount'))['total'] or 0
         
-        category.spent = total_spent
+        spent_decimal = category.spent.__class__() if total_spent == 0 else category.spent.__class__(str(total_spent))
+        category.spent = spent_decimal
         category.save(update_fields=['spent'])
         
         serializer = self.get_serializer(category)
