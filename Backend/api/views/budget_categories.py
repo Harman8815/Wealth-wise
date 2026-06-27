@@ -15,22 +15,73 @@ from ..base import StandardResultsSetPagination, IsOwner
 
 # Category name mapping for flexible matching
 CATEGORY_NAME_MAPPING = {
+    # Food & Dining variations
     'Food': 'Food & Dining',
     'Dining': 'Food & Dining',
+    'food': 'Food & Dining',
+    'dining': 'Food & Dining',
+    'Food & dining': 'Food & Dining',
+    # Transportation variations
     'Transport': 'Transportation',
+    'transport': 'Transportation',
+    'Travel': 'Transportation',
+    'travel': 'Transportation',
+    'Car': 'Transportation',
+    'car': 'Transportation',
+    'Fuel': 'Transportation',
+    'fuel': 'Transportation',
+    # Entertainment variations
     'Entertainment': 'Entertainment',
-    'Entertainment & Fun': 'Entertainment',
+    'entertainment': 'Entertainment',
+    'Movies': 'Entertainment',
+    'movies': 'Entertainment',
+    'Fun': 'Entertainment',
+    'fun': 'Entertainment',
+    # Shopping variations
     'Shop': 'Shopping',
+    'shop': 'Shopping',
     'Groceries': 'Shopping',
+    'groceries': 'Shopping',
+    'Grocery': 'Shopping',
+    'grocery': 'Shopping',
+    'Retail': 'Shopping',
+    'retail': 'Shopping',
+    # Bills & Utilities variations
     'Bills': 'Bills & Utilities',
+    'bills': 'Bills & Utilities',
     'Utilities': 'Bills & Utilities',
+    'utilities': 'Bills & Utilities',
+    'Electricity': 'Bills & Utilities',
+    'electricity': 'Bills & Utilities',
+    'Water': 'Bills & Utilities',
+    'water': 'Bills & Utilities',
+    'Internet': 'Bills & Utilities',
+    'internet': 'Bills & Utilities',
+    # Healthcare variations
     'Health': 'Healthcare',
+    'health': 'Healthcare',
     'Medical': 'Healthcare',
+    'medical': 'Healthcare',
+    'Doctor': 'Healthcare',
+    'doctor': 'Healthcare',
+    'Medicine': 'Healthcare',
+    'medicine': 'Healthcare',
 }
 
 def normalize_category_name(name):
-    """Normalize category name for matching."""
-    return CATEGORY_NAME_MAPPING.get(name, name)
+    """Normalize category name for matching - try exact match first, then case-insensitive."""
+    if not name:
+        return name
+    # Try exact match
+    mapped = CATEGORY_NAME_MAPPING.get(name)
+    if mapped:
+        return mapped
+    # Try case-insensitive match
+    lower_name = name.lower()
+    for key, value in CATEGORY_NAME_MAPPING.items():
+        if key.lower() == lower_name:
+            return value
+    return name
 
 
 class BudgetCategoryViewSet(viewsets.ModelViewSet):
