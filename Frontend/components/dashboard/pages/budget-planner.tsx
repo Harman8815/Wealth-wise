@@ -7,22 +7,13 @@ import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Menu, Plus, Edit, TrendingUp, AlertTriangle, Eye, ShoppingBag, Car, Film, ShoppingCart, Receipt, HeartPulse, Coffee, DollarSign, Home, Zap } from "lucide-react"
+import { Menu, Plus, Edit, TrendingUp, AlertTriangle, Eye } from "lucide-react"
 import { useBudgetOverview, useBudgetCategories } from "@/hooks"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import Link from "next/link"
 import { AddCategoryDialog } from "../add-category-dialog"
-
-const defaultCategoryIcons: Record<string, { icon: React.ReactNode; color: string; bgColor: string }> = {
-  "Food & Dining": { icon: <Coffee className="w-5 h-5" />, color: "text-orange-600", bgColor: "bg-orange-100 dark:bg-orange-900" },
-  "Transportation": { icon: <Car className="w-5 h-5" />, color: "text-blue-600", bgColor: "bg-blue-100 dark:bg-blue-900" },
-  "Entertainment": { icon: <Film className="w-5 h-5" />, color: "text-purple-600", bgColor: "bg-purple-100 dark:bg-purple-900" },
-  "Shopping": { icon: <ShoppingCart className="w-5 h-5" />, color: "text-pink-600", bgColor: "bg-pink-100 dark:bg-pink-900" },
-  "Bills & Utilities": { icon: <Zap className="w-5 h-5" />, color: "text-yellow-600", bgColor: "bg-yellow-100 dark:bg-yellow-900" },
-  "Healthcare": { icon: <HeartPulse className="w-5 h-5" />, color: "text-red-600", bgColor: "bg-red-100 dark:bg-red-900" },
-  "Income": { icon: <DollarSign className="w-5 h-5" />, color: "text-green-600", bgColor: "bg-green-100 dark:bg-green-900" },
-  "default": { icon: <ShoppingBag className="w-5 h-5" />, color: "text-gray-600", bgColor: "bg-gray-100 dark:bg-gray-900" },
-}
+import { ICON_MAP } from "../symbol-picker"
+import { CATEGORY_SYMBOLS, DEFAULT_TEXT_COLOR } from "@/data/category-symbols"
 
 export function BudgetPlannerPage() {
   const { openSidebar } = useDashboardSidebar()
@@ -43,6 +34,12 @@ export function BudgetPlannerPage() {
     const pctB = (b.spent / b.budgeted) * 100
     return pctB - pctA
   })
+
+  function getCategoryDisplay(category: typeof budgetCategories[number]) {
+    const icon = ICON_MAP[category.symbol || "utensils"] || ICON_MAP.utensils
+    const textColor = category.text_color || DEFAULT_TEXT_COLOR
+    return { icon, textColor }
+  }
 
   if (isLoadingOverview || isLoadingCategories) {
     return (
@@ -160,14 +157,17 @@ export function BudgetPlannerPage() {
                 const percentage = (category.spent / category.budgeted) * 100
                 const isOverBudget = category.spent > category.budgeted
                 const isNearLimit = percentage >= 90 && !isOverBudget
-                const categoryIcon = defaultCategoryIcons[category.name] || defaultCategoryIcons.default
+                const { icon, textColor } = getCategoryDisplay(category)
 
                 return (
                   <div key={category.id} className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${categoryIcon.bgColor}`}>
-                          <span className={categoryIcon.color}>{categoryIcon.icon}</span>
+                        <div
+                          className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: category.color }}
+                        >
+                          <span style={{ color: textColor }}>{icon}</span>
                         </div>
                         <h3 className="font-medium">{category.name}</h3>
                         {isOverBudget && (

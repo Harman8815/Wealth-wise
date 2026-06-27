@@ -201,7 +201,9 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
                 'remaining': float(c.remaining),
                 'percentage_used': round(float(c.percentage_used), 2) if c.budgeted > 0 else 0,
                 'color': c.color,
-                'icon': c.icon
+                'text_color': c.text_color,
+                'icon': c.icon,
+                'symbol': c.symbol
             }
             for c in categories
         ]

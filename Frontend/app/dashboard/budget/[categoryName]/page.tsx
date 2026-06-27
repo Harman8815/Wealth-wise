@@ -5,31 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Menu, ArrowLeft, TrendingDown, TrendingUp, Calendar, Eye, ShoppingBag, Car, Film, ShoppingCart, HeartPulse, Coffee, DollarSign, Zap, BarChart3 } from "lucide-react"
+import { Menu, ArrowLeft, TrendingDown, TrendingUp, Calendar, Eye, BarChart3 } from "lucide-react"
 import { useBudgetCategories, useTransactions } from "@/hooks"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import Link from "next/link"
-
-const defaultCategoryIcons: Record<string, React.ReactNode> = {
-  "Food & Dining": <Coffee className="w-8 h-8" />,
-  "Transportation": <Car className="w-8 h-8" />,
-  "Entertainment": <Film className="w-8 h-8" />,
-  "Shopping": <ShoppingCart className="w-8 h-8" />,
-  "Bills & Utilities": <Zap className="w-8 h-8" />,
-  "Healthcare": <HeartPulse className="w-8 h-8" />,
-  "Income": <DollarSign className="w-8 h-8" />,
-}
-
-const categoryColors: Record<string, { bg: string; text: string }> = {
-  "Food & Dining": { bg: "bg-orange-100 dark:bg-orange-900", text: "text-orange-600" },
-  "Transportation": { bg: "bg-blue-100 dark:bg-blue-900", text: "text-blue-600" },
-  "Entertainment": { bg: "bg-purple-100 dark:bg-purple-900", text: "text-purple-600" },
-  "Shopping": { bg: "bg-pink-100 dark:bg-pink-900", text: "text-pink-600" },
-  "Bills & Utilities": { bg: "bg-yellow-100 dark:bg-yellow-900", text: "text-yellow-600" },
-  "Healthcare": { bg: "bg-red-100 dark:bg-red-900", text: "text-red-600" },
-  "Income": { bg: "bg-green-100 dark:bg-green-900", text: "text-green-600" },
-  "default": { bg: "bg-gray-100 dark:bg-gray-900", text: "text-gray-600" },
-}
+import { ICON_MAP } from "@/components/dashboard/symbol-picker"
+import { DEFAULT_TEXT_COLOR } from "@/data/category-symbols"
 
 export default function CategoryDetailPage() {
   const { openSidebar } = useDashboardSidebar()
@@ -43,8 +24,11 @@ export default function CategoryDetailPage() {
   const transactions = transactionsData?.results || []
   const totalCount = transactionsData?.count || 0
 
-  const categoryIcon = defaultCategoryIcons[categoryName] || defaultCategoryIcons.default
-  const categoryColor = categoryColors[categoryName] || categoryColors.default
+  const icon = budgetCategory
+    ? ICON_MAP[budgetCategory.symbol || "utensils"] || ICON_MAP.utensils
+    : ICON_MAP.utensils
+  const textColor = budgetCategory?.text_color || DEFAULT_TEXT_COLOR
+  const color = budgetCategory?.color || "#3b82f6"
 
   const totalSpent = budgetCategory?.spent || 0
   const budgeted = budgetCategory?.budgeted || 0
@@ -72,8 +56,8 @@ export default function CategoryDetailPage() {
               </Button>
             </Link>
             <div className="flex items-center space-x-3">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${categoryColor.bg}`}>
-                <span className={categoryColor.text}>{categoryIcon}</span>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: color }}>
+                <span style={{ color: textColor }}>{icon}</span>
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{categoryName}</h1>

@@ -162,13 +162,38 @@ class TransactionHistory(models.Model):
 
 class BudgetCategory(models.Model):
     """Budget allocation per category"""
+    ICON_SYMBOLS = [
+        ('utensils', 'Utensils'),
+        ('car', 'Car'),
+        ('shopping-cart', 'Shopping Cart'),
+        ('film', 'Film'),
+        ('home', 'Home'),
+        ('heart-pulse', 'Healthcare'),
+        ('fuel', 'Fuel'),
+        ('wifi', 'Internet'),
+        ('phone', 'Phone'),
+        ('credit-card', 'Credit Card'),
+        ('gift', 'Gift'),
+        ('coffee', 'Coffee'),
+        ('book', 'Education'),
+        ('plane', 'Travel'),
+        ('dumbbell', 'Fitness'),
+        ('music', 'Music'),
+        ('shirt', 'Shopping'),
+        ('zap', 'Utilities'),
+        ('piggy-bank', 'Savings'),
+        ('briefcase', 'Work'),
+    ]
+    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='budget_categories')
     name = models.CharField(max_length=100)
     budgeted = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     spent = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    color = models.CharField(max_length=7)
-    icon = models.CharField(max_length=50, blank=True)
+    color = models.CharField(max_length=7, default='#3b82f6')
+    text_color = models.CharField(max_length=7, default='#ffffff')
+    icon = models.CharField(max_length=50, blank=True, default='utensils')
+    symbol = models.CharField(max_length=50, blank=True, default='utensils', choices=ICON_SYMBOLS)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

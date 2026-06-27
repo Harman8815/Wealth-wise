@@ -1,7 +1,7 @@
 /**
  * Budget Category API Services
  */
-import { apiClient, PaginatedResponse } from '../client';
+import { apiClient, PaginatedResponse } from '@/api/client';
 
 export interface BudgetCategory {
   id: string;
@@ -9,7 +9,9 @@ export interface BudgetCategory {
   budgeted: number;
   spent: number;
   color: string;
+  text_color: string;
   icon: string;
+  symbol: string;
   created_at: string;
   updated_at: string;
 }
@@ -18,6 +20,8 @@ export interface CreateBudgetCategoryInput {
   name: string;
   budgeted: number;
   color: string;
+  text_color?: string;
+  symbol?: string;
   icon?: string;
 }
 
@@ -25,6 +29,8 @@ export interface UpdateBudgetCategoryInput {
   name?: string;
   budgeted?: number;
   color?: string;
+  text_color?: string;
+  symbol?: string;
   icon?: string;
 }
 
@@ -41,7 +47,9 @@ export interface BudgetOverview {
     remaining: number;
     percentage_used: number;
     color: string;
+    text_color: string;
     icon: string;
+    symbol: string;
   }>;
 }
 
