@@ -66,9 +66,15 @@ export const transactionApi = {
     date?: string;
     page?: number;
     pageSize?: number;
+    ordering?: string;
+    search?: string;
   }) => {
+    const { pageSize, ...rest } = filters || {};
     const response = await apiClient.get<PaginatedResponse<Transaction>>('/transactions/', {
-      params: filters,
+      params: {
+        ...rest,
+        ...(pageSize ? { page_size: pageSize } : {}),
+      },
     });
     return response.data;
   },

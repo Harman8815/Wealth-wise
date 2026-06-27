@@ -8,7 +8,7 @@ import { ArrowUpRight, ArrowDownLeft } from "lucide-react"
 import { useSWRRecentTransactions } from "@/hooks/use-transactions-swr"
 
 export function RecentTransactions() {
-  const { data: transactionsData, isLoading } = useSWRRecentTransactions(5)
+  const { data: transactionsData, isLoading } = useSWRRecentTransactions(10)
   const transactions = transactionsData?.results || []
 
   if (isLoading) {
