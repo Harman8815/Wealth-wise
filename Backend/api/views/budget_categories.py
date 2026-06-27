@@ -77,7 +77,32 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
         categories = self.get_queryset()
         
         total_budgeted = sum(c.budgeted for c in categories)
-        total_spent = sum(c.spent for c in categories)
+        
+        # Calculate spent dynamically from transactions for each category
+        categories_with_spent = []
+        total_spent = 0
+        
+        for c in categories:
+            spent = Transaction.objects.filter(
+                user=request.user,
+                category=c.name,
+                type='expense'
+            ).aggregate(total=Sum('amount'))['total'] or 0
+            
+            spent_float = float(spent)
+            total_spent += spent_float
+            
+            categories_with_spent.append({
+                'id': str(c.id),
+                'name': c.name,
+                'budgeted': float(c.budgeted),
+                'spent': spent_float,
+                'remaining': float(max(0, c.budgeted - spent)),
+                'percentage_used': round((spent_float / float(c.budgeted)) * 100, 2) if c.budgeted > 0 else 0,
+                'color': c.color,
+                'icon': c.icon
+            })
+        
         total_remaining = total_budgeted - total_spent
         
         overall_percentage = 0
@@ -89,17 +114,5 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
             'total_spent': float(total_spent),
             'total_remaining': float(total_remaining),
             'overall_percentage': round(overall_percentage, 2),
-            'categories': [
-                {
-                    'id': str(c.id),
-                    'name': c.name,
-                    'budgeted': float(c.budgeted),
-                    'spent': float(c.spent),
-                    'remaining': float(c.remaining),
-                    'percentage_used': round(c.percentage_used, 2),
-                    'color': c.color,
-                    'icon': c.icon
-                }
-                for c in categories
-            ]
+            'categories': categories_with_spent
         })

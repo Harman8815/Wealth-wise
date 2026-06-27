@@ -68,26 +68,25 @@ export interface TransactionHistory {
 }
 
 export const transactionApi = {
-  getAll: async (filters?: {
-    category?: string;
-    type?: 'income' | 'expense';
-    status?: 'completed' | 'pending';
-    date?: string;
-    page?: number;
-    pageSize?: number;
-    ordering?: string;
-    search?: string;
-  }) => {
-    const { pageSize, search, ...rest } = filters || {};
-    const response = await apiClient.get<PaginatedResponse<Transaction>>('/transactions/', {
-      params: {
-        ...rest,
-        ...(pageSize ? { page_size: pageSize } : {}),
-        ...(search ? { search } : {}),
-      },
-    });
-    return response.data;
-  },
+getAll: async (filters?: {
+     category?: string;
+     type?: 'income' | 'expense';
+     status?: 'completed' | 'pending';
+     date?: string;
+     page?: number;
+     pageSize?: number;
+     ordering?: string;
+     search?: string;
+   }) => {
+     const { pageSize, ...rest } = filters || {};
+     const response = await apiClient.get<PaginatedResponse<Transaction>>('/transactions/', {
+       params: {
+         ...rest,
+         page_size: pageSize,
+       },
+     });
+     return response.data;
+   },
 
   getById: async (id: string) => {
     const response = await apiClient.get<Transaction>(`/transactions/${id}/`);

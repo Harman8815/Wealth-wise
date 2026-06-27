@@ -11,6 +11,7 @@ import { Menu, Plus, Edit, TrendingUp, AlertTriangle, Eye, ShoppingBag, Car, Fil
 import { useBudgetOverview, useBudgetCategories } from "@/hooks"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import Link from "next/link"
+import { AddCategoryDialog } from "../add-category-dialog"
 
 const defaultCategoryIcons: Record<string, { icon: React.ReactNode; color: string; bgColor: string }> = {
   "Food & Dining": { icon: <Coffee className="w-5 h-5" />, color: "text-orange-600", bgColor: "bg-orange-100 dark:bg-orange-900" },
@@ -26,6 +27,7 @@ const defaultCategoryIcons: Record<string, { icon: React.ReactNode; color: strin
 export function BudgetPlannerPage() {
   const { openSidebar } = useDashboardSidebar()
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [isAddOpen, setIsAddOpen] = useState(false)
   const { data: budgetOverview, isLoading: isLoadingOverview } = useBudgetOverview()
   const { data: budgetCategoriesData, isLoading: isLoadingCategories } = useBudgetCategories()
 
@@ -73,12 +75,14 @@ export function BudgetPlannerPage() {
               <p className="text-gray-600 dark:text-gray-400">Plan and track your monthly budget</p>
             </div>
           </div>
-          <Button>
+          <Button onClick={() => setIsAddOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Add Category
           </Button>
         </div>
       </header>
+
+      <AddCategoryDialog isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
 
       {/* Main Content */}
       <main className="p-6 space-y-6">
