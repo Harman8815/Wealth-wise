@@ -158,9 +158,10 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
         
         # Normalize category name for matching transactions
         category_name = normalize_category_name(category.name)
+        variations = get_all_category_variations(category_name)
         total_spent = Transaction.objects.filter(
             user=request.user,
-            category=category_name,
+            category__in=variations,
             type='expense'
         ).aggregate(total=Sum('amount'))['total'] or 0
         
@@ -184,45 +185,32 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
         """
         categories = self.get_queryset()
         
+        # Use updated spent values from get_queryset which already matched variations
         total_budgeted = sum(c.budgeted for c in categories)
+        total_spent = sum(c.spent for c in categories)
         
-        # Calculate spent dynamically from transactions for each category
-        categories_with_spent = []
-        total_spent = 0
-        
-        for c in categories:
-            # Normalize category name for matching transactions
-            category_name = normalize_category_name(c.name)
-            spent = Transaction.objects.filter(
-                user=request.user,
-                category=category_name,
-                type='expense'
-            ).aggregate(total=Sum('amount'))['total'] or 0
-            
-            spent_float = float(spent)
-            total_spent += spent_float
-            
-            categories_with_spent.append({
+        categories_with_spent = [
+            {
                 'id': str(c.id),
                 'name': c.name,
                 'budgeted': float(c.budgeted),
-                'spent': spent_float,
-                'remaining': float(max(0, float(c.budgeted) - spent_float)),
-                'percentage_used': round((spent_float / float(c.budgeted)) * 100, 2) if c.budgeted > 0 else 0,
+                'spent': float(c.spent),
+                'remaining': float(c.remaining),
+                'percentage_used': round(float(c.percentage_used), 2) if c.budgeted > 0 else 0,
                 'color': c.color,
                 'icon': c.icon
-            })
-        
-        total_remaining = float(total_budgeted) - total_spent
+            }
+            for c in categories
+        ]
         
         overall_percentage = 0
         if total_budgeted > 0:
-            overall_percentage = (total_spent / float(total_budgeted)) * 100
+            overall_percentage = (total_spent / total_budgeted) * 100
         
         return Response({
             'total_budgeted': float(total_budgeted),
             'total_spent': float(total_spent),
-            'total_remaining': float(total_remaining),
+            'total_remaining': float(total_budgeted - total_spent),
             'overall_percentage': round(overall_percentage, 2),
             'categories': categories_with_spent
         })
