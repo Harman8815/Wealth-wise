@@ -4,8 +4,8 @@ import { useState, useCallback, useEffect, useRef } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Check, ChevronsUpDown, Plus } from "lucide-react"
-import { useCategories, useCreateCategory } from "@/hooks"
-import { CATEGORY_SYMBOLS, DEFAULT_SYMBOL, DEFAULT_COLOR, DEFAULT_TEXT_COLOR, type CategorySymbol } from "@/data/category-symbols"
+import { useSearchCategories, useCategories, useCreateCategory } from "@/hooks"
+import { CATEGORY_SYMBOLS, DEFAULT_SYMBOL, DEFAULT_COLOR, DEFAULT_TEXT_COLOR, getCategoryIcon } from "@/data/category-symbols"
 
 interface SearchableCategoryInputProps {
   value?: string
@@ -27,21 +27,22 @@ export function SearchableCategoryInput({
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   
-  const { data: categoriesData, isLoading } = useCategories({ type }, undefined, 50)
+  const { data: searchData, isLoading: isSearching } = useSearchCategories(search, type)
+  const { data: categoriesData } = useCategories({ type })
   const createMutation = useCreateCategory()
   
-  const categories = categoriesData?.results || []
+  const allCategories = categoriesData?.results || []
+  const categories = search.length > 0 ? (searchData || []) : allCategories
+  const isLoading = search.length > 0 ? isSearching : false
   
-  const filtered = categories.filter((c) => 
-    c.name.toLowerCase().includes(search.toLowerCase())
-  )
-  
-  const showCreateOption = search.length > 0 && !filtered.some(c => c.name.toLowerCase() === search.toLowerCase())
+  const showCreateOption = search.length > 0 && !categories.some(c => c.name.toLowerCase() === search.toLowerCase())
   
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false)
+        setSearch("")
+        setSelectedCategoryId(null)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -49,28 +50,31 @@ export function SearchableCategoryInput({
   }, [])
 
   const handleSelect = useCallback((categoryName: string) => {
-    setSearch(categoryName)
     onValueChange(categoryName)
+    setSearch(categoryName)
+    setSelectedCategoryId(null)
     setIsOpen(false)
   }, [onValueChange])
 
   const handleCreate = useCallback(async () => {
     if (!search.trim()) return
     
-    const symbol = CATEGORY_SYMBOLS[0]?.value || DEFAULT_SYMBOL
+    const normalized = search.trim()
+    const symbol = getCategoryIcon(normalized)
+    
     try {
       const created = await createMutation.mutateAsync({
-        name: search.trim(),
+        name: normalized,
         type,
         color: DEFAULT_COLOR,
         text_color: DEFAULT_TEXT_COLOR,
         icon: symbol,
         symbol,
       })
-      setSelectedCategoryId(created.id)
       onValueChange(created.name)
+      setSearch(created.name)
+      setSelectedCategoryId(null)
       setIsOpen(false)
-      setSearch("")
     } catch (error) {
       console.error("Failed to create category:", error)
     }
@@ -104,7 +108,7 @@ export function SearchableCategoryInput({
     <div ref={containerRef} className="relative">
       <div className="relative">
         <Input
-          value={search || value}
+          value={search}
           onChange={handleInputChange}
           onFocus={handleInputFocus}
           placeholder={placeholder}
@@ -128,33 +132,37 @@ export function SearchableCategoryInput({
         <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border rounded-md shadow-lg max-h-60 overflow-auto">
           {isLoading ? (
             <div className="p-2 text-sm text-gray-500">Loading categories...</div>
-          ) : filtered.length === 0 && !showCreateOption ? (
+          ) : categories.length === 0 && !showCreateOption ? (
             <div className="p-2 text-sm text-gray-500">No categories found.</div>
           ) : (
             <div className="py-1">
-              {filtered.map((category) => (
-                <button
-                  key={category.id}
-                  type="button"
-                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                    selectedCategoryId === category.id ? "bg-blue-50 dark:bg-blue-900/20" : ""
-                  }`}
-                  onClick={() => handleSelect(category.name)}
-                >
-                  <div
-                    className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: category.color }}
+              {categories.map((category) => {
+                const iconSymbol = category.symbol || getCategoryIcon(category.name)
+                const iconLabel = CATEGORY_SYMBOLS.find(s => s.value === iconSymbol)?.label?.[0] || "?"
+                return (
+                  <button
+                    key={category.id}
+                    type="button"
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                      selectedCategoryId === category.id ? "bg-blue-50 dark:bg-blue-900/20" : ""
+                    }`}
+                    onClick={() => handleSelect(category.name)}
                   >
-                    <span className="text-xs" style={{ color: category.text_color }}>
-                      {CATEGORY_SYMBOLS.find(s => s.value === category.symbol)?.label?.[0] || "?"}
-                    </span>
-                  </div>
-                  <span className="flex-1 text-left">{category.name}</span>
-                  {selectedCategoryId === category.id && (
-                    <Check className="h-4 w-4 text-blue-600" />
-                  )}
-                </button>
-              ))}
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: category.color }}
+                    >
+                      <span className="text-xs" style={{ color: category.text_color }}>
+                        {iconLabel}
+                      </span>
+                    </div>
+                    <span className="flex-1 text-left">{category.name}</span>
+                    {selectedCategoryId === category.id && (
+                      <Check className="h-4 w-4 text-blue-600" />
+                    )}
+                  </button>
+                )
+              })}
               
               {showCreateOption && (
                 <button

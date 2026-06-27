@@ -14,6 +14,9 @@ class CategoryCreateUpdateSerializer(serializers.ModelSerializer):
         model = Category
         fields = ['name', 'type', 'color', 'text_color', 'icon', 'symbol']
 
+    def validate_name(self, value):
+        return value.strip()
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:

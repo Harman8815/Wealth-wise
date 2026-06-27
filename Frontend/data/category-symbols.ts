@@ -62,3 +62,64 @@ export type TextColorOption = (typeof TEXT_COLOR_OPTIONS)[number]["value"]
 export const DEFAULT_SYMBOL = "utensils"
 export const DEFAULT_COLOR = COLOR_OPTIONS[0]
 export const DEFAULT_TEXT_COLOR = "#ffffff"
+
+export const CATEGORY_ICON_KEYWORDS: Record<string, CategorySymbol> = {
+  food: "utensils",
+  dining: "utensils",
+  restaurant: "utensils",
+  eat: "utensils",
+  drink: "coffee",
+  coffee: "coffee",
+  transport: "car",
+  travel: "plane",
+  taxi: "car",
+  fuel: "fuel",
+  petrol: "fuel",
+  shopping: "shopping-cart",
+  retail: "shopping-cart",
+  store: "shopping-cart",
+  buy: "shopping-cart",
+  grocery: "shopping-cart",
+  entertainment: "film",
+  movie: "film",
+  fun: "film",
+  game: "film",
+  home: "home",
+  house: "home",
+  rent: "home",
+  maintenance: "home",
+  health: "heart-pulse",
+  medical: "heart-pulse",
+  doctor: "heart-pulse",
+  medicine: "heart-pulse",
+  education: "book",
+  book: "book",
+  study: "book",
+  school: "book",
+  utility: "zap",
+  utilities: "zap",
+  bill: "zap",
+  electricity: "zap",
+  internet: "wifi",
+  phone: "phone",
+  mobile: "phone",
+  work: "briefcase",
+  office: "briefcase",
+  job: "briefcase",
+  savings: "piggy-bank",
+  investment: "piggy-bank",
+  fitness: "dumbbell",
+  gym: "dumbbell",
+  music: "music",
+  gift: "gift",
+}
+
+export function getCategoryIcon(name: string): CategorySymbol {
+  const normalized = name.toLowerCase().trim()
+  for (const [keyword, symbol] of Object.entries(CATEGORY_ICON_KEYWORDS)) {
+    if (normalized.includes(keyword)) {
+      return symbol
+    }
+  }
+  return DEFAULT_SYMBOL
+}

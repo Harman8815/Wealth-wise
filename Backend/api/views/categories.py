@@ -8,10 +8,71 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Case, When, Value, IntegerField
 
 from ..models import Category
 from ..serializers import CategorySerializer, CategoryCreateUpdateSerializer
 from ..base import StandardResultsSetPagination, IsOwner
+
+
+CATEGORY_ICON_KEYWORDS = {
+    'food': 'utensils',
+    'dining': 'utensils',
+    'restaurant': 'utensils',
+    'eat': 'utensils',
+    'drink': 'coffee',
+    'coffee': 'coffee',
+    'transport': 'car',
+    'travel': 'plane',
+    'taxi': 'car',
+    'fuel': 'fuel',
+    'petrol': 'fuel',
+    'shopping': 'shopping-cart',
+    'retail': 'shopping-cart',
+    'store': 'shopping-cart',
+    'buy': 'shopping-cart',
+    'grocery': 'shopping-cart',
+    'entertainment': 'film',
+    'movie': 'film',
+    'fun': 'film',
+    'game': 'film',
+    'home': 'home',
+    'house': 'home',
+    'rent': 'home',
+    'maintenance': 'home',
+    'health': 'heart-pulse',
+    'medical': 'heart-pulse',
+    'doctor': 'heart-pulse',
+    'medicine': 'heart-pulse',
+    'education': 'book',
+    'book': 'book',
+    'study': 'book',
+    'school': 'book',
+    'utility': 'zap',
+    'utilities': 'zap',
+    'bill': 'zap',
+    'electricity': 'zap',
+    'internet': 'wifi',
+    'phone': 'phone',
+    'mobile': 'phone',
+    'work': 'briefcase',
+    'office': 'briefcase',
+    'job': 'briefcase',
+    'savings': 'piggy-bank',
+    'investment': 'piggy-bank',
+    'fitness': 'dumbbell',
+    'gym': 'dumbbell',
+    'music': 'music',
+    'gift': 'gift',
+}
+
+
+def get_icon_for_category_name(name: str) -> tuple[str, str]:
+    normalized = name.lower().strip()
+    for keyword, symbol in CATEGORY_ICON_KEYWORDS.items():
+        if keyword in normalized:
+            return symbol, symbol
+    return 'utensils', 'utensils'
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -47,12 +108,22 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """Create category with current user and auto-assign defaults."""
+        user = self.request.user
+        name = serializer.validated_data.get('name', '').strip()
+        cat_type = serializer.validated_data.get('type', 'expense')
+        
+        existing = Category.objects.filter(user=user, name__iexact=name, type=cat_type).first()
+        if existing:
+            serializer.instance = existing
+            return
+        
+        icon, symbol = get_icon_for_category_name(name)
         defaults = {
-            'user': self.request.user,
+            'user': user,
             'color': '#3b82f6',
             'text_color': '#ffffff',
-            'icon': 'utensils',
-            'symbol': 'utensils',
+            'icon': icon,
+            'symbol': symbol,
             'is_default': False,
         }
         serializer.save(**defaults)
@@ -67,7 +138,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
             type: Optional category type filter
             
         Returns:
-            Matching categories with id and name.
+            Matching categories with id and name, sorted with exact matches first.
         """
         query = request.query_params.get('q', '')
         category_type = request.query_params.get('type')
@@ -78,9 +149,15 @@ class CategoryViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(type=category_type)
         
         if query:
-            queryset = queryset.filter(name__icontains=query)
-        
-        queryset = queryset.order_by('name')[:20]
+            queryset = queryset.annotate(
+                exact_match=Case(
+                    When(name__iexact=query, then=Value(0)),
+                    default=Value(1),
+                    output_field=IntegerField(),
+                )
+            ).filter(name__icontains=query).order_by('exact_match', 'name')[:20]
+        else:
+            queryset = queryset.order_by('name')[:20]
         
         return Response([
             {
