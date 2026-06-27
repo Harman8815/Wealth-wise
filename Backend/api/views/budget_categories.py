@@ -13,6 +13,26 @@ from ..serializers import BudgetCategorySerializer
 from ..base import StandardResultsSetPagination, IsOwner
 
 
+# Category name mapping for flexible matching
+CATEGORY_NAME_MAPPING = {
+    'Food': 'Food & Dining',
+    'Dining': 'Food & Dining',
+    'Transport': 'Transportation',
+    'Entertainment': 'Entertainment',
+    'Entertainment & Fun': 'Entertainment',
+    'Shop': 'Shopping',
+    'Groceries': 'Shopping',
+    'Bills': 'Bills & Utilities',
+    'Utilities': 'Bills & Utilities',
+    'Health': 'Healthcare',
+    'Medical': 'Healthcare',
+}
+
+def normalize_category_name(name):
+    """Normalize category name for matching."""
+    return CATEGORY_NAME_MAPPING.get(name, name)
+
+
 class BudgetCategoryViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing budget categories.
@@ -59,9 +79,11 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
         """
         category = self.get_object()
         
+        # Normalize category name for matching transactions
+        category_name = normalize_category_name(category.name)
         total_spent = Transaction.objects.filter(
             user=request.user,
-            category=category.name,
+            category=category_name,
             type='expense'
         ).aggregate(total=Sum('amount'))['total'] or 0
         
@@ -92,9 +114,11 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
         total_spent = 0
         
         for c in categories:
+            # Normalize category name for matching transactions
+            category_name = normalize_category_name(c.name)
             spent = Transaction.objects.filter(
                 user=request.user,
-                category=c.name,
+                category=category_name,
                 type='expense'
             ).aggregate(total=Sum('amount'))['total'] or 0
             
