@@ -4,17 +4,15 @@ import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { useCreateTransaction, useAccounts } from "@/hooks"
 import { toast } from "@/hooks/use-toast"
+import { SearchableCategoryInput } from "@/components/ui/searchable-category-input"
 
 interface AddTransactionDialogProps {
   isOpen: boolean
   onClose: () => void
 }
-
-const categories = ["Food & Dining", "Transportation", "Entertainment", "Shopping", "Bills & Utilities", "Healthcare", "Income"]
 
 export function AddTransactionDialog({ isOpen, onClose }: AddTransactionDialogProps) {
   const createMutation = useCreateTransaction()
@@ -35,7 +33,7 @@ export function AddTransactionDialog({ isOpen, onClose }: AddTransactionDialogPr
       return
     }
     try {
-      await createMutation.mutateAsync({ account, date, description, category, amount: Number(amount), type })
+      await createMutation.mutateAsync({ account, date, description, category_name: category, amount: Number(amount), type })
       toast({ title: "Transaction added", description: "Transaction was created successfully." })
       onClose()
       // Reset form
@@ -93,16 +91,12 @@ export function AddTransactionDialog({ isOpen, onClose }: AddTransactionDialogPr
 
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger id="category">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableCategoryInput
+              value={category}
+              onValueChange={setCategory}
+              placeholder="Select or create category..."
+              type={type === 'income' ? 'income' : 'expense'}
+            />
           </div>
 
           <div className="space-y-2">

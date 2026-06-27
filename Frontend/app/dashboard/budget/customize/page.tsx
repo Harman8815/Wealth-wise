@@ -11,7 +11,7 @@ import { useBudgetCategories, useDeleteBudgetCategory } from "@/hooks"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import Link from "next/link"
 import { AddCategoryDialog } from "@/components/dashboard/add-category-dialog"
-import { DEFAULT_TEXT_COLOR } from "@/data/category-symbols"
+import { DEFAULT_TEXT_COLOR, DEFAULT_SYMBOL } from "@/data/category-symbols"
 import { ICON_MAP } from "@/components/dashboard/symbol-picker"
 import { toast } from "@/hooks/use-toast"
 

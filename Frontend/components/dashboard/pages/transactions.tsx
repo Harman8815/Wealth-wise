@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Menu, Search, Plus, ArrowUpRight, ArrowDownLeft, ChevronLeft, ChevronRight, X, Eye, Pencil, Trash2, History, SkipForward } from "lucide-react"
 import { useTransactions, useTransactionSummary, useUpdateTransaction, useDeleteTransaction, useTransactionHistory } from "@/hooks"
 import { AddTransactionDialog } from "../add-transaction-dialog"
+import { SearchableCategoryInput } from "@/components/ui/searchable-category-input"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import { Transaction } from "@/api/services"
 import { toast } from "@/hooks/use-toast"
@@ -62,16 +63,7 @@ export function TransactionsPage() {
 
   const hasActiveFilters = searchTerm.trim() !== "" || filterCategory !== "all" || filterType !== "all"
 
-  const clearAllFilters = () => {
-    setSearchTerm("")
-    setFilterCategory("all")
-    setFilterType("all")
-    setPage(1)
-  }
-
-  const editCategories = ["Food & Dining", "Transportation", "Entertainment", "Shopping", "Bills & Utilities", "Healthcare", "Income"]
-
-  const handleEdit = async (data: { date: string; description: string; category: string; amount: number; type: "income" | "expense" }) => {
+  const handleEdit = async (data: { date: string; description: string; category_name: string; amount: number; type: "income" | "expense" }) => {
     if (!viewTransaction) return
     try {
       await updateMutation.mutateAsync({ id: viewTransaction.id, data })
@@ -214,7 +206,6 @@ export function TransactionsPage() {
         onClose={() => setIsEditOpen(false)}
         transaction={viewTransaction}
         onSave={handleEdit}
-        categories={editCategories}
       />
 
       {/* Main Content */}
@@ -520,20 +511,19 @@ interface EditTransactionDialogProps {
   isOpen: boolean
   onClose: () => void
   transaction: Transaction | null
-  onSave: (data: { date: string; description: string; category: string; amount: number; type: "income" | "expense" }) => void
-  categories: string[]
+  onSave: (data: { date: string; description: string; category_name: string; amount: number; type: "income" | "expense" }) => void
 }
 
-function EditTransactionDialog({ isOpen, onClose, transaction, onSave, categories }: EditTransactionDialogProps) {
+function EditTransactionDialog({ isOpen, onClose, transaction, onSave }: EditTransactionDialogProps) {
   const [date, setDate] = useState(transaction?.date || "")
   const [description, setDescription] = useState(transaction?.description || "")
-  const [category, setCategory] = useState(transaction?.category || "")
+  const [category, setCategory] = useState(transaction?.category?.name || "")
   const [amount, setAmount] = useState(transaction?.amount || 0)
   const [type, setType] = useState<"income" | "expense">(transaction?.type || "expense")
 
   const handleSubmit = (e?: any) => {
     e?.preventDefault()
-    onSave({ date, description, category, amount, type })
+    onSave({ date, description, category_name: category, amount, type })
   }
 
   if (!transaction) return null
@@ -563,16 +553,12 @@ function EditTransactionDialog({ isOpen, onClose, transaction, onSave, categorie
 
           <div>
             <Label>Category</Label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger>
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableCategoryInput
+              value={category}
+              onValueChange={setCategory}
+              placeholder="Select or create category..."
+              type={type === 'income' ? 'income' : 'expense'}
+            />
           </div>
 
           <div>

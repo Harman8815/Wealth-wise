@@ -13,10 +13,8 @@ import {
   DEFAULT_SYMBOL,
   DEFAULT_COLOR,
   DEFAULT_TEXT_COLOR,
-  type CategorySymbol,
-  type ColorOption,
-  type TextColorOption,
 } from "@/data/category-symbols"
+import { SearchableCategoryInput } from "@/components/ui/searchable-category-input"
 import {
   Utensils,
   Car,
@@ -146,26 +144,12 @@ export function AddCategoryDialog({ isOpen, onClose, category }: AddCategoryDial
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Category Name</Label>
-            <Select value={name} onValueChange={setName}>
-              <SelectTrigger id="name">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {[
-                  "Food & Dining",
-                  "Transportation",
-                  "Entertainment",
-                  "Shopping",
-                  "Bills & Utilities",
-                  "Healthcare",
-                  "Income",
-                ].map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableCategoryInput
+              value={name}
+              onValueChange={setName}
+              placeholder="Select or create category..."
+              type="budget"
+            />
           </div>
 
           <div className="space-y-2">

@@ -4,9 +4,9 @@ import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Edit, Trash2, Save, X } from "lucide-react"
+import { SearchableCategoryInput } from "@/components/ui/searchable-category-input"
 
 interface Expense {
   id: number
@@ -15,8 +15,6 @@ interface Expense {
   amount: number
   note: string
 }
-
-const categories = ["Food & Dining", "Transportation", "Shopping", "Entertainment", "Bills", "Healthcare", "Other"]
 
 export function ExpenseTracker() {
   const [expenses, setExpenses] = useState<Expense[]>([
@@ -100,21 +98,11 @@ export function ExpenseTracker() {
                     />
                   </TableCell>
                   <TableCell>
-                    <Select
+                    <SearchableCategoryInput
                       value={newExpense.category || ""}
                       onValueChange={(value) => setNewExpense({ ...newExpense, category: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((cat) => (
-                          <SelectItem key={cat} value={cat}>
-                            {cat}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Select or create category..."
+                    />
                   </TableCell>
                   <TableCell>
                     <Input
@@ -158,21 +146,11 @@ export function ExpenseTracker() {
                   </TableCell>
                   <TableCell>
                     {editingId === expense.id ? (
-                      <Select
+                      <SearchableCategoryInput
                         value={newExpense.category || expense.category}
                         onValueChange={(value) => setNewExpense({ ...newExpense, category: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map((cat) => (
-                            <SelectItem key={cat} value={cat}>
-                              {cat}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="Select or create category..."
+                      />
                     ) : (
                       expense.category
                     )}
