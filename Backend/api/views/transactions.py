@@ -6,6 +6,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Sum, Count, Q
 
@@ -30,8 +31,10 @@ class TransactionViewSet(viewsets.ModelViewSet):
     """
     serializer_class = TransactionSerializer
     permission_classes = [IsAuthenticated, IsOwner]
-    filter_backends = [DjangoFilterBackend]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['category', 'type', 'status', 'date']
+    search_fields = ['description', 'category', 'account__name', 'status']
+    ordering_fields = ['date', 'amount', 'category', 'created_at']
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):

@@ -8,45 +8,42 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Menu, Search, Download, Plus, ArrowUpRight, ArrowDownLeft } from "lucide-react"
+import { Menu, Search, Download, Plus, ArrowUpRight, ArrowDownLeft, ChevronLeft, ChevronRight } from "lucide-react"
 import { useTransactions, useTransactionSummary } from "@/hooks"
 import { AddTransactionDialog } from "../add-transaction-dialog"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
+
+const PAGE_SIZE = 10
 
 export function TransactionsPage() {
   const { openSidebar } = useDashboardSidebar()
   const [searchTerm, setSearchTerm] = useState("")
   const [filterCategory, setFilterCategory] = useState("all")
   const [filterType, setFilterType] = useState<"all" | "income" | "expense">("all")
-  const [sortBy, setSortBy] = useState("date")
+  const [sortField, setSortField] = useState<"date" | "amount">("date")
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
   const [page, setPage] = useState(1)
   const [isAddOpen, setIsAddOpen] = useState(false)
+
+  const ordering = `${sortDirection === 'desc' ? '-' : ''}${sortField}`
 
   const { data: transactionsData, isLoading: isLoadingTransactions } = useTransactions(
     {
       category: filterCategory === "all" ? undefined : filterCategory,
       type: filterType === "all" ? undefined : filterType,
+      search: searchTerm.trim() || undefined,
+      ordering,
     },
     page,
-    10
+    PAGE_SIZE
   )
   const { data: summary, isLoading: isLoadingSummary } = useTransactionSummary()
 
   const transactions = transactionsData?.results || []
   const totalCount = transactionsData?.count || 0
-
-  const filteredTransactions = transactions
-    .filter((transaction) => {
-      const matchesSearch =
-        transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        transaction.category.toLowerCase().includes(searchTerm.toLowerCase())
-      return matchesSearch
-    })
-    .sort((a, b) => {
-      if (sortBy === "date") return new Date(b.date).getTime() - new Date(a.date).getTime()
-      if (sortBy === "amount") return Math.abs(Number(b.amount)) - Math.abs(Number(a.amount))
-      return 0
-    })
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+  const hasNextPage = transactionsData?.next !== null && transactionsData?.next !== undefined
+  const hasPrevPage = transactionsData?.previous !== null && transactionsData?.previous !== undefined
 
   const totalIncome = summary?.income || 0
   const totalExpenses = summary?.expense || 0
@@ -134,12 +131,12 @@ export function TransactionsPage() {
                 <Input
                   placeholder="Search transactions..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
                   className="pl-10"
                 />
               </div>
 
-              <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <Select value={filterCategory} onValueChange={(v) => { setFilterCategory(v); setPage(1); }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
@@ -152,7 +149,7 @@ export function TransactionsPage() {
                 </SelectContent>
               </Select>
 
-              <Select value={filterType} onValueChange={(v) => setFilterType(v as any)}>
+              <Select value={filterType} onValueChange={(v) => { setFilterType(v as any); setPage(1); }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
@@ -163,7 +160,7 @@ export function TransactionsPage() {
                 </SelectContent>
               </Select>
 
-              <Select value={sortBy} onValueChange={setSortBy}>
+              <Select value={sortField} onValueChange={(value) => { setSortField(value as "date" | "amount"); setPage(1); }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
@@ -181,7 +178,7 @@ export function TransactionsPage() {
           <CardHeader>
             <CardTitle>Transaction History</CardTitle>
             <CardDescription>
-              Showing {filteredTransactions.length} of {totalCount} transactions
+              Showing {transactions.length} of {totalCount} transactions
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -189,16 +186,61 @@ export function TransactionsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
+                      <TableHead>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-2 font-semibold"
+                        onClick={() => {
+                          if (sortField === 'date') {
+                            setSortDirection((current) => (current === 'desc' ? 'asc' : 'desc'))
+                          } else {
+                            setSortField('date')
+                            setSortDirection('desc')
+                          }
+                        }}
+                      >
+                        Date
+                        <span>{sortField === 'date' ? (sortDirection === 'desc' ? '▼' : '▲') : '↕'}</span>
+                      </button>
+                    </TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Account</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-2 font-semibold"
+                        onClick={() => {
+                          if (sortField === 'amount') {
+                            setSortDirection((current) => (current === 'desc' ? 'asc' : 'desc'))
+                          } else {
+                            setSortField('amount')
+                            setSortDirection('desc')
+                          }
+                        }}
+                      >
+                        Amount
+                        <span>{sortField === 'amount' ? (sortDirection === 'desc' ? '▼' : '▲') : '↕'}</span>
+                      </button>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredTransactions.map((transaction) => (
+                  {isLoadingTransactions ? (
+                    [...Array(PAGE_SIZE)].map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell colSpan={6}><Skeleton className="h-10 w-full" /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : transactions.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                        No transactions found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    transactions.map((transaction) => (
                     <TableRow key={transaction.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                       <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
                       <TableCell>
@@ -240,9 +282,61 @@ export function TransactionsPage() {
                         </span>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )))}
                 </TableBody>
               </Table>
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="flex items-center justify-between mt-6 pt-4 border-t border-border/50">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Page {page} of {totalPages} · {totalCount} total transactions
+              </p>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={!hasPrevPage}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Previous
+                </Button>
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum: number
+                    if (totalPages <= 5) {
+                      pageNum = i + 1
+                    } else if (page <= 3) {
+                      pageNum = i + 1
+                    } else if (page >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i
+                    } else {
+                      pageNum = page - 2 + i
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={page === pageNum ? "default" : "outline"}
+                        size="sm"
+                        className="w-8 h-8 p-0"
+                        onClick={() => setPage(pageNum)}
+                      >
+                        {pageNum}
+                      </Button>
+                    )
+                  })}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={!hasNextPage}
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -250,3 +344,4 @@ export function TransactionsPage() {
     </div>
   )
 }
+

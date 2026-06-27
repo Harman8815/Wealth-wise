@@ -11,6 +11,8 @@ interface TransactionFilters {
   type?: 'income' | 'expense';
   status?: 'completed' | 'pending';
   date?: string;
+  search?: string;
+  ordering?: string;
 }
 
 // Get all transactions with filters
