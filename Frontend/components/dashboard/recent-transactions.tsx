@@ -8,14 +8,19 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowUpRight, ArrowDownLeft, Eye } from "lucide-react"
 import { useSWRRecentTransactions } from "@/hooks/use-transactions-swr"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useTransactionHistory } from "@/hooks/use-transactions"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export function RecentTransactions() {
   const { data: transactionsData, isLoading } = useSWRRecentTransactions(10)
   const [viewTransaction, setViewTransaction] = useState<any | null>(null)
+  const [filterType, setFilterType] = useState<"all" | "income" | "expense">("all")
 
-  const transactions = transactionsData?.results || []
-  const { data: history, isLoading: isLoadingHistory } = useTransactionHistory(viewTransaction?.id || "")
+  let transactions = transactionsData?.results || []
+  
+  // Filter transactions by type
+  if (filterType !== "all") {
+    transactions = transactions.filter(t => t.type === filterType)
+  }
 
   if (isLoading) {
     return (
@@ -51,6 +56,15 @@ export function RecentTransactions() {
             <Button variant="outline" size="sm">
               View All
             </Button>
+          </div>
+          <div className="mt-3">
+            <Tabs value={filterType} onValueChange={(v) => setFilterType(v as any)} className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="income">Income</TabsTrigger>
+                <TabsTrigger value="expense">Expense</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
         </CardHeader>
         <CardContent>
