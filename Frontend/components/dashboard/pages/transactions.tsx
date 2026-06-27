@@ -3,14 +3,14 @@
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogPortal, DialogOverlay } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Menu, Search, Plus, ArrowUpRight, ArrowDownLeft, ChevronLeft, ChevronRight, X, Eye, Pencil, Trash2, History } from "lucide-react"
+import { Menu, Search, Plus, ArrowUpRight, ArrowDownLeft, ChevronLeft, ChevronRight, X, Eye, Pencil, Trash2, History, SkipForward } from "lucide-react"
 import { useTransactions, useTransactionSummary, useUpdateTransaction, useDeleteTransaction, useTransactionHistory } from "@/hooks"
 import { AddTransactionDialog } from "../add-transaction-dialog"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
@@ -120,91 +120,94 @@ export function TransactionsPage() {
 
         <AddTransactionDialog isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
 
-      <Dialog open={!!viewTransaction} onOpenChange={(open) => !open && setViewTransaction(null)}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>View Transaction</DialogTitle>
-          </DialogHeader>
-          {viewTransaction && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Date</Label>
-                  <p className="text-sm font-medium">{viewTransaction.date}</p>
-                </div>
-                <div>
-                  <Label>Status</Label>
-                  <Badge variant={viewTransaction.status === "completed" ? "default" : "secondary"}>
-                    {viewTransaction.status}
-                  </Badge>
-                </div>
-                <div className="col-span-2">
-                  <Label>Description</Label>
-                  <p className="text-sm font-medium">{viewTransaction.description}</p>
-                </div>
-                <div>
-                  <Label>Category</Label>
-                  <Badge variant="outline">{viewTransaction.category}</Badge>
-                </div>
-                <div>
-                  <Label>Type</Label>
-                  <Badge variant={viewTransaction.type === "income" ? "default" : "secondary"}>
-                    {viewTransaction.type}
-                  </Badge>
-                </div>
-                <div>
-                  <Label>Amount</Label>
-                  <p className={`font-semibold ${viewTransaction.type === "income" ? "text-green-600" : "text-red-600"}`}>
-                    {viewTransaction.type === "income" ? "+" : "-"}₹{Number(viewTransaction.amount).toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <Label>Account</Label>
-                  <p className="text-sm">{viewTransaction.account_name || "-"}</p>
-                </div>
-              </div>
+<Dialog open={!!viewTransaction} onOpenChange={(open) => !open && setViewTransaction(null)}>
+          <DialogPortal>
+            <DialogOverlay />
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto" onOpenAutoFocus={(e) => e.preventDefault()}>
+              <DialogHeader>
+                <DialogTitle>View Transaction</DialogTitle>
+              </DialogHeader>
+{viewTransaction && (
+             <div className="space-y-4">
+               <div className="grid grid-cols-2 gap-4">
+                 <div>
+                   <Label>Date</Label>
+                   <p className="text-sm font-medium">{viewTransaction.date}</p>
+                 </div>
+                 <div>
+                   <Label>Status</Label>
+                   <Badge variant={viewTransaction.status === "completed" ? "default" : "secondary"}>
+                     {viewTransaction.status}
+                   </Badge>
+                 </div>
+                 <div className="col-span-2">
+                   <Label>Description</Label>
+                   <p className="text-sm font-medium">{viewTransaction.description}</p>
+                 </div>
+                 <div>
+                   <Label>Category</Label>
+                   <Badge variant="outline">{viewTransaction.category}</Badge>
+                 </div>
+                 <div>
+                   <Label>Type</Label>
+                   <Badge variant={viewTransaction.type === "income" ? "default" : "secondary"}>
+                     {viewTransaction.type}
+                   </Badge>
+                 </div>
+                 <div>
+                   <Label>Amount</Label>
+                   <p className={`font-semibold ${viewTransaction.type === "income" ? "text-green-600" : "text-red-600"}`}>
+                     {viewTransaction.type === "income" ? "+" : "-"}₹{Number(viewTransaction.amount).toLocaleString()}
+                   </p>
+                 </div>
+                 <div>
+                   <Label>Account</Label>
+                   <p className="text-sm">{viewTransaction.account_name || "-"}</p>
+                 </div>
+               </div>
 
-              {/* Edit History */}
-              <div className="pt-4 border-t">
-                <div className="flex items-center space-x-2 mb-2">
-                  <History className="w-4 h-4" />
-                  <h3 className="font-medium">Edit History</h3>
-                </div>
-                {isLoadingHistory ? (
-                  <Skeleton className="h-20 w-full" />
-                ) : history && history.length > 0 ? (
-                  <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {history.map((h) => (
-                      <div key={h.id} className="text-sm p-2 bg-gray-50 dark:bg-gray-800 rounded">
-                        <div className="flex justify-between">
-                          <span className="font-medium">{h.field_name}</span>
-                          <span className="text-gray-500">{new Date(h.changed_at).toLocaleString()}</span>
-                        </div>
-                        <div className="text-gray-600">
-                          {h.old_value} → {h.new_value}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500">No edit history available</p>
-                )}
-              </div>
+               {/* Edit History */}
+               <div className="pt-4 border-t">
+                 <div className="flex items-center space-x-2 mb-2">
+                   <History className="w-4 h-4" />
+                   <h3 className="font-medium">Edit History</h3>
+                 </div>
+                 {isLoadingHistory ? (
+                   <Skeleton className="h-20 w-full" />
+                 ) : history && history.length > 0 ? (
+                   <div className="space-y-2 max-h-32 overflow-y-auto">
+                     {history.map((h) => (
+                       <div key={h.id} className="text-sm p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                         <div className="flex justify-between">
+                           <span className="font-medium">{h.field_name}</span>
+                           <span className="text-gray-500">{new Date(h.changed_at).toLocaleString()}</span>
+                         </div>
+                         <div className="text-gray-600">
+                           {h.old_value} → {h.new_value}
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 ) : (
+                   <p className="text-sm text-gray-500">No edit history available</p>
+                 )}
+               </div>
 
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button variant="outline" onClick={() => { setIsEditOpen(true); setViewTransaction(null) }}>
-                  <Pencil className="w-4 h-4 mr-2" />
-                  Edit
-                </Button>
-                <Button variant="destructive" onClick={handleDelete} disabled={deleteMutation.isLoading}>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  {deleteMutation.isLoading ? "Deleting..." : "Delete"}
-                </Button>
-              </div>
-            </div>
-          )}
+               <div className="flex justify-end space-x-2 pt-4">
+                 <Button variant="outline" onClick={() => { setIsEditOpen(true); setViewTransaction(null) }}>
+                   <Pencil className="w-4 h-4 mr-2" />
+                   Edit
+                 </Button>
+                 <Button variant="destructive" onClick={handleDelete} disabled={deleteMutation.isLoading}>
+                   <Trash2 className="w-4 h-4 mr-2" />
+                   {deleteMutation.isLoading ? "Deleting..." : "Delete"}
+                 </Button>
+               </div>
+             </div>
+           )}
         </DialogContent>
-      </Dialog>
+      </DialogPortal>
+     </Dialog>
 
       <EditTransactionDialog
         isOpen={isEditOpen}
@@ -439,57 +442,73 @@ export function TransactionsPage() {
                </Table>
              </div>
 
-             {/* Pagination Controls */}
-             <div className="flex items-center justify-between mt-6 pt-4 border-t border-border/50">
-               <p className="text-sm text-gray-600 dark:text-gray-400">
-                 Page {page} of {totalPages} · {totalCount} total transactions
-               </p>
-               <div className="flex items-center space-x-2">
-                 <Button
-                   variant="outline"
-                   size="sm"
-                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                   disabled={!hasPrevPage}
-                 >
-                   <ChevronLeft className="w-4 h-4 mr-1" />
-                   Previous
-                 </Button>
-                 <div className="flex items-center space-x-1">
-                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                     let pageNum: number
-                     if (totalPages <= 5) {
-                       pageNum = i + 1
-                     } else if (page <= 3) {
-                       pageNum = i + 1
-                     } else if (page >= totalPages - 2) {
-                       pageNum = totalPages - 4 + i
-                     } else {
-                       pageNum = page - 2 + i
-                     }
-                     return (
-                       <Button
-                         key={pageNum}
-                         variant={page === pageNum ? "default" : "outline"}
-                         size="sm"
-                         className="w-8 h-8 p-0"
-                         onClick={() => setPage(pageNum)}
-                       >
-                         {pageNum}
-                       </Button>
-                     )
-                   })}
-                 </div>
-                 <Button
-                   variant="outline"
-                   size="sm"
-                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                   disabled={!hasNextPage}
-                 >
-                   Next
-                   <ChevronRight className="w-4 h-4 ml-1" />
-                 </Button>
-               </div>
-             </div>
+{/* Pagination Controls */}
+              <div className="flex items-center justify-between mt-6 pt-4 border-t border-border/50">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Page {page} of {totalPages} · {totalCount} total transactions
+                </p>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(1)}
+                    disabled={page === 1}
+                  >
+                    First
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={!hasPrevPage}
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    Previous
+                  </Button>
+                  <div className="flex items-center space-x-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum: number
+                      if (totalPages <= 5) {
+                        pageNum = i + 1
+                      } else if (page <= 3) {
+                        pageNum = i + 1
+                      } else if (page >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i
+                      } else {
+                        pageNum = page - 2 + i
+                      }
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={page === pageNum ? "default" : "outline"}
+                          size="sm"
+                          className="w-8 h-8 p-0"
+                          onClick={() => setPage(pageNum)}
+                        >
+                          {pageNum}
+                        </Button>
+                      )
+                    })}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={!hasNextPage}
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(totalPages)}
+                    disabled={page === totalPages || totalPages === 0}
+                  >
+                    <SkipForward className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
            </CardContent>
          </Card>
        </main>
