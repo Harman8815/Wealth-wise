@@ -34,8 +34,17 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
         return BudgetCategory.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
-        """Create budget category with current user as owner."""
-        serializer.save(user=self.request.user)
+        """Create budget category with current user as owner. Update if exists."""
+        name = serializer.validated_data.get('name')
+        try:
+            existing = BudgetCategory.objects.get(user=self.request.user, name=name)
+            # Update existing category
+            for attr, value in serializer.validated_data.items():
+                setattr(existing, attr, value)
+            existing.save()
+            serializer.instance = existing
+        except BudgetCategory.DoesNotExist:
+            serializer.save(user=self.request.user)
 
     @action(detail=True, methods=['post'])
     def update_spent(self, request, pk=None):
