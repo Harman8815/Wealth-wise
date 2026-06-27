@@ -10,6 +10,7 @@ from .goals import GoalViewSet
 from .alerts import AlertViewSet
 from .alert_settings import AlertSettingViewSet
 from .expenses import ExpenseViewSet
+from .categories import CategoryViewSet
 from .system import health_check, seed_historical_data, default_user_info
 
 __all__ = [

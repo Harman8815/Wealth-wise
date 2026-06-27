@@ -1,5 +1,18 @@
 from rest_framework import serializers
-from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense
+from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense, Category
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'type', 'color', 'text_color', 'icon', 'symbol', 'is_default', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class CategoryCreateUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ['name', 'type', 'color', 'text_color', 'icon', 'symbol']
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -28,10 +41,21 @@ class AccountSerializer(serializers.ModelSerializer):
 
 
 class TransactionSerializer(serializers.ModelSerializer):
+    category = CategorySerializer(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), source='category', write_only=True)
+    category_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
     class Meta:
         model = Transaction
-        fields = ['id', 'date', 'description', 'category', 'amount', 'type', 'status', 'account', 'account_name', 'created_at', 'updated_at']
+        fields = ['id', 'date', 'description', 'category', 'category_id', 'category_name', 'amount', 'type', 'status', 'account', 'account_name', 'created_at', 'updated_at']
         read_only_fields = ['id', 'account_name', 'created_at', 'updated_at']
+
+    def validate(self, attrs):
+        if not attrs.get('category') and not attrs.get('category_name'):
+            raise serializers.ValidationError({'category': 'Either category_id or category_name is required.'})
+        if attrs.get('category_name') and attrs.get('category'):
+            raise serializers.ValidationError({'category': 'Provide either category_id or category_name, not both.'})
+        return attrs
 
 
 class TransactionHistorySerializer(serializers.ModelSerializer):
@@ -44,11 +68,19 @@ class TransactionHistorySerializer(serializers.ModelSerializer):
 class BudgetCategorySerializer(serializers.ModelSerializer):
     remaining = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     percentage_used = serializers.FloatField(read_only=True)
+    category = CategorySerializer(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), source='category', write_only=True, required=False, allow_null=True)
+    category_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = BudgetCategory
-        fields = ['id', 'name', 'budgeted', 'spent', 'remaining', 'percentage_used', 'color', 'text_color', 'icon', 'symbol', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'category', 'category_id', 'category_name', 'budgeted', 'spent', 'remaining', 'percentage_used', 'color', 'text_color', 'icon', 'symbol', 'created_at', 'updated_at']
         read_only_fields = ['id', 'spent', 'created_at', 'updated_at']
+
+    def validate(self, attrs):
+        if not attrs.get('category') and not attrs.get('category_name') and self.instance is None:
+            raise serializers.ValidationError({'category': 'Either category_id or category_name is required.'})
+        return attrs
 
 
 class GoalSerializer(serializers.ModelSerializer):
@@ -75,7 +107,18 @@ class AlertSettingSerializer(serializers.ModelSerializer):
 
 
 class ExpenseSerializer(serializers.ModelSerializer):
+    category = CategorySerializer(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), source='category', write_only=True)
+    category_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
     class Meta:
         model = Expense
-        fields = ['id', 'date', 'category', 'amount', 'note', 'receipt_url', 'created_at', 'updated_at']
+        fields = ['id', 'date', 'category', 'category_id', 'category_name', 'amount', 'note', 'receipt_url', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def validate(self, attrs):
+        if not attrs.get('category') and not attrs.get('category_name'):
+            raise serializers.ValidationError({'category': 'Either category_id or category_name is required.'})
+        if attrs.get('category_name') and attrs.get('category'):
+            raise serializers.ValidationError({'category': 'Provide either category_id or category_name, not both.'})
+        return attrs

@@ -15,6 +15,7 @@ from .views import (
     AlertViewSet,
     AlertSettingViewSet,
     ExpenseViewSet,
+    CategoryViewSet,
     health_check,
     seed_historical_data,
     default_user_info,
@@ -30,6 +31,7 @@ router.register(r'goals', GoalViewSet, basename='goal')
 router.register(r'alerts', AlertViewSet, basename='alert')
 router.register(r'alert-settings', AlertSettingViewSet, basename='alertsetting')
 router.register(r'expenses', ExpenseViewSet, basename='expense')
+router.register(r'categories', CategoryViewSet, basename='category')
 
 # URL patterns
 urlpatterns = [
