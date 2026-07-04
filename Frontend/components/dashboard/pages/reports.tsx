@@ -318,7 +318,7 @@ export function ReportsPage() {
                   Filters
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent aria-describedby={undefined}>
                 <DialogHeader>
                   <DialogTitle>Trend Filters</DialogTitle>
                 </DialogHeader>
@@ -502,7 +502,7 @@ export function ReportsPage() {
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DialogTrigger>
-                      <DialogContent>
+                      <DialogContent aria-describedby={undefined}>
                         <DialogHeader>
                           <DialogTitle>Trend Options</DialogTitle>
                         </DialogHeader>
@@ -635,7 +635,7 @@ export function ReportsPage() {
                           <Settings2 className="h-4 w-4" />
                         </Button>
                       </DialogTrigger>
-                      <DialogContent>
+                      <DialogContent aria-describedby={undefined}>
                         <DialogHeader>
                           <DialogTitle>Manage Categories</DialogTitle>
                         </DialogHeader>

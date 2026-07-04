@@ -10,6 +10,7 @@ from ..models import Transaction
 from django.db.models import Sum, Count, Q
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
+from django.http import HttpResponse
 from datetime import datetime
 import csv
 import io
@@ -57,8 +58,8 @@ def export_transactions_csv(request):
         ])
 
     buffer.seek(0)
-    response = Response(buffer.getvalue(), content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="transactions.csv"'
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="reports.pdf"'
     return response
 
 
