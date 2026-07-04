@@ -105,6 +105,13 @@ export function ReportsPage() {
 
   const totalCategoryAmount = categoryChartData.reduce((sum, item) => sum + item.value, 0)
 
+  const radarData = categoryData?.map((cat) => ({
+    category: cat.category,
+    budget: cat.total * 1.5,
+    spent: cat.total,
+    remaining: cat.total * 0.5,
+  })) || []
+
   const avgIncome = monthlyStats?.length
     ? monthlyStats.reduce((sum, m) => sum + m.income, 0) / monthlyStats.length
     : 0
@@ -499,8 +506,8 @@ export function ReportsPage() {
                           ))}
                         </Pie>
                         <Tooltip
-                          formatter={(value: number, name: string) => [
-                            `₹${value.toLocaleString()}`,
+                          formatter={(value: any, name: any) => [
+                            `₹${Number(value).toLocaleString()}`,
                             name,
                           ]}
                           labelFormatter={() => ""}
@@ -587,8 +594,8 @@ export function ReportsPage() {
                     strokeWidth={2}
                   />
                   <Tooltip
-                    formatter={(value: number, name: string) => [
-                      `₹${value.toLocaleString()}`,
+                    formatter={(value: any, name: any) => [
+                      `₹${Number(value).toLocaleString()}`,
                       name,
                     ]}
                   />
