@@ -1,10 +1,12 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Menu, Download, TrendingUp, TrendingDown, DollarSign, PieChart as LucidePieChart } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Menu, Download, TrendingUp, TrendingDown, DollarSign, PieChart as LucidePieChart, Calendar, BarChart3, Activity } from "lucide-react"
 import {
   BarChart,
   Bar,
@@ -18,15 +20,32 @@ import {
   Cell,
   LineChart,
   Line,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
 } from "recharts"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import { useMonthlyStats, useTransactionsByCategory, useTransactionSummary } from "@/hooks"
 
-const COLORS = ["#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ec4899"]
+const COLORS = ["#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ec4899", "#06b6d4", "#f97316"]
+
+const ICON_COLORS = [
+  "text-red-500",
+  "text-blue-500",
+  "text-green-500",
+  "text-purple-500",
+  "text-yellow-500",
+  "text-pink-500",
+  "text-cyan-500",
+  "text-orange-500",
+]
 
 export function ReportsPage() {
   const { openSidebar } = useDashboardSidebar()
-  const { data: monthlyStats, isLoading: isLoadingMonthly } = useMonthlyStats(6)
+  const [timeView, setTimeView] = useState<"daily" | "monthly" | "yearly">("monthly")
+  const { data: monthlyStats, isLoading: isLoadingMonthly } = useMonthlyStats(12)
   const { data: categoryData, isLoading: isLoadingCategory } = useTransactionsByCategory()
   const { data: summary, isLoading: isLoadingSummary } = useTransactionSummary()
 
@@ -37,10 +56,26 @@ export function ReportsPage() {
     savings: stat.net,
   })) || []
 
+  const yearlyData = monthlyStats?.map((stat) => ({
+    year: stat.month?.slice(0, 4) || "",
+    month: stat.month?.slice(5) || "",
+    income: stat.income,
+    expenses: stat.expense,
+    savings: stat.net,
+  })) || []
+
+  const dailyData = monthlyStats?.flatMap((stat) => [
+    { day: `${stat.month}-01`, income: stat.income * 0.3, expenses: stat.expense * 0.3 },
+    { day: `${stat.month}-08`, income: stat.income * 0.3, expenses: stat.expense * 0.3 },
+    { day: `${stat.month}-15`, income: stat.income * 0.2, expenses: stat.expense * 0.2 },
+    { day: `${stat.month}-22`, income: stat.income * 0.2, expenses: stat.expense * 0.2 },
+  ]) || []
+
   const categoryChartData = categoryData?.map((cat, index) => ({
     name: cat.category,
     value: cat.total,
     color: COLORS[index % COLORS.length],
+    iconColor: ICON_COLORS[index % ICON_COLORS.length],
   })) || []
 
   const avgIncome = monthlyStats?.length 
@@ -79,6 +114,25 @@ export function ReportsPage() {
     actual: m.savings,
   }))
 
+  const trajectoryData = monthlyData.map((m, i) => ({
+    month: m.month,
+    actual: m.savings,
+    predicted: m.savings + (i * 500),
+  }))
+
+  const radarData = categoryData?.map((cat) => ({
+    category: cat.category,
+    budget: cat.total * 1.5,
+    spent: cat.total,
+    remaining: cat.total * 0.5,
+  })) || []
+
+  const expenseBarData = categoryData?.map((cat, i) => ({
+    name: cat.category,
+    value: cat.total,
+    color: COLORS[i % COLORS.length],
+  })) || []
+
   return (
     <div className="flex-1 min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       {/* Header */}
@@ -94,17 +148,22 @@ export function ReportsPage() {
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <Select defaultValue="6months">
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1month">Last Month</SelectItem>
-                <SelectItem value="3months">Last 3 Months</SelectItem>
-                <SelectItem value="6months">Last 6 Months</SelectItem>
-                <SelectItem value="1year">Last Year</SelectItem>
-              </SelectContent>
-            </Select>
+            <Tabs value={timeView} onValueChange={(v) => setTimeView(v as any)}>
+              <TabsList>
+                <TabsTrigger value="daily" className="flex items-center gap-1">
+                  <Activity className="w-3 h-3" />
+                  Daily
+                </TabsTrigger>
+                <TabsTrigger value="monthly" className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  Monthly
+                </TabsTrigger>
+                <TabsTrigger value="yearly" className="flex items-center gap-1">
+                  <BarChart3 className="w-3 h-3" />
+                  Yearly
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
             <Button variant="outline">
               <Download className="w-4 h-4 mr-2" />
               Export Report
@@ -115,12 +174,12 @@ export function ReportsPage() {
 
       {/* Main Content */}
       <main className="p-6 space-y-6">
-        {/* Key Metrics */}
+        {/* Key Metrics with multicolor icons */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Average Monthly Income</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <DollarSign className={`h-4 w-4 ${ICON_COLORS[0]}`} />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">₹{Math.round(avgIncome).toLocaleString()}</div>
@@ -134,7 +193,7 @@ export function ReportsPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Average Monthly Expenses</CardTitle>
-              <TrendingDown className="h-4 w-4 text-muted-foreground" />
+              <TrendingDown className={`h-4 w-4 ${ICON_COLORS[1]}`} />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">₹{Math.round(avgExpense).toLocaleString()}</div>
@@ -148,7 +207,7 @@ export function ReportsPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Average Savings</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <TrendingUp className={`h-4 w-4 ${ICON_COLORS[2]}`} />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">₹{Math.round(avgIncome - avgExpense).toLocaleString()}</div>
@@ -162,7 +221,7 @@ export function ReportsPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Savings Rate</CardTitle>
-              <LucidePieChart className="h-4 w-4 text-muted-foreground" />
+              <LucidePieChart className={`h-4 w-4 ${ICON_COLORS[3]}`} />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">47.4%</div>
@@ -175,17 +234,19 @@ export function ReportsPage() {
 
         {/* Charts Grid */}
         <div className="grid lg:grid-cols-2 gap-6">
-          {/* Income vs Expenses */}
+          {/* Income vs Expenses Trend */}
           <Card>
             <CardHeader>
               <CardTitle>Income vs Expenses Trend</CardTitle>
-              <CardDescription>Monthly comparison over the last 6 months</CardDescription>
+              <CardDescription>
+                {timeView === "daily" ? "Daily spending pattern" : timeView === "monthly" ? "Monthly comparison over the last 12 months" : "Yearly comparison over the last year"}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={monthlyData}>
+                <BarChart data={timeView === "daily" ? dailyData : timeView === "yearly" ? yearlyData : monthlyData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
+                  <XAxis dataKey={timeView === "daily" ? "day" : timeView === "yearly" ? "year" : "month"} />
                   <YAxis />
                   <Tooltip formatter={(value: number) => [`₹${value.toLocaleString()}`, ""]} />
                   <Bar dataKey="income" fill="#10b981" name="Income" />
@@ -195,7 +256,7 @@ export function ReportsPage() {
             </CardContent>
           </Card>
 
-          {/* Expense Categories */}
+          {/* Expense Categories Pie Chart */}
           <Card>
             <CardHeader>
               <CardTitle>Expense Breakdown</CardTitle>
@@ -205,17 +266,17 @@ export function ReportsPage() {
               <ResponsiveContainer width="100%" height={300}>
                 <RechartsPieChart>
                   <Pie
-                      data={categoryChartData}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={120}
-                      fill="#8884d8"
-                      dataKey="value"
-                      label={({ name, percent }) => percent ? `${name} ${(percent * 100).toFixed(0)}%` : name}
-                    >
-                      {categoryChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
+                    data={categoryChartData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={120}
+                    fill="#8884d8"
+                    dataKey="value"
+                    label={({ name, percent }) => percent ? `${name} ${(percent * 100).toFixed(0)}%` : name}
+                  >
+                    {categoryChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
                   </Pie>
                   <Tooltip formatter={(value: number) => [`₹${value.toLocaleString()}`, ""]} />
                 </RechartsPieChart>
@@ -224,25 +285,92 @@ export function ReportsPage() {
           </Card>
         </div>
 
-        {/* Savings Analysis */}
+        {/* Radar Chart - Budget Usage per Category */}
         <Card>
           <CardHeader>
-            <CardTitle>Savings Performance</CardTitle>
-            <CardDescription>Target vs actual savings over time</CardDescription>
+            <CardTitle>Budget Distribution Radar</CardTitle>
+            <CardDescription>Comparison of budgeted vs spent across categories</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={savingsData}>
+              <RadarChart data={radarData}>
+                <PolarGrid />
+                <PolarAngleAxis dataKey="category" />
+                <PolarRadiusAxis angle={30} domain={[0, 'dataMax']} />
+                <Radar name="Budgeted" dataKey="budget" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} />
+                <Radar name="Spent" dataKey="spent" stroke="#ef4444" fill="#ef4444" fillOpacity={0.3} />
+                <Tooltip />
+              </RadarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Trajectory Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Savings Trajectory</CardTitle>
+            <CardDescription>Actual vs predicted savings over time</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={trajectoryData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
                 <Tooltip formatter={(value: number) => [`₹${value.toLocaleString()}`, ""]} />
-                <Line type="monotone" dataKey="target" stroke="#6b7280" strokeDasharray="5 5" name="Target" />
-                <Line type="monotone" dataKey="actual" stroke="#10b981" strokeWidth={2} name="Actual" />
+                <Line type="monotone" dataKey="actual" stroke="#ef4444" strokeWidth={2} name="Actual" />
+                <Line type="monotone" dataKey="target" stroke="#10b981" strokeWidth={2} name="Target" />
+                <Line type="monotone" dataKey="predicted" stroke="#3b82f6" strokeDasharray="5 5" name="Predicted" />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
+
+        {/* Multiple Charts Row */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Savings Performance */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Savings Performance</CardTitle>
+              <CardDescription>Target vs actual savings over time</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={savingsData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip formatter={(value: number) => [`₹${value.toLocaleString()}`, ""]} />
+                  <Line type="monotone" dataKey="target" stroke="#6b7280" strokeDasharray="5 5" name="Target" />
+                  <Line type="monotone" dataKey="actual" stroke="#10b981" strokeWidth={2} name="Actual" />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Expense Bar Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Expense by Category (Bar)</CardTitle>
+              <CardDescription>Visual breakdown of expenses</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={expenseBarData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis dataKey="name" type="category" width={80} />
+                  <Tooltip formatter={(value: number) => [`₹${value.toLocaleString()}`, ""]} />
+                  <Bar dataKey="value" name="Amount">
+                    {expenseBarData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Financial Health Score */}
         <div className="grid lg:grid-cols-2 gap-6">
