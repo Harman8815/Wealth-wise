@@ -7,18 +7,31 @@ import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Menu, Plus, Edit, TrendingUp, AlertTriangle, Eye } from "lucide-react"
-import { useBudgetOverview, useBudgetCategories } from "@/hooks"
+import { useBudgetOverview, useBudgetCategories, useUpdateBudgetCategory } from "@/hooks"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import Link from "next/link"
 import { AddCategoryDialog } from "../add-category-dialog"
 import { ICON_MAP } from "../symbol-picker"
 import { CATEGORY_SYMBOLS, DEFAULT_TEXT_COLOR } from "@/data/category-symbols"
+import { toast }
+
+interface BudgetCategory {
+  id: string
+  name: string
+  budgeted: number
+  spent: number
+  color: string
+  text_color: string
+  symbol: string
+}
 
 export function BudgetPlannerPage() {
   const { openSidebar } = useDashboardSidebar()
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingCategory, setEditingCategory] = useState<BudgetCategory | null>(null)
   const [isAddOpen, setIsAddOpen] = useState(false)
+  const updateMutation = useUpdateBudgetCategory()
   const { data: budgetOverview, isLoading: isLoadingOverview } = useBudgetOverview()
   const { data: budgetCategoriesData, isLoading: isLoadingCategories } = useBudgetCategories()
 
@@ -35,7 +48,7 @@ export function BudgetPlannerPage() {
     return pctB - pctA
   })
 
-  function getCategoryDisplay(category: typeof budgetCategories[number]) {
+  function getCategoryDisplay(category: BudgetCategory) {
     const icon = ICON_MAP[category.symbol || "utensils"] || ICON_MAP.utensils
     const textColor = category.text_color || DEFAULT_TEXT_COLOR
     return { icon, textColor }
@@ -80,6 +93,24 @@ export function BudgetPlannerPage() {
       </header>
 
       <AddCategoryDialog isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
+
+      <EditBudgetModal
+        isOpen={!!editingCategory}
+        onClose={() => setEditingCategory(null)}
+        category={editingCategory}
+        onSave={(newBudget) => {
+          if (editingCategory) {
+            updateMutation.mutateAsync({ id: editingCategory.id, data: { budgeted: newBudget } })
+              .then(() => {
+                toast({ title: "Budget updated", description: "Category budget was updated successfully." })
+                setEditingCategory(null)
+              })
+              .catch((err: any) => {
+                toast({ title: "Failed to update budget", description: err?.response?.data?.detail || err?.message || "Please try again." })
+              })
+          }
+        }}
+      />
 
       {/* Main Content */}
       <main className="p-6 space-y-6">
@@ -186,28 +217,7 @@ export function BudgetPlannerPage() {
                       <div className="flex items-center space-x-2">
                         <div className="text-right">
                           <div className="text-sm font-medium">
-                            ₹{category.spent.toLocaleString()} /
-                            {editingId === category.id ? (
-                              <Input
-                                type="number"
-                                defaultValue={category.budgeted}
-                                className="inline-block w-24 h-6 ml-1 text-xs"
-                                onBlur={() => setEditingId(null)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    setEditingId(null)
-                                  }
-                                }}
-                                autoFocus
-                              />
-                            ) : (
-                              <span
-                                className="cursor-pointer hover:text-blue-600 ml-1"
-                                onClick={() => setEditingId(category.id)}
-                              >
-                                ₹{category.budgeted.toLocaleString()}
-                              </span>
-                            )}
+                            ₹{category.spent.toLocaleString()} / ₹{category.budgeted.toLocaleString()}
                           </div>
                           <div className="text-xs text-gray-600 dark:text-gray-400">{percentage.toFixed(1)}% used</div>
                         </div>
@@ -219,7 +229,7 @@ export function BudgetPlannerPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => setEditingId(editingId === category.id ? null : category.id)}
+                          onClick={() => setEditingCategory(category)}
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
@@ -271,5 +281,97 @@ export function BudgetPlannerPage() {
         </Card>
       </main>
     </div>
+  )
+}
+
+interface EditBudgetModalProps {
+  isOpen: boolean
+  onClose: () => void
+  category: BudgetCategory | null
+  onSave: (newBudget: number) => void
+}
+
+function EditBudgetModal({ isOpen, onClose, category, onSave }: EditBudgetModalProps) {
+  const [newBudget, setNewBudget] = useState(0)
+
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault()
+    onSave(newBudget)
+  }
+
+  const oldPercentage = category ? (category.spent / category.budgeted) * 100 : 0
+  const newPercentage = newBudget > 0 ? (category.spent / newBudget) * 100 : 0
+
+  if (!category) return null
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit Category Budget</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center space-x-3">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: category.color }}
+              >
+                <span style={{ color: category.text_color }}>{ICON_MAP[category.symbol || "utensils"] || ICON_MAP.utensils}</span>
+              </div>
+              <h3 className="font-medium text-lg">{category.name}</h3>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Current Budget</div>
+              <div className="text-lg font-semibold">₹{category.budgeted.toLocaleString()}</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Current Used</div>
+              <div className="text-lg font-semibold">₹{category.spent.toLocaleString()}</div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">New Budget Amount</label>
+            <Input
+              type="number"
+              value={newBudget || ""}
+              onChange={(e) => setNewBudget(Number(e.target.value))}
+              placeholder="₹0.00"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm">Old Percentage</span>
+              <span className={`text-sm font-medium ${
+                oldPercentage > 100 ? "text-red-600" : oldPercentage > 90 ? "text-orange-600" : "text-green-600"
+              }`}>
+                {oldPercentage.toFixed(1)}%
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm">New Percentage</span>
+              <span className={`text-sm font-medium ${
+                newPercentage > 100 ? "text-red-600" : newPercentage > 90 ? "text-orange-600" : "text-green-600"
+              }`}>
+                {newBudget > 0 ? newPercentage.toFixed(1) : "0.0"}%
+              </span>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={onClose} type="button">
+              Cancel
+            </Button>
+            <Button type="submit">Save Changes</Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
