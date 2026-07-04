@@ -63,7 +63,14 @@ export function TransactionsPage() {
 
   const categories = ["all", "Food & Dining", "Transportation", "Entertainment", "Shopping", "Bills & Utilities", "Healthcare", "Income"]
 
-  const hasActiveFilters = searchTerm.trim() !== "" || filterCategory !== "all" || filterType !== "all"
+const hasActiveFilters = searchTerm.trim() !== "" || filterCategory !== "all" || filterType !== "all"
+
+  const clearAllFilters = () => {
+    setSearchTerm("")
+    setFilterCategory("all")
+    setFilterType("all")
+    setPage(1)
+  }
 
   const handleEdit = async (data: { date: string; description: string; category_name: string; amount: number; type: "income" | "expense" }) => {
     if (!viewTransaction) return
@@ -138,10 +145,10 @@ export function TransactionsPage() {
                    <Label>Description</Label>
                    <p className="text-sm font-medium">{viewTransaction.description}</p>
                  </div>
-                 <div>
-                   <Label>Category</Label>
-                   <Badge variant="outline">{viewTransaction.category}</Badge>
-                 </div>
+<div>
+                    <Label>Category</Label>
+                    <Badge variant="outline">{viewTransaction.category?.name}</Badge>
+                  </div>
                  <div>
                    <Label>Type</Label>
                    <Badge variant={viewTransaction.type === "income" ? "default" : "secondary"}>
@@ -192,9 +199,9 @@ export function TransactionsPage() {
                    <Pencil className="w-4 h-4 mr-2" />
                    Edit
                  </Button>
-                 <Button variant="destructive" onClick={handleDelete} disabled={deleteMutation.isLoading}>
-                   <Trash2 className="w-4 h-4 mr-2" />
-                   {deleteMutation.isLoading ? "Deleting..." : "Delete"}
+<Button variant="destructive" onClick={handleDelete} disabled={deleteMutation.isPending}>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {deleteMutation.isPending ? "Deleting..." : "Delete"}
                  </Button>
                </div>
              </div>

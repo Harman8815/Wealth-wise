@@ -15,7 +15,7 @@ import Link from "next/link"
 import { AddCategoryDialog } from "../add-category-dialog"
 import { ICON_MAP } from "../symbol-picker"
 import { CATEGORY_SYMBOLS, DEFAULT_TEXT_COLOR } from "@/data/category-symbols"
-import { toast }
+import { toast } from "@/hooks/use-toast"
 
 interface BudgetCategory {
   id: string
@@ -300,7 +300,7 @@ function EditBudgetModal({ isOpen, onClose, category, onSave }: EditBudgetModalP
   }
 
   const oldPercentage = category ? (category.spent / category.budgeted) * 100 : 0
-  const newPercentage = newBudget > 0 ? (category.spent / newBudget) * 100 : 0
+  const newPercentage = category && newBudget > 0 ? (category.spent / newBudget) * 100 : 0
 
   if (!category) return null
 

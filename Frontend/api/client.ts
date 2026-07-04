@@ -90,8 +90,8 @@ class ApiClient {
             this.requestToastMap.delete(originalRequest);
           }
 
-          const message = error.response?.data?.detail || error.message || 'Request failed'
-          toast({ title: message, variant: 'destructive' })
+const message = (error.response?.data as { detail?: string })?.detail || error.message || 'Request failed'
+           toast({ title: message, variant: 'destructive' })
         } catch (e) {
           // ignore notifier errors to avoid masking the actual request error.
         }

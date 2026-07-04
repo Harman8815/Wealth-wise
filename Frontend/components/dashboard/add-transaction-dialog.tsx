@@ -112,7 +112,7 @@ export function AddTransactionDialog({ isOpen, onClose }: AddTransactionDialogPr
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={onClose} type="button">Cancel</Button>
-            <Button type="submit" disabled={createMutation.isLoading}>{createMutation.isLoading ? 'Adding...' : 'Add Transaction'}</Button>
+            <Button type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? 'Adding...' : 'Add Transaction'}</Button>
           </div>
         </form>
       </DialogContent>
