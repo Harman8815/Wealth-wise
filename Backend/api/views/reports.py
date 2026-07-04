@@ -58,8 +58,8 @@ def export_transactions_csv(request):
         ])
 
     buffer.seek(0)
-    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename="reports.pdf"'
+    response = HttpResponse(buffer.getvalue(), content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="transactions.csv"'
     return response
 
 
@@ -122,7 +122,7 @@ def export_reports_pdf(request):
     doc.build(elements)
     buffer.seek(0)
 
-    response = Response(buffer.getvalue(), content_type='application/pdf')
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="reports.pdf"'
     return response
 
