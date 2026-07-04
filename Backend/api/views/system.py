@@ -158,22 +158,50 @@ def seed_historical_data(request):
         income_category = category_lookup['Income']
         expense_categories = [category_lookup['Food & Dining'], category_lookup['Transportation'], category_lookup['Shopping'], category_lookup['Entertainment'], category_lookup['Bills & Utilities'], category_lookup['Healthcare']]
 
-        # Create budget categories
+        # Create budget categories and link to transaction categories
         budget_categories_data = [
-            {'name': 'Food & Dining', 'budgeted': 18000, 'color': '#ef4444', 'icon': 'utensils'},
-            {'name': 'Transportation', 'budgeted': 12000, 'color': '#3b82f6', 'icon': 'car'},
-            {'name': 'Shopping', 'budgeted': 15000, 'color': '#10b981', 'icon': 'shopping-bag'},
-            {'name': 'Entertainment', 'budgeted': 8000, 'color': '#8b5cf6', 'icon': 'film'},
-            {'name': 'Bills & Utilities', 'budgeted': 14000, 'color': '#f59e0b', 'icon': 'receipt'},
-            {'name': 'Healthcare', 'budgeted': 5000, 'color': '#ec4899', 'icon': 'heart-pulse'},
-            {'name': 'Education', 'budgeted': 10000, 'color': '#14b8a6', 'icon': 'graduation-cap'},
-            {'name': 'Home & Maintenance', 'budgeted': 8000, 'color': '#f97316', 'icon': 'home'},
+            {'name': 'Food & Dining', 'budgeted': 18000, 'color': '#ef4444', 'icon': 'utensils', 'monthly_spend': 1500},
+            {'name': 'Transportation', 'budgeted': 12000, 'color': '#3b82f6', 'icon': 'car', 'monthly_spend': 1000},
+            {'name': 'Shopping', 'budgeted': 15000, 'color': '#10b981', 'icon': 'shopping-cart', 'monthly_spend': 1250},
+            {'name': 'Entertainment', 'budgeted': 8000, 'color': '#8b5cf6', 'icon': 'film', 'monthly_spend': 700},
+            {'name': 'Bills & Utilities', 'budgeted': 14000, 'color': '#f59e0b', 'icon': 'zap', 'monthly_spend': 1200},
+            {'name': 'Healthcare', 'budgeted': 5000, 'color': '#ec4899', 'icon': 'heart-pulse', 'monthly_spend': 400},
+            {'name': 'Education', 'budgeted': 10000, 'color': '#14b8a6', 'icon': 'book', 'monthly_spend': 800},
+            {'name': 'Home & Maintenance', 'budgeted': 8000, 'color': '#f97316', 'icon': 'home', 'monthly_spend': 700},
         ]
         
         budget_cats = {}
         for cat_data in budget_categories_data:
-            cat = BudgetCategory.objects.create(user=user, **cat_data, spent=0)
+            cat = BudgetCategory.objects.create(
+                user=user,
+                category=category_lookup.get(cat_data['name']),
+                name=cat_data['name'],
+                budgeted=cat_data['budgeted'],
+                spent=0,
+                color=cat_data['color'],
+                icon=cat_data['icon'],
+            )
             budget_cats[cat_data['name']] = cat
+
+        category_spend_profile = {
+            'Food & Dining': {'min': 300, 'max': 800, 'monthly': 1500, 'weight': 4},
+            'Transportation': {'min': 200, 'max': 600, 'monthly': 1000, 'weight': 3},
+            'Shopping': {'min': 500, 'max': 3000, 'monthly': 1250, 'weight': 2},
+            'Entertainment': {'min': 200, 'max': 1500, 'monthly': 700, 'weight': 2},
+            'Bills & Utilities': {'min': 800, 'max': 2000, 'monthly': 1200, 'weight': 1},
+            'Healthcare': {'min': 500, 'max': 3000, 'monthly': 400, 'weight': 1},
+            'Education': {'min': 1000, 'max': 5000, 'monthly': 800, 'weight': 1},
+            'Home & Maintenance': {'min': 500, 'max': 2000, 'monthly': 700, 'weight': 1},
+        }
+
+        expense_category_lookup = {
+            'Food & Dining': category_lookup.get('Food & Dining'),
+            'Transportation': category_lookup.get('Transportation'),
+            'Shopping': category_lookup.get('Shopping'),
+            'Entertainment': category_lookup.get('Entertainment'),
+            'Bills & Utilities': category_lookup.get('Bills & Utilities'),
+            'Healthcare': category_lookup.get('Healthcare'),
+        }
         
         # Create goals
         goals_data = [
@@ -234,16 +262,21 @@ def seed_historical_data(request):
                 )
                 transactions_created += 1
             
-            # Random expenses
-            if random.random() < 0.3:  # 30% chance of expense per day
-                category = random.choice(expense_categories)
+            # Random expenses correlated with budget categories
+            if random.random() < 0.35:  # ~35% chance of expense per day
+                category_names = list(category_spend_profile.keys())
+                weights = [category_spend_profile[name]['weight'] for name in category_names]
+                selected_name = random.choices(category_names, weights=weights, k=1)[0]
+                profile = category_spend_profile[selected_name]
+                amount = random.randint(profile['min'], profile['max'])
+                
                 Transaction.objects.create(
                     user=user,
                     account=random.choice(accounts[2:5]),
                     date=current_date,
-                    description=f'{category.name} expense',
-                    category=category,
-                    amount=random.randint(100, 5000),
+                    description=f'{selected_name} expense',
+                    category=expense_category_lookup.get(selected_name),
+                    amount=amount,
                     type='expense',
                     status='completed',
                 )

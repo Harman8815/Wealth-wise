@@ -32,26 +32,28 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        """Return budget categories for current user with auto-updated spent values."""
+        """Return budget categories for current user with properly synced spent values."""
         queryset = BudgetCategory.objects.filter(user=self.request.user)
-        # Auto-update spent values when queried to ensure sync with transactions
+        
         for category in queryset:
-            # Try to match by FK first, then by name
             if category.category:
-                spent = Transaction.objects.filter(
+                total_spent = Transaction.objects.filter(
                     user=self.request.user,
                     category=category.category,
                     type='expense'
-                ).aggregate(total=Sum('amount'))['total'] or 0
+                ).aggregate(total=Sum('amount'))['total']
             else:
-                # If FK is null, try matching by name
-                spent = Transaction.objects.filter(
+                total_spent = Transaction.objects.filter(
                     user=self.request.user,
                     category__name=category.name,
                     type='expense'
-                ).aggregate(total=Sum('amount'))['total'] or 0
-            category.spent = Decimal('0') if spent == 0 else Decimal(str(spent))
-            category.save(update_fields=['spent'])
+                ).aggregate(total=Sum('amount'))['total']
+            
+            spent = total_spent or Decimal('0')
+            if category.spent != spent:
+                category.spent = spent
+                category.save(update_fields=['spent'])
+        
         return queryset
 
     def perform_create(self, serializer):
