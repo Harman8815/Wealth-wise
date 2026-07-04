@@ -3,10 +3,29 @@
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Menu, Download, TrendingUp, TrendingDown, DollarSign, PieChart as LucidePieChart, Calendar, BarChart3, Activity } from "lucide-react"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import { Separator } from "@/components/ui/separator"
+import {
+  Menu,
+  Download,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  PieChart as LucidePieChart,
+  Calendar,
+  BarChart3,
+  Activity,
+  MoreVertical,
+  ArrowUpRight,
+  ArrowDownRight,
+  Filter,
+  GitCompare,
+  FileDown,
+} from "lucide-react"
 import {
   BarChart,
   Bar,
@@ -31,76 +50,95 @@ import { useMonthlyStats, useTransactionsByCategory, useTransactionSummary } fro
 
 const COLORS = ["#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ec4899", "#06b6d4", "#f97316"]
 
-const ICON_COLORS = [
-  "text-red-500",
-  "text-blue-500",
-  "text-green-500",
-  "text-purple-500",
-  "text-yellow-500",
-  "text-pink-500",
-  "text-cyan-500",
-  "text-orange-500",
-]
+type TimeView = "daily" | "monthly" | "yearly"
+type TrendChartType = "bar" | "line"
 
 export function ReportsPage() {
   const { openSidebar } = useDashboardSidebar()
-  const [timeView, setTimeView] = useState<"daily" | "monthly" | "yearly">("monthly")
-  const { data: monthlyStats, isLoading: isLoadingMonthly } = useMonthlyStats(12)
+  const [timeView, setTimeView] = useState<TimeView>("monthly")
+  const [trendChartType, setTrendChartType] = useState<TrendChartType>("bar")
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [compareWithPrevious, setCompareWithPrevious] = useState(false)
+  const [showGrid, setShowGrid] = useState(true)
+  const { data: monthlyStats, isLoading: isLoadingMonthly } = useMonthlyStats(24)
   const { data: categoryData, isLoading: isLoadingCategory } = useTransactionsByCategory()
   const { data: summary, isLoading: isLoadingSummary } = useTransactionSummary()
 
   const monthlyData = monthlyStats?.map((stat) => ({
     month: stat.month?.slice(5) || "",
-    income: stat.income,
-    expenses: stat.expense,
-    savings: stat.net,
-  })) || []
-
-  const yearlyData = monthlyStats?.map((stat) => ({
     year: stat.month?.slice(0, 4) || "",
-    month: stat.month?.slice(5) || "",
     income: stat.income,
     expenses: stat.expense,
     savings: stat.net,
   })) || []
 
-  const dailyData = monthlyStats?.flatMap((stat) => [
-    { day: `${stat.month}-01`, income: stat.income * 0.3, expenses: stat.expense * 0.3 },
-    { day: `${stat.month}-08`, income: stat.income * 0.3, expenses: stat.expense * 0.3 },
-    { day: `${stat.month}-15`, income: stat.income * 0.2, expenses: stat.expense * 0.2 },
-    { day: `${stat.month}-22`, income: stat.income * 0.2, expenses: stat.expense * 0.2 },
-  ]) || []
+  const dailyData = monthlyStats?.slice(-1).map((stat) => ({
+    day: stat.month?.slice(5) || "",
+    income: stat.income,
+    expenses: stat.expense,
+    savings: stat.net,
+  })) || []
+
+  const yearlyData = monthlyStats?.reduce((acc: any[], stat) => {
+    const year = stat.month?.slice(0, 4) || ""
+    const existing = acc.find((item) => item.year === year)
+    if (existing) {
+      existing.income += stat.income
+      existing.expenses += stat.expense
+      existing.savings += stat.net
+    } else {
+      acc.push({
+        year,
+        income: stat.income,
+        expenses: stat.expense,
+        savings: stat.net,
+      })
+    }
+    return acc
+  }, []) || []
 
   const categoryChartData = categoryData?.map((cat, index) => ({
     name: cat.category,
     value: cat.total,
     color: COLORS[index % COLORS.length],
-    iconColor: ICON_COLORS[index % ICON_COLORS.length],
   })) || []
 
-  const avgIncome = monthlyStats?.length 
-    ? monthlyStats.reduce((sum, m) => sum + m.income, 0) / monthlyStats.length 
+  const totalCategoryAmount = categoryChartData.reduce((sum, item) => sum + item.value, 0)
+
+  const avgIncome = monthlyStats?.length
+    ? monthlyStats.reduce((sum, m) => sum + m.income, 0) / monthlyStats.length
     : 0
-  const avgExpense = monthlyStats?.length 
-    ? monthlyStats.reduce((sum, m) => sum + m.expense, 0) / monthlyStats.length 
+  const avgExpense = monthlyStats?.length
+    ? monthlyStats.reduce((sum, m) => sum + m.expense, 0) / monthlyStats.length
     : 0
 
   if (isLoadingMonthly || isLoadingCategory || isLoadingSummary) {
     return (
-      <div className="min-h-screen p-6 space-y-6">
+      <div className="flex-1 min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-6 space-y-6">
         <Skeleton className="h-12 w-64" />
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
             <Card key={i} className="h-32">
               <Skeleton className="h-full" />
             </Card>
           ))}
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="h-96">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <Card className="lg:col-span-7 h-96">
             <Skeleton className="h-full" />
           </Card>
-          <Card className="h-96">
+          <Card className="lg:col-span-5 h-96">
+            <Skeleton className="h-full" />
+          </Card>
+        </div>
+        <Card className="h-80">
+          <Skeleton className="h-full" />
+        </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <Card className="lg:col-span-5 h-80">
+            <Skeleton className="h-full" />
+          </Card>
+          <Card className="lg:col-span-7 h-80">
             <Skeleton className="h-full" />
           </Card>
         </div>
@@ -108,34 +146,35 @@ export function ReportsPage() {
     )
   }
 
-  const savingsData = monthlyData.map((m) => ({
-    month: m.month,
-    target: avgIncome * 0.5,
-    actual: m.savings,
-  }))
+  const activeTabData =
+    timeView === "daily" ? dailyData : timeView === "yearly" ? yearlyData : monthlyData
+  const activeXKey = timeView === "daily" ? "day" : timeView === "yearly" ? "year" : "month"
 
-  const trajectoryData = monthlyData.map((m, i) => ({
-    month: m.month,
-    actual: m.savings,
-    predicted: m.savings + (i * 500),
-  }))
-
-  const radarData = categoryData?.map((cat) => ({
-    category: cat.category,
-    budget: cat.total * 1.5,
-    spent: cat.total,
-    remaining: cat.total * 0.5,
-  })) || []
-
-  const expenseBarData = categoryData?.map((cat, i) => ({
-    name: cat.category,
-    value: cat.total,
-    color: COLORS[i % COLORS.length],
-  })) || []
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="rounded-xl border border-border bg-background/95 backdrop-blur-sm p-3 shadow-lg">
+          <p className="mb-2 text-sm font-semibold text-foreground">{label}</p>
+          {payload.map((entry: any, index: number) => (
+            <div key={index} className="flex items-center gap-2 text-sm">
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: entry.color }}
+              />
+              <span className="text-muted-foreground">{entry.name}:</span>
+              <span className="font-semibold text-foreground">
+                ₹{Number(entry.value).toLocaleString()}
+              </span>
+            </div>
+          ))}
+        </div>
+      )
+    }
+    return null
+  }
 
   return (
     <div className="flex-1 min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      {/* Header */}
       <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/80 border-b border-border/50 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -147,234 +186,418 @@ export function ReportsPage() {
               <p className="text-gray-600 dark:text-gray-400">Analyze your financial patterns and trends</p>
             </div>
           </div>
-          <div className="flex items-center space-x-4">
-            <Tabs value={timeView} onValueChange={(v) => setTimeView(v as any)}>
-              <TabsList>
-                <TabsTrigger value="daily" className="flex items-center gap-1">
-                  <Activity className="w-3 h-3" />
-                  Daily
-                </TabsTrigger>
-                <TabsTrigger value="monthly" className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  Monthly
-                </TabsTrigger>
-                <TabsTrigger value="yearly" className="flex items-center gap-1">
-                  <BarChart3 className="w-3 h-3" />
-                  Yearly
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-            <Button variant="outline">
+          <div className="flex items-center space-x-2">
+            <Dialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Filter className="w-4 h-4 mr-2" />
+                  Filters
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Trend Filters</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="flex items-center justify-between">
+                    <Label>Compare with previous period</Label>
+                    <Switch checked={compareWithPrevious} onCheckedChange={setCompareWithPrevious} />
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <Label>Show grid lines</Label>
+                    <Switch checked={showGrid} onCheckedChange={setShowGrid} />
+                  </div>
+                  <Separator />
+                  <div className="space-y-2">
+                    <Label>Date Range</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="outline" size="sm" className="justify-start">
+                        <Calendar className="w-4 h-4 mr-2" />
+                        This Month
+                      </Button>
+                      <Button variant="outline" size="sm" className="justify-start">
+                        <Calendar className="w-4 h-4 mr-2" />
+                        Last 3 Months
+                      </Button>
+                      <Button variant="outline" size="sm" className="justify-start">
+                        <Calendar className="w-4 h-4 mr-2" />
+                        This Year
+                      </Button>
+                      <Button variant="outline" size="sm" className="justify-start">
+                        <Calendar className="w-4 h-4 mr-2" />
+                        Custom Range
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Button variant="outline" size="sm">
               <Download className="w-4 h-4 mr-2" />
-              Export Report
+              Export
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="p-6 space-y-6">
-        {/* Key Metrics with multicolor icons */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Average Monthly Income</CardTitle>
-              <DollarSign className={`h-4 w-4 ${ICON_COLORS[0]}`} />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Income</CardTitle>
+              <DollarSign className="h-4 w-4 text-emerald-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">₹{Math.round(avgIncome).toLocaleString()}</div>
-              <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                <TrendingUp className="h-3 w-3 text-green-500" />
-                <span className="text-green-500">Stable</span>
-              </div>
+              <p className="text-xs text-muted-foreground">Average monthly</p>
             </CardContent>
           </Card>
-
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Average Monthly Expenses</CardTitle>
-              <TrendingDown className={`h-4 w-4 ${ICON_COLORS[1]}`} />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Expenses</CardTitle>
+              <TrendingDown className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">₹{Math.round(avgExpense).toLocaleString()}</div>
-              <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                <TrendingDown className="h-3 w-3 text-red-500" />
-                <span className="text-red-500">-2.4%</span>
-              </div>
+              <p className="text-xs text-muted-foreground">Average monthly</p>
             </CardContent>
           </Card>
-
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Average Savings</CardTitle>
-              <TrendingUp className={`h-4 w-4 ${ICON_COLORS[2]}`} />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Net Savings</CardTitle>
+              <TrendingUp className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">₹{Math.round(avgIncome - avgExpense).toLocaleString()}</div>
-              <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                <TrendingUp className="h-3 w-3 text-green-500" />
-                <span className="text-green-500">+5.7%</span>
-              </div>
+              <p className="text-xs text-muted-foreground">Per month</p>
             </CardContent>
           </Card>
-
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Savings Rate</CardTitle>
-              <LucidePieChart className={`h-4 w-4 ${ICON_COLORS[3]}`} />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Savings Rate</CardTitle>
+              <LucidePieChart className="h-4 w-4 text-purple-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">47.4%</div>
-              <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                <span className="text-green-500">Excellent</span>
+              <div className="text-2xl font-bold">
+                {avgIncome > 0 ? Math.round(((avgIncome - avgExpense) / avgIncome) * 100) : 0}%
               </div>
+              <p className="text-xs text-muted-foreground">
+                {avgIncome > 0 && ((avgIncome - avgExpense) / avgIncome) > 0.3 ? "Excellent" : "Keep improving"}
+              </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Charts Grid */}
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Income vs Expenses Trend */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Income vs Expenses Trend</CardTitle>
-              <CardDescription>
-                {timeView === "daily" ? "Daily spending pattern" : timeView === "monthly" ? "Monthly comparison over the last 12 months" : "Yearly comparison over the last year"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={timeView === "daily" ? dailyData : timeView === "yearly" ? yearlyData : monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey={timeView === "daily" ? "day" : timeView === "yearly" ? "year" : "month"} />
-                  <YAxis />
-                  <Tooltip formatter={(value: number) => [`₹${value.toLocaleString()}`, ""]} />
-                  <Bar dataKey="income" fill="#10b981" name="Income" />
-                  <Bar dataKey="expenses" fill="#ef4444" name="Expenses" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-7">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Income & Expense Trend</CardTitle>
+                    <CardDescription>
+                      {timeView === "daily"
+                        ? "Daily spending pattern"
+                        : timeView === "monthly"
+                        ? "Monthly comparison trend"
+                        : "Yearly comparison trend"}
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex rounded-lg border border-border p-1">
+                      <Button
+                        variant={timeView === "daily" ? "secondary" : "ghost"}
+                        size="sm"
+                        className="h-7 px-3 text-xs"
+                        onClick={() => setTimeView("daily")}
+                      >
+                        <Activity className="w-3 h-3 mr-1" />
+                        Daily
+                      </Button>
+                      <Button
+                        variant={timeView === "monthly" ? "secondary" : "ghost"}
+                        size="sm"
+                        className="h-7 px-3 text-xs"
+                        onClick={() => setTimeView("monthly")}
+                      >
+                        <Calendar className="w-3 h-3 mr-1" />
+                        Monthly
+                      </Button>
+                      <Button
+                        variant={timeView === "yearly" ? "secondary" : "ghost"}
+                        size="sm"
+                        className="h-7 px-3 text-xs"
+                        onClick={() => setTimeView("yearly")}
+                      >
+                        <BarChart3 className="w-3 h-3 mr-1" />
+                        Yearly
+                      </Button>
+                    </div>
+                    <div className="flex rounded-lg border border-border p-1">
+                      <Button
+                        variant={trendChartType === "bar" ? "secondary" : "ghost"}
+                        size="sm"
+                        className="h-7 px-2.5"
+                        onClick={() => setTrendChartType("bar")}
+                      >
+                        <BarChart3 className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant={trendChartType === "line" ? "secondary" : "ghost"}
+                        size="sm"
+                        className="h-7 px-2.5"
+                        onClick={() => setTrendChartType("line")}
+                      >
+                        <Activity className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Trend Options</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-3 py-2">
+                          <Button variant="outline" className="w-full justify-start">
+                            <GitCompare className="w-4 h-4 mr-2" />
+                            Compare with Previous Period
+                          </Button>
+                          <Button variant="outline" className="w-full justify-start">
+                            <FileDown className="w-4 h-4 mr-2" />
+                            Export as CSV
+                          </Button>
+                          <Button variant="outline" className="w-full justify-start">
+                            <Download className="w-4 h-4 mr-2" />
+                            Export as PDF
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={340}>
+                  {trendChartType === "bar" ? (
+                    <BarChart data={activeTabData} barGap={4}>
+                      {showGrid && <CartesianGrid stroke="currentColor" className="text-muted-foreground/20" vertical={false} />}
+                      <XAxis
+                        dataKey={activeXKey}
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 12, fill: "currentColor" }}
+                        className="text-muted-foreground"
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 12, fill: "currentColor" }}
+                        className="text-muted-foreground"
+                        tickFormatter={(value: any) => `₹${(value / 1000).toFixed(0)}k`}
+                      />
+                      <Tooltip content={<CustomTooltip />} cursor={{ fill: "currentColor", className: "text-muted-foreground/5" }} />
+                      <Bar dataKey="income" fill="#10b981" name="Income" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="expenses" fill="#ef4444" name="Expenses" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  ) : (
+                    <LineChart data={activeTabData}>
+                      {showGrid && <CartesianGrid stroke="currentColor" className="text-muted-foreground/20" vertical={false} />}
+                      <XAxis
+                        dataKey={activeXKey}
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 12, fill: "currentColor" }}
+                        className="text-muted-foreground"
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 12, fill: "currentColor" }}
+                        className="text-muted-foreground"
+                        tickFormatter={(value: any) => `₹${(value / 1000).toFixed(0)}k`}
+                      />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Line
+                        type="monotone"
+                        dataKey="income"
+                        stroke="#10b981"
+                        strokeWidth={3}
+                        name="Income"
+                        dot={{ r: 4, strokeWidth: 2, fill: "#10b981" }}
+                        activeDot={{ r: 6, strokeWidth: 2, fill: "#10b981" }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="expenses"
+                        stroke="#ef4444"
+                        strokeWidth={3}
+                        name="Expenses"
+                        dot={{ r: 4, strokeWidth: 2, fill: "#ef4444" }}
+                        activeDot={{ r: 6, strokeWidth: 2, fill: "#ef4444" }}
+                      />
+                    </LineChart>
+                  )}
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
 
-          {/* Expense Categories Pie Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Expense Breakdown</CardTitle>
-              <CardDescription>Current month spending by category</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <RechartsPieChart>
-                  <Pie
-                    data={categoryChartData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={120}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ name, percent }) => percent ? `${name} ${(percent * 100).toFixed(0)}%` : name}
-                  >
-                    {categoryChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value: number) => [`₹${value.toLocaleString()}`, ""]} />
-                </RechartsPieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <div className="lg:col-span-5">
+            <Card className="h-full">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg font-semibold">Expense Breakdown</CardTitle>
+                    <CardDescription>Distribution by category</CardDescription>
+                  </div>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Pie Chart Options</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-3 py-2">
+                        <Button variant="outline" className="w-full justify-start">
+                          <Download className="w-4 h-4 mr-2" />
+                          Export Chart
+                        </Button>
+                        <Button variant="outline" className="w-full justify-start">
+                          <FileDown className="w-4 h-4 mr-2" />
+                          Export Data
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col md:flex-row items-center gap-6">
+                  <div className="w-full md:w-1/2">
+                    <ResponsiveContainer width="100%" height={260}>
+                      <RechartsPieChart>
+                        <Pie
+                          data={categoryChartData}
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={100}
+                          innerRadius={50}
+                          fill="#8884d8"
+                          dataKey="value"
+                          stroke="none"
+                        >
+                          {categoryChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value: number, name: string) => [
+                            `₹${value.toLocaleString()}`,
+                            name,
+                          ]}
+                          labelFormatter={() => ""}
+                        />
+                      </RechartsPieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="w-full md:w-1/2 space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                    {categoryChartData.map((item, index) => {
+                      const percentage = totalCategoryAmount > 0 ? (item.value / totalCategoryAmount) * 100 : 0
+                      return (
+                        <div key={index} className="space-y-1">
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="h-2.5 w-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: item.color }}
+                              />
+                              <span className="text-foreground truncate">{item.name}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">
+                                ₹{item.value.toLocaleString()}
+                              </span>
+                              <span className="text-xs text-muted-foreground w-10 text-right">
+                                {percentage.toFixed(1)}%
+                              </span>
+                            </div>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all"
+                              style={{
+                                width: `${Math.min(percentage, 100)}%`,
+                                backgroundColor: item.color,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
-        {/* Radar Chart - Budget Usage per Category */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Budget Distribution Radar</CardTitle>
-            <CardDescription>Comparison of budgeted vs spent across categories</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <RadarChart data={radarData}>
-                <PolarGrid />
-                <PolarAngleAxis dataKey="category" />
-                <PolarRadiusAxis angle={30} domain={[0, 'dataMax']} />
-                <Radar name="Budgeted" dataKey="budget" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} />
-                <Radar name="Spent" dataKey="spent" stroke="#ef4444" fill="#ef4444" fillOpacity={0.3} />
-                <Tooltip />
-              </RadarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Trajectory Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Savings Trajectory</CardTitle>
-            <CardDescription>Actual vs predicted savings over time</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={trajectoryData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip formatter={(value: number) => [`₹${value.toLocaleString()}`, ""]} />
-                <Line type="monotone" dataKey="actual" stroke="#ef4444" strokeWidth={2} name="Actual" />
-                <Line type="monotone" dataKey="target" stroke="#10b981" strokeWidth={2} name="Target" />
-                <Line type="monotone" dataKey="predicted" stroke="#3b82f6" strokeDasharray="5 5" name="Predicted" />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Multiple Charts Row */}
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Savings Performance */}
-          <Card>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <Card className="lg:col-span-5">
             <CardHeader>
-              <CardTitle>Savings Performance</CardTitle>
-              <CardDescription>Target vs actual savings over time</CardDescription>
+              <CardTitle>Budget Distribution Radar</CardTitle>
+              <CardDescription>Budgeted vs spent across categories</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={savingsData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip formatter={(value: number) => [`₹${value.toLocaleString()}`, ""]} />
-                  <Line type="monotone" dataKey="target" stroke="#6b7280" strokeDasharray="5 5" name="Target" />
-                  <Line type="monotone" dataKey="actual" stroke="#10b981" strokeWidth={2} name="Actual" />
-                </LineChart>
+              <ResponsiveContainer width="100%" height={400}>
+                <RadarChart data={radarData}>
+                  <PolarGrid stroke="currentColor" className="text-muted-foreground/20" />
+                  <PolarAngleAxis
+                    dataKey="category"
+                    tick={{ fontSize: 11, fill: "currentColor" }}
+                    className="text-muted-foreground"
+                  />
+                  <PolarRadiusAxis
+                    angle={30}
+                    domain={[0, "dataMax"]}
+                    tick={{ fontSize: 10, fill: "currentColor" }}
+                    className="text-muted-foreground"
+                  />
+                  <Radar
+                    name="Budgeted"
+                    dataKey="budget"
+                    stroke="#3b82f6"
+                    fill="#3b82f6"
+                    fillOpacity={0.25}
+                    strokeWidth={2}
+                  />
+                  <Radar
+                    name="Spent"
+                    dataKey="spent"
+                    stroke="#ef4444"
+                    fill="#ef4444"
+                    fillOpacity={0.25}
+                    strokeWidth={2}
+                  />
+                  <Tooltip
+                    formatter={(value: number, name: string) => [
+                      `₹${value.toLocaleString()}`,
+                      name,
+                    ]}
+                  />
+                </RadarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          {/* Expense Bar Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Expense by Category (Bar)</CardTitle>
-              <CardDescription>Visual breakdown of expenses</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={expenseBarData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis dataKey="name" type="category" width={80} />
-                  <Tooltip formatter={(value: number) => [`₹${value.toLocaleString()}`, ""]} />
-                  <Bar dataKey="value" name="Amount">
-                    {expenseBarData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Financial Health Score */}
-        <div className="grid lg:grid-cols-2 gap-6">
-          <Card>
+          <Card className="lg:col-span-7">
             <CardHeader>
               <CardTitle>Financial Health Score</CardTitle>
               <CardDescription>Based on your spending and saving patterns</CardDescription>
@@ -383,7 +606,7 @@ export function ReportsPage() {
               <div className="space-y-4">
                 <div className="text-center">
                   <div className="text-6xl font-bold text-green-600 mb-2">8.5</div>
-                  <div className="text-lg text-gray-600 dark:text-gray-400">Excellent</div>
+                  <div className="text-lg text-muted-foreground">Excellent</div>
                 </div>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
@@ -406,36 +629,36 @@ export function ReportsPage() {
               </div>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Key Insights</CardTitle>
-              <CardDescription>AI-powered analysis of your financial behavior</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
-                  <h4 className="font-medium text-green-900 dark:text-green-100 mb-2">🎯 Great Progress!</h4>
-                  <p className="text-sm text-green-700 dark:text-green-300">
-                    Your savings rate of 47.4% is excellent. You're on track to meet your financial goals.
-                  </p>
-                </div>
-                <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">📊 Spending Pattern</h4>
-                  <p className="text-sm text-blue-700 dark:text-blue-300">
-                    Food & Dining is your largest expense category. Consider meal planning to optimize costs.
-                  </p>
-                </div>
-                <div className="p-4 bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-200 dark:border-purple-800">
-                  <h4 className="font-medium text-purple-900 dark:text-purple-100 mb-2">💡 Recommendation</h4>
-                  <p className="text-sm text-purple-700 dark:text-purple-300">
-                    You could increase your emergency fund by redirecting 5% of entertainment spending.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Key Insights</CardTitle>
+            <CardDescription>AI-powered analysis of your financial behavior</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
+                <h4 className="font-medium text-green-900 dark:text-green-100 mb-2">Great Progress</h4>
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  Your savings rate is excellent. You are on track to meet your financial goals.
+                </p>
+              </div>
+              <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+                <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Spending Pattern</h4>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Food & Dining is your largest expense category. Consider meal planning to optimize costs.
+                </p>
+              </div>
+              <div className="p-4 bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-200 dark:border-purple-800">
+                <h4 className="font-medium text-purple-900 dark:text-purple-100 mb-2">Recommendation</h4>
+                <p className="text-sm text-purple-700 dark:text-purple-300">
+                  You could increase your emergency fund by redirecting 5% of entertainment spending.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </main>
     </div>
   )
