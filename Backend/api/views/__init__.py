@@ -12,6 +12,7 @@ from .alert_settings import AlertSettingViewSet
 from .expenses import ExpenseViewSet
 from .categories import CategoryViewSet
 from .system import health_check, seed_historical_data, default_user_info
+from .reports import export_transactions_csv, export_reports_pdf, filter_reports
 
 __all__ = [
     'UserViewSet',
@@ -25,4 +26,7 @@ __all__ = [
     'health_check',
     'seed_historical_data',
     'default_user_info',
+    'export_transactions_csv',
+    'export_reports_pdf',
+    'filter_reports',
 ]

@@ -19,6 +19,9 @@ from .views import (
     health_check,
     seed_historical_data,
     default_user_info,
+    export_transactions_csv,
+    export_reports_pdf,
+    filter_reports,
 )
 
 # Create router and register viewsets
@@ -46,4 +49,7 @@ urlpatterns = [
     path('health/', health_check, name='health_check'),
     path('seed-data/', seed_historical_data, name='seed_data'),
     path('default-user/', default_user_info, name='default_user_info'),
+    path('transactions/export_csv/', export_transactions_csv, name='transactions_export_csv'),
+    path('reports/filter/', filter_reports, name='reports_filter'),
+    path('reports/export_pdf/', export_reports_pdf, name='reports_export_pdf'),
 ]
