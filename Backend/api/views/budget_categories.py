@@ -36,14 +36,22 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
         queryset = BudgetCategory.objects.filter(user=self.request.user)
         # Auto-update spent values when queried to ensure sync with transactions
         for category in queryset:
+            # Try to match by FK first, then by name
             if category.category:
                 spent = Transaction.objects.filter(
                     user=self.request.user,
                     category=category.category,
                     type='expense'
                 ).aggregate(total=Sum('amount'))['total'] or 0
-                category.spent = Decimal('0') if spent == 0 else Decimal(str(spent))
-                category.save(update_fields=['spent'])
+            else:
+                # If FK is null, try matching by name
+                spent = Transaction.objects.filter(
+                    user=self.request.user,
+                    category__name=category.name,
+                    type='expense'
+                ).aggregate(total=Sum('amount'))['total'] or 0
+            category.spent = Decimal('0') if spent == 0 else Decimal(str(spent))
+            category.save(update_fields=['spent'])
         return queryset
 
     def perform_create(self, serializer):
@@ -52,10 +60,11 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
         name = serializer.validated_data.get('name')
         
         if not category_instance:
+            # Try to find existing category by name first, then create if not found
             category_instance, _ = Category.objects.get_or_create(
                 user=self.request.user,
                 name=name,
-                type='budget',
+                type='expense',
                 defaults={
                     'color': '#3b82f6',
                     'text_color': '#ffffff',
@@ -89,6 +98,7 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
         """
         category = self.get_object()
         
+        # Try to match by FK first, then by name
         if category.category:
             total_spent = Transaction.objects.filter(
                 user=request.user,
@@ -96,7 +106,11 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
                 type='expense'
             ).aggregate(total=Sum('amount'))['total'] or 0
         else:
-            total_spent = 0
+            total_spent = Transaction.objects.filter(
+                user=request.user,
+                category__name=category.name,
+                type='expense'
+            ).aggregate(total=Sum('amount'))['total'] or 0
         
         category.spent = Decimal('0') if total_spent == 0 else Decimal(str(total_spent))
         category.save(update_fields=['spent'])
