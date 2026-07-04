@@ -17,6 +17,8 @@ import { SearchableCategoryInput } from "@/components/ui/searchable-category-inp
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import { Transaction } from "@/api/services"
 import { toast } from "@/hooks/use-toast"
+import { ICON_MAP } from "../symbol-picker"
+import { getCategoryIcon } from "@/data/category-symbols"
 
 const PAGE_SIZE = 10
 
@@ -320,116 +322,120 @@ export function TransactionsPage() {
 <CardContent>
              <div className="overflow-x-auto">
                <Table>
-                 <TableHeader>
-                   <TableRow>
-                     <TableHead>
-                       <button
-                         type="button"
-                         className="inline-flex items-center gap-2 font-semibold"
-                         onClick={() => {
-                           if (sortField === 'date') {
-                             setSortDirection((current) => (current === 'desc' ? 'asc' : 'desc'))
-                           } else {
-                             setSortField('date')
-                             setSortDirection('desc')
-                           }
-                         }}
-                       >
-                         Date
-                         <span>{sortField === 'date' ? (sortDirection === 'desc' ? '▼' : '▲') : '↕'}</span>
-                       </button>
-                     </TableHead>
-                     <TableHead>Description</TableHead>
-                     <TableHead>Category</TableHead>
-                     <TableHead>Account</TableHead>
-                     <TableHead>Status</TableHead>
-                     <TableHead className="text-right">
-                       <button
-                         type="button"
-                         className="inline-flex items-center gap-2 font-semibold"
-                         onClick={() => {
-                           if (sortField === 'amount') {
-                             setSortDirection((current) => (current === 'desc' ? 'asc' : 'desc'))
-                           } else {
-                             setSortField('amount')
-                             setSortDirection('desc')
-                           }
-                         }}
-                       >
-                         Amount
-                         <span>{sortField === 'amount' ? (sortDirection === 'desc' ? '▼' : '▲') : '↕'}</span>
-                       </button>
-                     </TableHead>
-                     <TableHead>Actions</TableHead>
-                   </TableRow>
-                 </TableHeader>
-                 <TableBody>
-                   {isLoadingTransactions ? (
-                     [...Array(PAGE_SIZE)].map((_, i) => (
-                       <TableRow key={i}>
-                         <TableCell colSpan={7}><Skeleton className="h-10 w-full" /></TableCell>
-                       </TableRow>
-                     ))
-                   ) : transactions.length === 0 ? (
-                     <TableRow>
-                       <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                         No transactions found.
-                       </TableCell>
-                     </TableRow>
-                   ) : (
-                     transactions.map((transaction) => (
-                       <TableRow key={transaction.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                         <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
-                         <TableCell>
-                           <div className="flex items-center space-x-3">
-                             <div
-                               className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                 transaction.type === "income"
-                                   ? "bg-green-100 dark:bg-green-900"
-                                   : "bg-red-100 dark:bg-red-900"
-                               }`}
-                             >
-                               {transaction.type === "income" ? (
-                                 <ArrowDownLeft className="w-4 h-4 text-green-600 dark:text-green-400" />
-                               ) : (
-                                 <ArrowUpRight className="w-4 h-4 text-red-600 dark:text-red-400" />
-                               )}
-                             </div>
-                             <span className="font-medium">{transaction.description}</span>
-                           </div>
-                         </TableCell>
-                         <TableCell>
-                            <Badge variant="outline">{transaction.category?.name}</Badge>
-                         </TableCell>
-                         <TableCell className="text-gray-600 dark:text-gray-400">{transaction.account_name || "-"}</TableCell>
-                         <TableCell>
-                           <Badge variant={transaction.status === "completed" ? "default" : "secondary"}>
-                             {transaction.status}
-                           </Badge>
-                         </TableCell>
-                         <TableCell className="text-right">
-                           <span
-                             className={`font-semibold ${
-                               transaction.type === "income"
-                                 ? "text-green-600 dark:text-green-400"
-                                 : "text-red-600 dark:text-red-400"
-                             }`}
-                           >
-                             {transaction.type === "income" ? "+" : "-"}₹{Number(transaction.amount).toLocaleString()}
-                           </span>
-                         </TableCell>
-                         <TableCell>
-                           <Button
-                             variant="ghost"
-                             size="sm"
-                             onClick={() => setViewTransaction(transaction)}
-                           >
-                             <Eye className="w-4 h-4" />
-                           </Button>
-                         </TableCell>
-                       </TableRow>
-                     )))}
-                 </TableBody>
+<TableHeader>
+                    <TableRow>
+                      <TableHead>Icon</TableHead>
+                      <TableHead>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-2 font-semibold"
+                          onClick={() => {
+                            if (sortField === 'date') {
+                              setSortDirection((current) => (current === 'desc' ? 'asc' : 'desc'))
+                            } else {
+                              setSortField('date')
+                              setSortDirection('desc')
+                            }
+                          }}
+                        >
+                          Date
+                          <span>{sortField === 'date' ? (sortDirection === 'desc' ? '▼' : '▲') : '↕'}</span>
+                        </button>
+                      </TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Account</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-2 font-semibold"
+                          onClick={() => {
+                            if (sortField === 'amount') {
+                              setSortDirection((current) => (current === 'desc' ? 'asc' : 'desc'))
+                            } else {
+                              setSortField('amount')
+                              setSortDirection('desc')
+                            }
+                          }}
+                        >
+                          Amount
+                          <span>{sortField === 'amount' ? (sortDirection === 'desc' ? '▼' : '▲') : '↕'}</span>
+                        </button>
+                      </TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+<TableBody>
+                    {isLoadingTransactions ? (
+                      [...Array(PAGE_SIZE)].map((_, i) => (
+                        <TableRow key={i}>
+                          <TableCell colSpan={8}><Skeleton className="h-10 w-full" /></TableCell>
+                        </TableRow>
+                      ))
+                    ) : transactions.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                          No transactions found.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      transactions.map((transaction) => {
+                        const categorySymbol = transaction.category?.symbol || getCategoryIcon(transaction.category?.name || "")
+                        const categoryIcon = ICON_MAP[categorySymbol] || ICON_MAP.utensils
+                        const categoryColor = transaction.category?.color || "#f97316"
+                        return (
+                        <TableRow key={transaction.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                          <TableCell>
+                            <div className="flex items-center justify-center">
+                              <div
+                                className="w-8 h-8 rounded-full flex items-center justify-center"
+                                style={{ backgroundColor: categoryColor }}
+                              >
+                                <span className="w-4 h-4 text-white">{categoryIcon}</span>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-3">
+                              <span className="font-medium">{transaction.description}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                             <Badge variant="outline">{transaction.category?.name}</Badge>
+                          </TableCell>
+                          <TableCell className="text-gray-600 dark:text-gray-400">{transaction.account_name || "-"}</TableCell>
+                          <TableCell>
+                            <Badge variant={transaction.status === "completed" ? "default" : "secondary"}>
+                              {transaction.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span
+                              className={`font-semibold ${
+                                transaction.type === "income"
+                                  ? "text-green-600 dark:text-green-400"
+                                  : "text-red-600 dark:text-red-400"
+                              }`}
+                            >
+                              {transaction.type === "income" ? "+" : "-"}₹{Number(transaction.amount).toLocaleString()}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setViewTransaction(transaction)}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                        )
+                      })
+                    )}
+                  </TableBody>
                </Table>
              </div>
 
