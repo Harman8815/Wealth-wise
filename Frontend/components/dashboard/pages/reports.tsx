@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Menu,
   Download,
@@ -25,6 +26,11 @@ import {
   Filter,
   GitCompare,
   FileDown,
+  ChevronLeft,
+  ChevronRight,
+  Settings2,
+  Plus,
+  Trash2,
 } from "lucide-react"
 import {
   BarChart,
@@ -47,11 +53,24 @@ import {
 } from "recharts"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import { useMonthlyStats, useTransactionsByCategory, useTransactionSummary } from "@/hooks"
+import { apiClient } from "@/api/client"
 
 const COLORS = ["#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ec4899", "#06b6d4", "#f97316"]
 
+const DEFAULT_CATEGORIES = [
+  "Food & Dining",
+  "Transportation",
+  "Shopping",
+  "Entertainment",
+  "Bills & Utilities",
+  "Healthcare",
+  "Education",
+  "Home & Maintenance",
+]
+
 type TimeView = "daily" | "monthly" | "yearly"
 type TrendChartType = "bar" | "line"
+type RadarView = "monthly" | "yearly"
 
 export function ReportsPage() {
   const { openSidebar } = useDashboardSidebar()
@@ -60,6 +79,11 @@ export function ReportsPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [compareWithPrevious, setCompareWithPrevious] = useState(false)
   const [showGrid, setShowGrid] = useState(true)
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [radarView, setRadarView] = useState<RadarView>("monthly")
+  const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+
   const { data: monthlyStats, isLoading: isLoadingMonthly } = useMonthlyStats(24)
   const { data: categoryData, isLoading: isLoadingCategory } = useTransactionsByCategory()
   const { data: summary, isLoading: isLoadingSummary } = useTransactionSummary()
@@ -79,38 +103,51 @@ export function ReportsPage() {
     savings: stat.net,
   })) || []
 
-  const yearlyData = monthlyStats?.reduce((acc: any[], stat) => {
-    const year = stat.month?.slice(0, 4) || ""
-    const existing = acc.find((item) => item.year === year)
-    if (existing) {
-      existing.income += stat.income
-      existing.expenses += stat.expense
-      existing.savings += stat.net
-    } else {
-      acc.push({
-        year,
-        income: stat.income,
-        expenses: stat.expense,
-        savings: stat.net,
-      })
-    }
-    return acc
-  }, []) || []
+  const yearlyData = useMemo(() => {
+    const yearMap = new Map<string, { year: string; income: number; expenses: number; savings: number }>()
+    monthlyStats?.forEach((stat) => {
+      const year = stat.month?.slice(0, 4) || ""
+      if (!year) return
+      const existing = yearMap.get(year)
+      if (existing) {
+        existing.income += stat.income
+        existing.expenses += stat.expense
+        existing.savings += stat.net
+      } else {
+        yearMap.set(year, { year, income: stat.income, expenses: stat.expense, savings: stat.net })
+      }
+    })
+    return Array.from(yearMap.values())
+  }, [monthlyStats]) || []
 
-  const categoryChartData = categoryData?.map((cat, index) => ({
-    name: cat.category,
-    value: cat.total,
-    color: COLORS[index % COLORS.length],
-  })) || []
+  const categoryChartData = useMemo(() => {
+    const allCategories = categoryData?.map((cat) => ({
+      name: cat.category,
+      value: cat.total,
+      color: COLORS[DEFAULT_CATEGORIES.indexOf(cat.category) % COLORS.length] || "#94a3b8",
+    })) || []
+    if (selectedCategories.length === 0) return allCategories
+    return allCategories.filter((item) => selectedCategories.includes(item.name))
+  }, [categoryData, selectedCategories])
 
   const totalCategoryAmount = categoryChartData.reduce((sum, item) => sum + item.value, 0)
 
-  const radarData = categoryData?.map((cat) => ({
-    category: cat.category,
-    budget: cat.total * 1.5,
-    spent: cat.total,
-    remaining: cat.total * 0.5,
-  })) || []
+  const radarData = useMemo(() => {
+    if (radarView === "yearly") {
+      return categoryData?.map((cat) => ({
+        category: cat.category,
+        budget: cat.total * 12,
+        spent: cat.total * 12,
+        remaining: cat.total * 12 * 0.5,
+      })) || []
+    }
+    return categoryData?.map((cat) => ({
+      category: cat.category,
+      budget: cat.total * 1.5,
+      spent: cat.total,
+      remaining: cat.total * 0.5,
+    })) || []
+  }, [categoryData, radarView])
 
   const avgIncome = monthlyStats?.length
     ? monthlyStats.reduce((sum, m) => sum + m.income, 0) / monthlyStats.length
@@ -156,6 +193,64 @@ export function ReportsPage() {
   const activeTabData =
     timeView === "daily" ? dailyData : timeView === "yearly" ? yearlyData : monthlyData
   const activeXKey = timeView === "daily" ? "day" : timeView === "yearly" ? "year" : "month"
+  const activeTabDataAny = activeTabData as any[]
+  const radarLabelKey = radarView === "yearly" ? "year" : "category"
+
+  const handleDownloadCSV = async () => {
+    setIsExporting(true)
+    try {
+      const response = await apiClient.get("/transactions/export_csv/", {
+        responseType: "blob",
+      })
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement("a")
+      link.href = url
+      link.setAttribute("download", "transactions.csv")
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error("Failed to download CSV", error)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleDownloadPDF = async () => {
+    setIsExporting(true)
+    try {
+      const response = await apiClient.get("/reports/export_pdf/", {
+        responseType: "blob",
+      })
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement("a")
+      link.href = url
+      link.setAttribute("download", "reports.pdf")
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error("Failed to download PDF", error)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleApplyFilters = async () => {
+    try {
+      const response = await apiClient.post("/reports/filter/", {
+        start_date: undefined,
+        end_date: undefined,
+        categories: selectedCategories,
+        time_view: timeView,
+      })
+      console.log("Filtered reports data", response.data)
+    } catch (error) {
+      console.error("Failed to apply filters", error)
+    }
+  }
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -178,6 +273,28 @@ export function ReportsPage() {
       )
     }
     return null
+  }
+
+  const PieTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const item = payload[0]
+      const percentage = totalCategoryAmount > 0 ? ((item.value || 0) / totalCategoryAmount) * 100 : 0
+      return (
+        <div className="rounded-xl border border-border bg-background/95 backdrop-blur-sm p-3 shadow-lg">
+          <p className="text-sm font-semibold text-foreground">{item.name}</p>
+          <p className="text-sm text-muted-foreground">
+            ₹{Number(item.value).toLocaleString()} ({percentage.toFixed(1)}%)
+          </p>
+        </div>
+      )
+    }
+    return null
+  }
+
+  const toggleCategory = (cat: string) => {
+    setSelectedCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    )
   }
 
   return (
@@ -219,19 +336,39 @@ export function ReportsPage() {
                   <div className="space-y-2">
                     <Label>Date Range</Label>
                     <div className="grid grid-cols-2 gap-2">
-                      <Button variant="outline" size="sm" className="justify-start">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="justify-start"
+                        onClick={handleApplyFilters}
+                      >
                         <Calendar className="w-4 h-4 mr-2" />
                         This Month
                       </Button>
-                      <Button variant="outline" size="sm" className="justify-start">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="justify-start"
+                        onClick={handleApplyFilters}
+                      >
                         <Calendar className="w-4 h-4 mr-2" />
                         Last 3 Months
                       </Button>
-                      <Button variant="outline" size="sm" className="justify-start">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="justify-start"
+                        onClick={handleApplyFilters}
+                      >
                         <Calendar className="w-4 h-4 mr-2" />
                         This Year
                       </Button>
-                      <Button variant="outline" size="sm" className="justify-start">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="justify-start"
+                        onClick={handleApplyFilters}
+                      >
                         <Calendar className="w-4 h-4 mr-2" />
                         Custom Range
                       </Button>
@@ -240,7 +377,7 @@ export function ReportsPage() {
                 </div>
               </DialogContent>
             </Dialog>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
               <Download className="w-4 h-4 mr-2" />
               Export
             </Button>
@@ -369,16 +506,41 @@ export function ReportsPage() {
                         <DialogHeader>
                           <DialogTitle>Trend Options</DialogTitle>
                         </DialogHeader>
-                        <div className="space-y-3 py-2">
-                          <Button variant="outline" className="w-full justify-start">
+                        <div className="space-y-4 py-4">
+                          <div className="space-y-2">
+                            <Label>Filter by Category</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {DEFAULT_CATEGORIES.map((cat) => (
+                                <div key={cat} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={`cat-${cat}`}
+                                    checked={selectedCategories.includes(cat)}
+                                    onCheckedChange={() => toggleCategory(cat)}
+                                  />
+                                  <label
+                                    htmlFor={`cat-${cat}`}
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                  >
+                                    {cat}
+                                  </label>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <Separator />
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start"
+                            onClick={handleApplyFilters}
+                          >
                             <GitCompare className="w-4 h-4 mr-2" />
-                            Compare with Previous Period
+                            Apply Filters
                           </Button>
-                          <Button variant="outline" className="w-full justify-start">
+                          <Button variant="outline" className="w-full justify-start" onClick={handleDownloadCSV}>
                             <FileDown className="w-4 h-4 mr-2" />
                             Export as CSV
                           </Button>
-                          <Button variant="outline" className="w-full justify-start">
+                          <Button variant="outline" className="w-full justify-start" onClick={handleDownloadPDF}>
                             <Download className="w-4 h-4 mr-2" />
                             Export as PDF
                           </Button>
@@ -391,8 +553,10 @@ export function ReportsPage() {
               <CardContent>
                 <ResponsiveContainer width="100%" height={340}>
                   {trendChartType === "bar" ? (
-                    <BarChart data={activeTabData} barGap={4}>
-                      {showGrid && <CartesianGrid stroke="currentColor" className="text-muted-foreground/20" vertical={false} />}
+                    <BarChart data={activeTabDataAny} barGap={4}>
+                      {showGrid && (
+                        <CartesianGrid stroke="currentColor" className="text-muted-foreground/20" vertical={false} />
+                      )}
                       <XAxis
                         dataKey={activeXKey}
                         axisLine={false}
@@ -412,8 +576,10 @@ export function ReportsPage() {
                       <Bar dataKey="expenses" fill="#ef4444" name="Expenses" radius={[6, 6, 0, 0]} />
                     </BarChart>
                   ) : (
-                    <LineChart data={activeTabData}>
-                      {showGrid && <CartesianGrid stroke="currentColor" className="text-muted-foreground/20" vertical={false} />}
+                    <LineChart data={activeTabDataAny}>
+                      {showGrid && (
+                        <CartesianGrid stroke="currentColor" className="text-muted-foreground/20" vertical={false} />
+                      )}
                       <XAxis
                         dataKey={activeXKey}
                         axisLine={false}
@@ -462,28 +628,50 @@ export function ReportsPage() {
                     <CardTitle className="text-lg font-semibold">Expense Breakdown</CardTitle>
                     <CardDescription>Distribution by category</CardDescription>
                   </div>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Pie Chart Options</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-3 py-2">
-                        <Button variant="outline" className="w-full justify-start">
-                          <Download className="w-4 h-4 mr-2" />
-                          Export Chart
+                  <div className="flex items-center gap-1">
+                    <Dialog open={isManageCategoriesOpen} onOpenChange={setIsManageCategoriesOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Settings2 className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" className="w-full justify-start">
-                          <FileDown className="w-4 h-4 mr-2" />
-                          Export Data
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Manage Categories</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-3 py-4">
+                          {DEFAULT_CATEGORIES.map((cat) => (
+                            <div key={cat} className="flex items-center justify-between">
+                              <span className="text-sm">{cat}</span>
+                              <div className="flex items-center gap-2">
+                                {!selectedCategories.includes(cat) && categoryChartData.some((c) => c.name === cat) && (
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggleCategory(cat)}>
+                                    <Plus className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                {selectedCategories.includes(cat) && (
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggleCategory(cat)}>
+                                    <Trash2 className="h-4 w-4 text-red-500" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2 text-xs"
+                      onClick={() => setIsManageCategoriesOpen(true)}
+                    >
+                      Manage
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleDownloadPDF}>
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -505,13 +693,7 @@ export function ReportsPage() {
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
-                        <Tooltip
-                          formatter={(value: any, name: any) => [
-                            `₹${Number(value).toLocaleString()}`,
-                            name,
-                          ]}
-                          labelFormatter={() => ""}
-                        />
+                        <Tooltip content={<PieTooltip />} />
                       </RechartsPieChart>
                     </ResponsiveContainer>
                   </div>
@@ -559,8 +741,32 @@ export function ReportsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <Card className="lg:col-span-5">
             <CardHeader>
-              <CardTitle>Budget Distribution Radar</CardTitle>
-              <CardDescription>Budgeted vs spent across categories</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Budget Distribution Radar</CardTitle>
+                  <CardDescription>Budgeted vs spent across categories</CardDescription>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant={radarView === "monthly" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-7 px-2"
+                    onClick={() => setRadarView("monthly")}
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                    Monthly
+                  </Button>
+                  <Button
+                    variant={radarView === "yearly" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-7 px-2"
+                    onClick={() => setRadarView("yearly")}
+                  >
+                    Yearly
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
@@ -574,7 +780,7 @@ export function ReportsPage() {
                   <PolarRadiusAxis
                     angle={30}
                     domain={[0, "dataMax"]}
-                    tick={{ fontSize: 10, fill: "currentColor" }}
+                    tick={false}
                     className="text-muted-foreground"
                   />
                   <Radar
