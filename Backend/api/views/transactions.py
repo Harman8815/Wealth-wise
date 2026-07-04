@@ -141,20 +141,20 @@ class TransactionViewSet(viewsets.ModelViewSet):
     def by_category(self, request):
         """
         Get expense breakdown by category.
-        
+
         Returns:
             List of categories with total amounts.
         """
         queryset = self.get_queryset().filter(type='expense')
-        
-        categories = queryset.values('category').annotate(
+
+        categories = queryset.values('category__name').annotate(
             total=Sum('amount'),
             count=Count('id')
         ).order_by('-total')
-        
+
         return Response([
             {
-                'category': item['category'],
+                'category': item['category__name'] or 'Uncategorized',
                 'total': float(item['total']),
                 'count': item['count']
             }
