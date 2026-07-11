@@ -22,6 +22,10 @@ from .views import (
     export_transactions_csv,
     export_reports_pdf,
     filter_reports,
+    scheduled_reports,
+    scheduled_report_detail,
+    trigger_scheduled_report,
+    generate_pdf_report,
 )
 
 # Create router and register viewsets
@@ -52,4 +56,8 @@ urlpatterns = [
     path('transactions/export_csv/', export_transactions_csv, name='transactions_export_csv'),
     path('reports/filter/', filter_reports, name='reports_filter'),
     path('reports/export_pdf/', export_reports_pdf, name='reports_export_pdf'),
+    path('reports/schedules/', scheduled_reports, name='scheduled_reports'),
+    path('reports/schedules/<uuid:id>/', scheduled_report_detail, name='scheduled_report_detail'),
+    path('reports/schedules/<uuid:id>/trigger/', trigger_scheduled_report, name='scheduled_reports_trigger'),
+    path('reports/generate_pdf/', generate_pdf_report, name='reports_generate_pdf'),
 ]
