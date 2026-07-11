@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Menu, Plus, Edit, TrendingUp, AlertTriangle, Eye } from "lucide-react"
 import { useBudgetOverview, useBudgetCategories, useUpdateBudgetCategory } from "@/hooks"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
+import { BudgetOverviewPanel } from "@/components/dashboard/budget-overview-panel"
 import Link from "next/link"
 import { AddCategoryDialog } from "../add-category-dialog"
 import { ICON_MAP } from "../symbol-picker"
@@ -47,6 +48,15 @@ export function BudgetPlannerPage() {
     const pctB = (b.spent / b.budgeted) * 100
     return pctB - pctA
   })
+
+  // Map backend budget categories into the shape BudgetOverviewPanel expects
+  // (the panel sorts by consumption and renders the top 3 needing attention).
+  const categoryInputs = budgetCategories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    spent: c.spent,
+    budget: c.budgeted,
+  }))
 
   function getCategoryDisplay(category: BudgetCategory) {
     const icon = ICON_MAP[category.symbol || "utensils"] || ICON_MAP.utensils
@@ -114,69 +124,24 @@ export function BudgetPlannerPage() {
 
       {/* Main Content */}
       <main className="p-6 space-y-6">
-        {/* Budget Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Total Budget</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-blue-600">₹{totalBudgeted.toLocaleString()}</div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Monthly allocation</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Total Spent</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-red-600">₹{totalSpent.toLocaleString()}</div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {((totalSpent / totalBudgeted) * 100).toFixed(1)}% of budget
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Remaining</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className={`text-3xl font-bold ${remainingBudget >= 0 ? "text-green-600" : "text-red-600"}`}>
-                ₹{remainingBudget.toLocaleString()}
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {remainingBudget >= 0 ? "Under budget" : "Over budget"}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Budget Progress */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Budget Overview</CardTitle>
+        {/* Budget Overview — Hero */}
+        <Card className="overflow-hidden shadow-lg border-0 -pt-4 bg-transparent">
+          <CardHeader className="text-center">
+            <CardTitle className="text-4xl">Budget Overview</CardTitle>
             <CardDescription>Your spending progress across all categories</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Overall Budget Usage</span>
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  ₹{totalSpent.toLocaleString()} / ₹{totalBudgeted.toLocaleString()}
-                </span>
-              </div>
-              <Progress value={overallPercentage} className="h-3" />
-              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                <span>{overallPercentage.toFixed(1)}% used</span>
-                <span>{(100 - overallPercentage).toFixed(1)}% remaining</span>
-              </div>
-            </div>
+          <CardContent className="flex flex-col items-center">
+            <BudgetOverviewPanel
+              totalBudget={totalBudgeted}
+              spent={totalSpent}
+              remaining={remainingBudget}
+              percentage={overallPercentage}
+              categories={categoryInputs}
+            />
           </CardContent>
-        </Card>
+          </Card>
 
-        {/* Category Budgets */}
+          {/* Category Budgets */}
         <Card>
           <CardHeader>
             <CardTitle>Category Budgets</CardTitle>

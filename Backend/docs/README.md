@@ -18,8 +18,9 @@ WealthWise is a comprehensive personal finance management application. This API 
 6. [Goals API](./goals.md)
 7. [Alerts API](./alerts.md)
 8. [Alert Settings API](./alert-settings.md)
-9. [Expenses API](./expenses.md)
-10. [Utility Endpoints](./utilities.md)
+9. [Reports API](./reports.md)
+10. [Expenses API](./expenses.md)
+11. [Utility Endpoints](./utilities.md)
 
 ## Quick Start
 
@@ -52,6 +53,13 @@ Authorization: Bearer <your_access_token>
 | `/api/goals/` | Savings goals |
 | `/api/alerts/` | Notifications and alerts |
 | `/api/alert-settings/` | Alert configuration |
+| `/api/reports/filter/` | Filtered report data (monthly stats, categories, summary) |
+| `/api/reports/export_pdf/` | PDF report summary |
+| `/api/reports/generate_pdf/` | Generate PDF report by type |
+| `/api/reports/schedules/` | Scheduled reports (list/create) |
+| `/api/reports/schedules/{id}/` | Scheduled report detail (get/update/delete) |
+| `/api/reports/schedules/{id}/trigger/` | Generate a scheduled report PDF |
+| `/api/transactions/export_csv/` | Export transactions as CSV |
 | `/api/expenses/` | Expense tracking |
 | `/api/health/` | API health check |
 | `/api/seed-data/` | Generate sample data |

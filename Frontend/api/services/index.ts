@@ -27,3 +27,12 @@ export { goalApi, type Goal, type CreateGoalInput, type UpdateGoalInput, type Go
 export { alertApi, type Alert, type CreateAlertInput, type UpdateAlertInput, type UnreadCount, type CategoryCount } from './alerts';
 export { alertSettingApi, type AlertSetting, type CreateAlertSettingInput, type UpdateAlertSettingInput, type AlertSettingSummary } from './alert-settings';
 export { expenseApi, type Expense, type CreateExpenseInput, type UpdateExpenseInput, type ExpenseSummary } from './expenses';
+export {
+  reportsApi,
+  type ScheduledReport,
+  type CreateScheduledReportInput,
+  type FilterReportsInput,
+  type FilterReportsResponse,
+  type ReportType,
+  type ReportFrequency,
+} from './reports';

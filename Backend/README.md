@@ -39,7 +39,8 @@
 | 💰 **Transaction Tracking** | Record income and expenses with category filtering |
 | 📊 **Budget Planning** | Set budgets and track spending by category |
 | 🎯 **Goal Setting** | Create savings goals with progress tracking |
-| 🔔 **Smart Alerts** | Configurable alerts for budgets, bills, and goals |
+| 🔔 **Smart Alerts** | Configurable alerts + backend alert engine (budget exceeded / approaching) |
+| 📊 **Scheduled Reports** | Automate PDF report generation (daily/weekly/monthly) and export CSV/PDF |
 | 📈 **Financial Summary** | Get income, expense, and net balance summaries |
 | 🌱 **Demo Data** | Generate realistic 5-year financial history instantly |
 
@@ -54,6 +55,7 @@ Authentication:        JWT (djangorestframework-simplejwt)
 Database:              SQLite3 (Production: PostgreSQL ready)
 Filtering:             django-filter
 CORS:                  django-cors-headers
+PDF Generation:        reportlab
 Language:              Python 3.12+
 ```
 
@@ -99,6 +101,7 @@ djangorestframework>=3.15
 djangorestframework-simplejwt>=5.3
 django-cors-headers>=4.3
 django-filter>=24.0
+reportlab>=4.0
 ```
 
 ### 4. Run Migrations
@@ -151,10 +154,11 @@ wealthwise_backend/
 │   ├── __init__.py
 │   ├── admin.py               # Django admin configuration
 │   ├── apps.py                # App configuration
-│   ├── models.py              # Database models (User, Account, Transaction, etc.)
+│   ├── models.py               # Database models (User, Account, Transaction, etc.)
 │   ├── serializers.py         # DRF serializers
 │   ├── urls.py                # API endpoint routing
-│   ├── views.py               # API viewsets and endpoints
+│   ├── views/                 # API viewsets/endpoints (split by entity)
+│   ├── services/              # Business logic (alert_engine.py, etc.)
 │   └── migrations/            # Database migrations
 │
 ├── 📂 docs/                   # API Documentation
@@ -167,6 +171,7 @@ wealthwise_backend/
 │   ├── goals.md               # Goals API
 │   ├── alerts.md              # Alerts API
 │   ├── alert-settings.md      # Alert settings API
+│   ├── reports.md             # Reports & scheduled reports API
 │   ├── expenses.md            # Expenses API
 │   └── utilities.md           # Utility endpoints
 │
@@ -251,8 +256,21 @@ POST /api/auth/refresh/
 | `/api/budget-categories/` | GET, POST, PUT, PATCH, DELETE | Budget planning |
 | `/api/goals/` | GET, POST, PUT, PATCH, DELETE | Savings goals |
 | `/api/alerts/` | GET, POST, PUT, PATCH, DELETE | Notifications |
+| `/api/alerts/unread_count/` | GET | Unread alert count |
+| `/api/alerts/by_category/` | GET | Alerts grouped by category |
 | `/api/alerts/mark_all_read/` | POST | Mark all alerts as read |
+| `/api/alerts/generate/` | POST | Run backend alert engine |
 | `/api/alert-settings/` | GET, POST, PUT, PATCH, DELETE | Alert configuration |
+| `/api/alert-settings/toggle/` | POST | Toggle a setting |
+| `/api/alert-settings/reset_defaults/` | POST | Reset settings to defaults |
+| `/api/alert-settings/summary/` | GET | Settings summary |
+| `/api/reports/filter/` | POST | Filtered report data |
+| `/api/reports/export_pdf/` | GET | PDF report summary |
+| `/api/reports/generate_pdf/` | GET | Generate PDF report by type |
+| `/api/reports/schedules/` | GET, POST | Scheduled reports (list/create) |
+| `/api/reports/schedules/{id}/` | GET, PATCH, DELETE | Scheduled report detail |
+| `/api/reports/schedules/{id}/trigger/` | POST | Generate scheduled report PDF |
+| `/api/transactions/export_csv/` | GET | Export transactions as CSV |
 | `/api/expenses/` | GET, POST, PUT, PATCH, DELETE | Quick expense tracking |
 | `/api/seed-data/` | POST | Generate demo data |
 

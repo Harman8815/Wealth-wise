@@ -1,893 +1,420 @@
 # WealthWise Dashboard - Detailed Documentation
 
+> **Recent Feature Additions**
+> - Circular Budget Gauge (SVG, color-coded status: On Track / Near Budget Limit / Budget Exceeded)
+> - Backend alert engine + Generate button on Alerts page (`POST /api/alerts/generate/`)
+> - Dashboard load-time notification toasts (`sonner`, deduplicated per session via `sessionStorage`)
+> - Dedicated Notification Settings page (`/dashboard/notifications`)
+> - Scheduled Reports page (`/dashboard/reports/scheduled`) with PDF generation
+> - Report Export presets with PDF / CSV / Excel (Excel generated client-side as HTML-table `.xls` blob)
+
 ## Table of Contents
+
 1. [Dashboard Overview](#dashboard-overview)
-2. [Dashboard Home (Main)](#dashboard-home-main)
-3. [Transactions Page](#transactions-page)
-4. [Reports & Insights Page](#reports--insights-page)
-5. [Financial Goals Page](#financial-goals-page)
-6. [Budget Planner Page](#budget-planner-page)
-7. [Alerts Page](#alerts-page)
-8. [Data Flow & Hooks](#data-flow--hooks)
+2. [Dashboard Home (`/dashboard`)](#dashboard-home-dashboard)
+3. [Transactions (`/dashboard/transactions`)](#transactions-dashboardtransactions)
+4. [Reports & Insights (`/dashboard/reports`)](#reports--insights-dashboardreports)
+5. [Financial Goals (`/dashboard/goals`)](#financial-goals-dashboardgoals)
+6. [Budget Planner (`/dashboard/budget`)](#budget-planner-dashboardbudget)
+7. [Alerts & Notifications (`/dashboard/alerts`)](#alerts--notifications-dashboardalerts)
+8. [Notification Settings (`/dashboard/notifications`)](#notification-settings-dashboardnotifications)
+9. [Settings Dialog](#settings-dialog)
+10. [Currency, Icons, and Formatting](#currency-icons-and-formatting)
+11. [Backend Endpoints](#backend-endpoints)
 
 ---
 
 ## Dashboard Overview
 
 ### Layout Structure
-- **Sidebar Navigation**: Contains links to all dashboard sections with icons
-- **Header**: Title, description, and action buttons (Export, Add, etc.)
+- **Sidebar Navigation**: Contains links to all dashboard sections with icons (Dashboard, Budget Planner, Transactions, Reports & Insights, Goals, Alerts & Notifications)
+- **Header**: Sticky, glass-morphism header with title, description, and action buttons
 - **Main Content**: Dynamic content area that changes based on active section
-- **Responsive Design**: Mobile-first with collapsible sidebar
+- **Responsive Design**: Mobile-first with collapsible sidebar (`lg:hidden` hamburger menu, Sheet on mobile)
 
 ### Color Scheme
-- **Primary Green**: #10b981 (Income, Positive values)
-- **Primary Red**: #ef4444 (Expenses, Negative values)
-- **Primary Blue**: #3b82f6 (Active Goals, Navigation)
-- **Primary Purple**: #8b5cf6 (Targets, Analytics)
-- **Chart Colors**: [#ef4444, #3b82f6, #10b981, #8b5cf6, #f59e0b, #ec4899]
+- **Primary Green**: `#10b981` (Income, Positive values)
+- **Primary Red**: `#ef4444` (Expenses, Negative values)
+- **Primary Blue**: `#3b82f6` (Active Goals, Navigation)
+- **Primary Purple**: `#8b5cf6` (Targets, Analytics)
+- **Chart Colors**: `#ef4444`, `#3b82f6`, `#10b981`, `#8b5cf6`, `#f59e0b`, `#ec4899`
+
+### Background
+- Gradient: `from-background via-background to-muted/20`
 
 ---
 
-## Dashboard Home (Main)
+## Dashboard Home (`/dashboard`)
 
 ### File Location
 - `components/dashboard/main-content.tsx`
 - `app/dashboard/page.tsx`
 
-### Overview Cards (4 Cards Grid)
+### Notification Toasts
+- **Component**: `components/dashboard/notification-toasts.tsx`
+- Fetches unread alerts via `useAlerts({ read: false }, 1, 5)` and renders each as a `sonner` toast on load
+- Deduplicated per session via `sessionStorage` key `wealthwise_shown_alerts` — viewing a toast does NOT mark the alert as read
+- Returns `null` (no DOM element); toasts are rendered by `sonner` provider
 
-#### 1. Total Balance Card
-- **Icon**: Wallet/Account icon
-- **Value**: Total of all account balances
-- **Trend**: +2.5% from last month
-- **Subtitle**: "Available funds"
-- **Color Theme**: Blue gradient
+### Overview Cards (4 Cards via `OverviewCards` component)
+- **Total Balance** — Wallet icon, sum of all account balances
+- **Monthly Income** — TrendingUp icon (green), `₹{value.toLocaleString()}`, subtitle "This month's earnings"
+- **Monthly Expenses** — TrendingDown icon (red), `₹{value.toLocaleString()}`, subtitle "Total spending"
+- **Net Savings** — PieChart/Wallet icon, `₹{netFlow.toLocaleString()}`, conditional coloring (green if positive, red if negative), subtitle "Net savings this month"
 
-#### 2. Monthly Income Card
-- **Icon**: TrendingUp (green)
-- **Value**: ₹{totalIncome.toLocaleString()}
-- **Trend**: Stable indicator
-- **Subtitle**: "This month's earnings"
-- **Color Theme**: Green (#10b981)
+### Cash Flow Chart (Full Width)
+- **Type**: Bar Chart (Recharts `MonthlyChart` component)
+- **Data**: Last 6 months of income vs expenses
+- **Colors**: Green `#10b981` for Income, Red `#ef4444` for Expenses
+- **Features**: CartesianGrid, formatted currency tooltip, responsive container
 
-#### 3. Monthly Expenses Card
-- **Icon**: TrendingDown (red)
-- **Value**: ₹{totalExpenses.toLocaleString()}
-- **Trend**: -2.4% from last month
-- **Subtitle**: "Total spending"
-- **Color Theme**: Red (#ef4444)
+### AI Insights Card
+- **Component**: `AIInsightsCard` from `@/shared/components`
+- **Data**: Static `sampleInsights` array in `main-content.tsx` (3 items: Spending Alert, Savings Opportunity, Investment Tip)
+- Each insight has: `id`, `type`, `title`, `description`, `impact`, `metadata`, `action`
 
-#### 4. Net Savings Card
-- **Icon**: PieChart/Wallet
-- **Value**: ₹{netFlow.toLocaleString()}
-- **Formula**: Income - Expenses
-- **Trend**: Conditional coloring (green if positive, red if negative)
-- **Subtitle**: "Net savings this month"
-- **Color Theme**: Dynamic based on value
+### Recent Transactions
+- **Component**: `RecentTransactions` from `./recent-transactions`
+- Displays latest transactions with icon, date, description, category badge, account, status badge, amount
 
-### Monthly Income vs Expenses Chart
-- **Type**: Bar Chart (Recharts)
-- **Data Source**: `useMonthlyStats()` hook
-- **X-Axis**: Last 6 months (MM format)
-- **Y-Axis**: Amount in ₹
-- **Bars**:
-  - Green bars (#10b981) for Income
-  - Red bars (#ef4444) for Expenses
-- **Features**:
-  - CartesianGrid for readability
-  - Tooltip with formatted currency
-  - Responsive container
+### Quick Stats Row (3 Cards)
+1. **Upcoming Bills** — Calendar icon (blue), "3 due this week"
+2. **AI Recommendations** — Sparkles icon (emerald), "5 new insights"
+3. **Next Payday** — Calendar icon (purple), "In 5 days"
 
-### Recent Transactions Table
-- **Data Source**: Latest 5-10 transactions
-- **Columns**:
-  - Date (formatted)
-  - Description with icon (income/expense indicator)
-  - Category badge
-  - Account name
-  - Status badge (completed/pending)
-  - Amount (color-coded: green for income, red for expense)
-- **Features**:
-  - Color-coded type indicators (circular icons)
-  - Hover effects
-  - Click-through to full transactions page
-
-### Expense Breakdown Mini Chart
-- **Type**: Pie Chart or Donut Chart
-- **Data Source**: `useTransactionsByCategory()`
-- **Display**: Top spending categories
-- **Legend**: Category names with percentages
+### Header Actions
+- **Seed Demo Data** button (calls `useSeedHistoricalData` mutation, shows `sonner` toast on success/failure)
+- **Add Transaction** button (opens `AddTransactionDialog`)
+- **This Month** button (display only)
 
 ---
 
-## Transactions Page
+## Transactions (`/dashboard/transactions`)
 
 ### File Location
 - `components/dashboard/pages/transactions.tsx`
 - Route: `/dashboard/transactions`
 
 ### Summary Cards (3 Cards)
+- **Total Income** — `₹{totalIncome.toLocaleString()}`, green text, subtitle "This month"
+- **Total Expenses** — `₹{totalExpenses.toLocaleString()}`, red text, subtitle "This month"
+- **Net Flow** — `₹{Math.abs(netFlow).toLocaleString()}`, conditional green/red, subtitle "This month"
+- Data source: `useTransactionSummary()` hook (`summary?.income`, `summary?.expense`, `summary?.net`)
 
-#### 1. Total Income Card
-```
-┌─────────────────────────────┐
-│  Total Income               │
-│  ─────────────────────────  │
-│  ₹XX,XXX                    │
-│  This month                 │
-│  [Green icon]               │
-└─────────────────────────────┘
-```
-- **Color**: Green (#10b981)
-- **Data**: `summary?.income`
-- **Format**: ₹ with toLocaleString()
+### Filter Card
+- **Search Input** — Placeholder "Search transactions...", filters by description and category, Search icon
+- **Category Select** — Options: All Categories, Food & Dining, Transportation, Entertainment, Shopping, Bills & Utilities, Healthcare, Income
+- **Type Select** — Options: All Types, Income, Expense
+- **Sort By Select** — Options: Date, Amount (clickable column headers in table also toggle sort)
+- **Clear All Filters** button (ghost, appears when filters active)
 
-#### 2. Total Expenses Card
-```
-┌─────────────────────────────┐
-│  Total Expenses             │
-│  ─────────────────────────  │
-│  ₹XX,XXX                    │
-│  This month                 │
-│  [Red icon]                 │
-└─────────────────────────────┘
-```
-- **Color**: Red (#ef4444)
-- **Data**: `summary?.expense`
-- **Format**: ₹ with toLocaleString()
-
-#### 3. Net Flow Card
-```
-┌─────────────────────────────┐
-│  Net Flow                   │
-│  ─────────────────────────  │
-│  ₹XX,XXX                    │
-│  This month                 │
-│  [Dynamic color icon]       │
-└─────────────────────────────┘
-```
-- **Color**: Dynamic (green if ≥0, red if <0)
-- **Data**: `summary?.net`
-- **Format**: Absolute value with sign indicator
-
-### Filter Transactions Card
-
-#### Filter Controls (4 columns on desktop)
-1. **Search Input**
-   - Placeholder: "Search transactions..."
-   - Icon: Search
-   - Filters: description, category
-   
-2. **Category Select**
-   - Options: All, Food & Dining, Transportation, Entertainment, Shopping, Bills & Utilities, Healthcare, Income
-   - Default: "All Categories"
-   
-3. **Type Select**
-   - Options: All Types, Income, Expense
-   - Default: "All Types"
-   
-4. **Sort By Select**
-   - Options: Date, Amount
-   - Default: Date (descending)
-
-### Transaction History Table
-
-#### Table Structure
-```
-┌────────┬─────────────┬──────────┬─────────┬────────┬─────────┐
-│  Date  │ Description │ Category │ Account │ Status │  Amount │
-└────────┴─────────────┴──────────┴─────────┴────────┴─────────┘
-```
-
-#### Row Data Display
+### Transaction Table
+- **Columns**: Icon, Date, Description, Category, Account, Status, Amount, Actions
+- **Icon**: Category symbol rendered in a colored circle (`ICON_MAP` + `getCategoryIcon`)
 - **Date**: `new Date(transaction.date).toLocaleDateString()`
-- **Description**: 
-  - Icon: ArrowDownLeft (income) or ArrowUpRight (expense)
-  - Color-coded background circle (green/red)
-  - Transaction description text
-- **Category**: Badge with outline variant
-- **Account**: Account name or "-"
-- **Status**: 
-  - Badge variant: default (completed) or secondary (pending)
-  - Text: transaction.status
-- **Amount**: 
-  - Prefix: "+" for income, "-" for expense
-  - Format: ₹{Number(transaction.amount).toLocaleString()}
-  - Color: green-600 for income, red-600 for expense
+- **Description**: Plain text with type-colored amount
+- **Category**: `Badge variant="outline"` with `transaction.category?.name`
+- **Account**: `transaction.account_name` or "-"
+- **Status**: `Badge variant="default"` (completed) or `"secondary"` (pending)
+- **Amount**: `+₹{value.toLocaleString()}` for income, `-₹{value.toLocaleString()}` for expense, green/red text
+- **Actions**: Eye icon button to open detail dialog
 
-#### Pagination
-- 10 items per page
-- Current page state tracking
-- Total count display: "Showing {filteredTransactions.length} of {totalCount} transactions"
+### Transaction Detail Dialog
+- Opens when clicking the View (Eye) action on a row
+- Displays: Date, Status, Description, Category, Type, Amount, Account
+- **Edit History** section — fetched via `useTransactionHistory(transactionId)`, shows `field_name`, `old_value → new_value`, `changed_at` timestamp
+- **Edit** button opens `EditTransactionDialog` (date, description, category via `SearchableCategoryInput`, amount, type)
+- **Delete** button with confirmation (`confirm()`), calls `useDeleteTransaction`
+
+### Pagination
+- `PAGE_SIZE = 10` items per page
+- Controls: First, Previous, numbered page buttons (up to 5 visible), Next, Last (SkipForward icon)
+- Shows "Page X of Y · Z total transactions"
+- Data source: `useTransactions(filters, page, PAGE_SIZE)` — uses Django-style pagination (`next`/`previous`)
 
 ---
 
-## Reports & Insights Page
+## Reports & Insights (`/dashboard/reports`)
 
 ### File Location
 - `components/dashboard/pages/reports.tsx`
 - Route: `/dashboard/reports`
 
-### Header Controls
-- **Time Period Selector**:
-  - Options: Last Month, Last 3 Months, Last 6 Months, Last Year
-  - Default: "Last 6 Months"
-- **Export Button**: Download report functionality
+### Metric Cards (4 Cards)
+- **Avg Income** — DollarSign icon (emerald), `₹{Math.round(avgIncome).toLocaleString()}`, subtitle "Average monthly"
+- **Avg Expenses** — TrendingDown icon (red), `₹{Math.round(avgExpense).toLocaleString()}`, subtitle "Average monthly"
+- **Net Savings** — TrendingUp icon (green), `₹{Math.round(avgIncome - avgExpense).toLocaleString()}`, subtitle "Per month"
+- **Savings Rate** — PieChart icon (purple), `{percentage}%`, subtitle "Excellent" or "Keep improving"
+- Data source: `useMonthlyStats(24)` — computed as averages across 24 months
 
-### Key Metrics Cards (4 Cards)
+### Income & Expense Trend Chart
+- **Type**: Toggleable Bar / Line chart (Recharts)
+- **Time View Tabs**: Daily, Monthly, Yearly — switches data and X-axis key
+- **Category Filter**: Checkbox dialog (`Filters` button → `Trend Options` dialog) to filter by category
+- **Compare with previous period** toggle
+- **Show grid lines** toggle
+- Bar colors: Income `#10b981`, Expenses `#ef4444`
+- Tooltip: Custom `CustomTooltip` with `₹{value.toLocaleString()}` formatting
 
-#### 1. Average Monthly Income
-- **Icon**: DollarSign
-- **Value**: ₹{Math.round(avgIncome).toLocaleString()}
-- **Trend**: "Stable" (green)
-- **Calculation**: Sum of all monthly income ÷ number of months
-- **Color**: Muted text with green trend
+### Expense Breakdown
+- **Type**: Donut Pie Chart (Recharts) + horizontal category list
+- **Data**: `useTransactionsByCategory()` — mapped to `{name, value, color}` with `DEFAULT_CATEGORIES` color rotation
+- **Manage Categories** dialog — add/remove categories from the chart display
+- Category list shows: color dot, name, `₹{value.toLocaleString()}`, percentage, mini progress bar
 
-#### 2. Average Monthly Expenses
-- **Icon**: TrendingDown
-- **Value**: ₹{Math.round(avgExpense).toLocaleString()}
-- **Trend**: "-2.4%" (red)
-- **Calculation**: Sum of all monthly expenses ÷ number of months
-- **Color**: Muted text with red trend
+### Budget Distribution Radar
+- **Type**: Radar Chart (Recharts)
+- **View Toggle**: Monthly / Yearly
+- Two Radar series: Budgeted (`#3b82f6`) vs Spent (`#ef4444`)
+- Data derived from `categoryData` — monthly view uses `budget: total*1.5, spent: total`; yearly view uses `budget: total*12, spent: total*12`
 
-#### 3. Average Savings
-- **Icon**: TrendingUp
-- **Value**: ₹{Math.round(avgIncome - avgExpense).toLocaleString()}
-- **Trend**: "+5.7%" (green)
-- **Calculation**: Average Income - Average Expenses
-- **Color**: Muted text with green trend
+### Financial Health Score
+- Large centered score display: `8.5` with "Excellent" label
+- Sub-metrics:
+  | Metric | Score |
+  |--------|-------|
+  | Savings Rate | 9/10 |
+  | Budget Adherence | 8/10 |
+  | Expense Control | 7/10 |
+  | Goal Progress | 9/10 |
 
-#### 4. Savings Rate
-- **Icon**: PieChart
-- **Value**: "47.4%" (hardcoded example)
-- **Rating**: "Excellent" (green)
-- **Calculation**: (Savings ÷ Income) × 100
-- **Color**: Muted text with green rating
+### Key Insights
+- 3 color-coded insight cards (green, blue, purple) with static messages about savings rate, spending patterns, and recommendations
 
-### Charts Grid (2-column layout on desktop)
-
-#### Chart 1: Income vs Expenses Trend
-- **Type**: Bar Chart (Recharts)
-- **Title**: "Income vs Expenses Trend"
-- **Subtitle**: "Monthly comparison over the last 6 months"
-- **Dimensions**: 300px height, responsive width
-- **Data Points**:
-  ```javascript
-  {
-    month: "01", // MM format
-    income: 45000,
-    expenses: 32000,
-    savings: 13000
-  }
-  ```
-- **Visual Elements**:
-  - CartesianGrid (dashed lines)
-  - X-Axis: Month labels
-  - Y-Axis: Amount scale
-  - Tooltip: Formatted as ₹XX,XXX
-  - Green bars (#10b981): Income
-  - Red bars (#ef4444): Expenses
-
-#### Chart 2: Expense Breakdown
-- **Type**: Pie Chart (Recharts)
-- **Title**: "Expense Breakdown"
-- **Subtitle**: "Current month spending by category"
-- **Dimensions**: 300px height, responsive width
-- **Data Points**:
-  ```javascript
-  {
-    name: "Food & Dining",
-    value: 15000,
-    color: "#ef4444"
-  }
-  ```
-- **Colors**: COLORS array rotation
-  - #ef4444 (Red)
-  - #3b82f6 (Blue)
-  - #10b981 (Green)
-  - #8b5cf6 (Purple)
-  - #f59e0b (Amber)
-  - #ec4899 (Pink)
-- **Features**:
-  - cx/cy: 50% (centered)
-  - Outer radius: 120px
-  - Labels: "Category XX%"
-  - Tooltip: Formatted as ₹XX,XXX
-
-### Savings Performance Chart
-- **Type**: Line Chart (Recharts)
-- **Title**: "Savings Performance"
-- **Subtitle**: "Target vs actual savings over time"
-- **Dimensions**: 300px height, responsive width
-- **Data Points**:
-  ```javascript
-  {
-    month: "01",
-    target: 22500,  // avgIncome * 0.5
-    actual: 13000   // actual savings
-  }
-  ```
-- **Lines**:
-  - Dashed gray line (#6b7280): Target savings (50% of income)
-  - Solid green line (#10b981, 2px stroke): Actual savings
-
-### Financial Health Section (2-column grid)
-
-#### Card 1: Financial Health Score
-- **Layout**: Centered large score display
-- **Main Display**: 
-  ```
-  ┌─────────────────────┐
-  │        8.5          │  // Large text (text-6xl)
-  │     Excellent       │  // Rating below
-  └─────────────────────┘
-  ```
-- **Sub-scores (4 metrics)**:
-  | Metric | Score | Color |
-  |--------|-------|-------|
-  | Savings Rate | 9/10 | Green |
-  | Budget Adherence | 8/10 | Green |
-  | Expense Control | 7/10 | Yellow |
-  | Goal Progress | 9/10 | Green |
-
-#### Card 2: Key Insights
-- **Title**: "Key Insights"
-- **Subtitle**: "AI-powered analysis of your financial behavior"
-- **Insights Cards (3 items)**:
-
-1. **Great Progress!** (Green theme)
-   - Icon: 🎯
-   - Message: "Your savings rate of 47.4% is excellent. You're on track to meet your financial goals."
-   - Background: bg-green-50 (light), border-green-200
-
-2. **Spending Pattern** (Blue theme)
-   - Icon: 📊
-   - Message: "Food & Dining is your largest expense category. Consider meal planning to optimize costs."
-   - Background: bg-blue-50 (light), border-blue-200
-
-3. **Recommendation** (Purple theme)
-   - Icon: 💡
-   - Message: "You could increase your emergency fund by redirecting 5% of entertainment spending."
-   - Background: bg-purple-50 (light), border-purple-200
+### Export Menu
+- **Dropdown** triggered by Export button (disabled while exporting)
+- **Export as PDF** submenu: Complete Financial Report, Budget Summary, Monthly Report, Category Analysis, Spending Trends — calls `GET /reports/generate_pdf/`
+- **Export as CSV** submenu: same presets — calls `GET /transactions/export_csv/`
+- **Export as Excel** submenu: same presets — client-side HTML-table `.xls` blob (no new dependency)
+- **Scheduled Reports** link → `/dashboard/reports/scheduled`
 
 ---
 
-## Financial Goals Page
+## Financial Goals (`/dashboard/goals`)
 
 ### File Location
 - `components/dashboard/pages/goals.tsx`
 - Route: `/dashboard/goals`
 
-### Header Actions
-- **Add Goal Button**: Opens dialog to create new goal
-
-### Add Goal Dialog Form
-Fields required for new goal:
-| Field | Type | Options/Validation |
-|-------|------|-------------------|
-| Goal Title | Text Input | Required, placeholder: "e.g., Emergency Fund" |
-| Description | Text Input | Optional, placeholder: "Brief description" |
-| Target Amount (₹) | Number | Required, placeholder: "100000" |
-| Target Date | Date | Required, date picker |
-| Category | Select | Emergency, Travel, Technology, Transportation, Education, Investment, Other |
-| Priority | Select | High, Medium (default), Low |
+### Add Goal Dialog
+- **Trigger**: "Add Goal" button in header
+- **Fields**:
+  | Field | Type |
+  |-------|------|
+  | Goal Title | Text input, placeholder "e.g., Emergency Fund" |
+  | Description | Text input, placeholder "Brief description of your goal" |
+  | Target Amount (₹) | Number input, placeholder "100000" |
+  | Target Date | Date input |
+  | Category | Select: Emergency, Travel, Technology, Transportation, Education, Investment, Other |
+  | Priority | Select: High, Medium, Low |
 
 ### Overview Cards (4 Cards)
-
-#### 1. Active Goals
-- **Value**: {activeGoals.length}
-- **Subtitle**: "In progress"
-- **Color**: Blue (#3b82f6)
-- **Data**: Filtered from goals array where status === "active"
-
-#### 2. Completed Goals
-- **Value**: {completedGoals.length}
-- **Subtitle**: "Achieved"
-- **Color**: Green (#10b981)
-- **Data**: Filtered from goals array where status === "completed"
-
-#### 3. Total Target
-- **Value**: ₹{totalTargetAmount.toLocaleString()}
-- **Subtitle**: "All active goals"
-- **Color**: Purple (#8b5cf6)
-- **Data**: Sum of all active goal target amounts
-
-#### 4. Total Saved
-- **Value**: ₹{totalCurrentAmount.toLocaleString()}
-- **Subtitle**: "XX.X% of target"
-- **Color**: Green (#10b981)
-- **Data**: Sum of current amounts across all goals
-- **Progress**: Calculated as (totalCurrent / totalTarget) × 100
+- **Active Goals** — Count of `status === "active"`, blue text, subtitle "In progress"
+- **Completed Goals** — Count of `status === "completed"`, green text, subtitle "Achieved"
+- **Total Target** — `₹{totalTargetAmount.toLocaleString()}`, purple text, subtitle "All active goals"
+- **Total Saved** — `₹{totalCurrentAmount.toLocaleString()}`, green text, subtitle "{percentage}% of target"
+- Data source: `useGoalProgress()` (`total_target`, `total_saved`)
 
 ### Active Goals List
+- Each goal card displays:
+  - Title, Priority badge (color-coded: high=red, medium=yellow, low=green), Category badge (outline)
+  - Description
+  - Target amount with Target icon, Time remaining with Calendar icon
+  - Progress bar (`Progress` component, h-3): `₹{current} / ₹{target}`, `{pct.toFixed(1)}%`
+  - Remaining amount, Target date
+- `getTimeRemaining()`: Overdue, Due today, X days left, X months left, X years left
 
-#### Goal Card Structure
-```
-┌──────────────────────────────────────────────┐
-│ 🎯 Title                    [Priority] [Cat] │
-│ Description                                  │
-│ 📍 ₹XX,XXX target    ⏰ X days/months left   │
-│ Progress: ₹X,XXX / ₹XX,XXX      XX.X%         │
-│ ████████████░░░░░░░░░░░░░                    │
-│ Remaining: ₹XX,XXX    Target: DD/MM/YYYY     │
-└──────────────────────────────────────────────┘
-```
+### Completed Goals Section
+- Conditionally rendered when `completedGoals.length > 0`
+- Green-themed card (`bg-green-50 dark:bg-green-950` border)
+- Each goal: Title, Description, Target amount, "Completed" badge
 
-#### Data Display Per Goal
-- **Title**: goal.title
-- **Priority Badge**: 
-  - High: Red badge
-  - Medium: Yellow badge  
-  - Low: Green badge
-- **Category Badge**: goal.category (outline variant)
-- **Description**: goal.description (gray text)
-- **Target Amount**: ₹{goal.target_amount.toLocaleString()}
-- **Time Remaining**: Dynamic calculation
-  - Overdue, Due today, 1 day left, X days left, X months left, X years left
-- **Progress Display**:
-  - Current: ₹{goal.current_amount.toLocaleString()}
-  - Target: ₹{goal.target_amount.toLocaleString()}
-  - Percentage: progress.toFixed(1)%
-- **Progress Bar**: Shadcn/ui Progress component (h-3)
-- **Remaining Amount**: ₹{remaining.toLocaleString()}
-- **Target Date**: {new Date(goal.target_date).toLocaleDateString()}
-
-### Completed Goals Section (Conditional)
-- Only displays if completedGoals.length > 0
-- **Card Style**: Green background (bg-green-50)
-- **Layout**: List of completed goal summaries
-- **Each Goal Shows**:
-  - Title (green-900 text)
-  - Description (green-700 text)
-  - Amount achieved (green-600, bold)
-  - "Completed" badge (green background)
-
-### Goal Achievement Tips Card
-- **Layout**: 2-column grid of tip cards
-
-#### Tip 1: Set SMART Goals (Blue)
-- Icon: 🎯
-- Advice: "Make your goals Specific, Measurable, Achievable, Relevant, and Time-bound for better success rates."
-- Colors: Blue theme
-
-#### Tip 2: Automate Savings (Green)
-- Icon: 💰
-- Advice: "Set up automatic transfers to dedicated goal accounts to ensure consistent progress without manual effort."
-- Colors: Green theme
-
-#### Tip 3: Track Progress (Purple)
-- Icon: 📊
-- Advice: "Review your goals monthly and adjust your savings rate based on income changes and life events."
-- Colors: Purple theme
-
-#### Tip 4: Celebrate Milestones (Orange)
-- Icon: 🏆
-- Advice: "Acknowledge progress at 25%, 50%, and 75% completion to maintain motivation throughout your journey."
-- Colors: Orange theme
+### Goal Tips
+- 4 tip cards in a 2-column grid (SMART Goals, Automate Savings, Track Progress, Celebrate Milestones)
 
 ---
 
-## Budget Planner Page
+## Budget Planner (`/dashboard/budget`)
 
 ### File Location
 - `components/dashboard/pages/budget-planner.tsx`
 - Route: `/dashboard/budget`
 
-### Overview
-The Budget Planner page provides comprehensive budget management with category breakdowns and spending limits.
+### Budget Gauge (Primary Focal Element)
+- **Component**: `components/dashboard/budget-gauge.tsx`
+- **Type**: SVG circular gauge with animated needle
+- **Props**: `totalBudget`, `spent`, `remaining`, `percentage`, `size` (default 300px)
+- **Status Logic** (`getStatus`):
+  - `percentage > 100` → "Budget Exceeded" (red `#ef4444`)
+  - `percentage >= 80` → "Near Budget Limit" (amber `#f59e0b`)
+  - `< 80` → "On Track" (green `#10b981`)
+- **Center Stats Row**: Total Budget (`₹{value.toLocaleString()}`), Spent (red), Remaining (conditional green/red)
 
-### Budget Summary Cards (4 Cards)
+### Stat Cards (3 Cards, below gauge)
+- **Total Budget** — Blue text, `₹{totalBudgeted.toLocaleString()}`, subtitle "Monthly allocation"
+- **Total Spent** — Red text, `₹{totalSpent.toLocaleString()}`, subtitle "{pct}% of budget"
+- **Remaining** — Conditional green/red, `₹{remainingBudget.toLocaleString()}`, subtitle "Under budget" / "Over budget"
 
-#### 1. Total Budget
-- **Icon**: Wallet
-- **Value**: Sum of all category budgets
-- **Subtitle**: "Allocated across categories"
-- **Color**: Blue gradient
+### Category Budgets List
+- Sorted by highest consumption ratio (`spent/budgeted`)
+- Each category row:
+  - Colored icon circle + category name + "Over Budget" (destructive badge) or "Near Limit" (orange badge) when applicable
+  - Right side: `₹{spent} / ₹{budgeted}`, `{pct.toFixed(1)}% used`, View (Eye) button, Edit button
+  - Progress bar (color-coded: red for over-budget, orange for near-limit, default otherwise)
+  - Remaining text or "Over by: ₹{amount}"
+- **View link**: `/dashboard/budget/{categoryName}` — per-category detail page
+- **Edit**: Opens `EditBudgetModal` (Dialog) to update budgeted amount with old/new percentage preview
+- Data source: `useBudgetCategories()` + `useBudgetOverview()`
 
-#### 2. Spent This Month
-- **Icon**: CreditCard
-- **Value**: Total expenses across all categories
-- **Subtitle**: "Current spending"
-- **Color**: Red if over budget, green if under
+### Budget Tips
+- 2 tip cards: "Smart Allocation" (50/30/20 rule, blue), "Track Progress" (green)
 
-#### 3. Remaining Budget
-- **Icon**: PiggyBank
-- **Value**: Budget - Spent
-- **Subtitle**: "Available to spend"
-- **Color**: Conditional (green/yellow/red based on percentage)
-
-#### 4. Budget Health
-- **Icon**: Activity
-- **Value**: Percentage spent
-- **Subtitle**: Status indicator
-  - "On Track" (< 80%)
-  - "Warning" (80-95%)
-  - "Over Budget" (> 95%)
-- **Color**: Dynamic based on percentage
-
-### Category Budget Cards
-
-#### Structure Per Category
-```
-┌─────────────────────────────────────────────┐
-│ [Icon] Category Name              ₹X,XXX    │
-│ Spent: ₹X,XXX / ₹X,XXX         XX% used   │
-│ ██████████████░░░░░░░░░                    │
-│ [Status indicator]  [Adjust budget btn]   │
-└─────────────────────────────────────────────┘
-```
-
-#### Categories Included
-1. **Housing & Rent**
-   - Icon: Home
-   - Typical allocation: 30-35% of income
-   
-2. **Food & Dining**
-   - Icon: UtensilsCrossed
-   - Typical allocation: 15-20% of income
-   
-3. **Transportation**
-   - Icon: Car
-   - Typical allocation: 10-15% of income
-   
-4. **Utilities**
-   - Icon: Zap
-   - Typical allocation: 5-10% of income
-   
-5. **Entertainment**
-   - Icon: Film
-   - Typical allocation: 5-10% of income
-   
-6. **Shopping**
-   - Icon: ShoppingBag
-   - Typical allocation: 5-10% of income
-   
-7. **Healthcare**
-   - Icon: Heart
-   - Typical allocation: 5-8% of income
-   
-8. **Savings & Investments**
-   - Icon: TrendingUp
-   - Typical allocation: 20% of income (50/30/20 rule)
-
-#### Progress Bar States
-- **Green** (< 75% spent): Healthy spending
-- **Yellow** (75-90% spent): Approaching limit
-- **Red** (> 90% spent): Near or over budget
-
-### Monthly Budget Trend Chart
-- **Type**: Combined Bar + Line Chart
-- **Bars**: Actual spending per category
-- **Line**: Budget limit per category
-- **X-Axis**: Categories
-- **Y-Axis**: Amount (₹)
-
-### Budget Recommendations
-AI-powered suggestions based on spending patterns:
-- "Reduce dining out by 20% to meet savings goal"
-- "You're under budget in Utilities - consider redirecting to Savings"
-- "Transportation costs are trending high this month"
+### Subpages
+- `/dashboard/budget/customize` — Manage category symbols/colors, add/edit/delete
+- `/dashboard/budget/[categoryName]` — Per-category Budgeted/Spent/Remaining + monthly transactions
 
 ---
 
-## Alerts Page
+## Alerts & Notifications (`/dashboard/alerts`)
 
 ### File Location
 - `components/dashboard/pages/alerts.tsx`
 - Route: `/dashboard/alerts`
 
-### Overview
-Central notification hub for financial alerts, warnings, and reminders.
-
-### Alert Categories (Tabs)
-
-#### 1. All Alerts
-- Combined view of all alert types
-- Chronological order (newest first)
-
-#### 2. Budget Alerts
-Alerts related to budget thresholds:
-- Budget threshold reached (80%)
-- Budget exceeded (> 100%)
-- Unusual spending detected in category
-
-#### 3. Goal Alerts
-Alerts for financial goals:
-- Goal milestone reached (25%, 50%, 75%)
-- Goal deadline approaching (7 days, 1 day)
-- Goal completed
-- Goal overdue
-
-#### 4. Transaction Alerts
-Alerts for account activity:
-- Large transaction detected (> threshold)
-- Unusual spending pattern
-- Duplicate transaction detected
-- Recurring payment failed
-
-#### 5. System Alerts
-System notifications:
-- Account sync issues
-- Data import complete
-- Report generation complete
-
-### Alert Card Structure
-```
-┌─────────────────────────────────────────────┐
-│ [Icon] Alert Title              [Timestamp] │
-│ Alert description text                     │
-│ [Action Button]          [Dismiss Button]  │
-└─────────────────────────────────────────────┘
-```
-
-#### Alert Data Model
-```javascript
+### Alert Shape
+```typescript
 {
-  id: string,
-  type: "budget" | "goal" | "transaction" | "system",
-  priority: "high" | "medium" | "low",
-  title: string,
-  description: string,
-  created_at: string,
-  read: boolean,
-  action_url?: string,
-  action_label?: string,
-  data?: {
-    category?: string,
-    amount?: number,
-    percentage?: number,
-    goal_id?: string,
-    transaction_id?: string
-  }
+  id: string
+  type: "warning" | "info" | "success" | "error"
+  title: string
+  message: string
+  category: string  // e.g. "Budget", "Bills", "Goals", "Security", "Account", "Investments"
+  read: boolean
+  timestamp: string
+  action_url?: string
 }
 ```
 
-#### Priority Indicators
-- **High**: Red dot/border - Requires immediate attention
-- **Medium**: Yellow/Orange - Should be reviewed soon
-- **Low**: Blue/Gray - Informational
+### Summary Cards (4 Cards)
+- **Total** — Bell icon (blue), `{alerts.length}`, subtitle "All time"
+- **Unread** — AlertTriangle icon (red), `{unreadCount}`, subtitle "Require attention"
+- **Read** — CheckCircle icon (green), `{readCount}`, subtitle "Acknowledged"
+- **Active Rules** — Settings icon (purple), count of enabled alert settings, subtitle "Monitoring"
 
-#### Icons by Type
-- Budget: AlertTriangle or Wallet
-- Goal: Target or Trophy
-- Transaction: CreditCard or DollarSign
-- System: Info or Bell
+### Alert Tabs / Filters
+- Tabs: All, Unread, Warnings, Info, Success, Errors
+- Unread tab shows badge with unread count
 
-### Alert Statistics Card
-- **Unread Alerts**: Count of unread notifications
-- **High Priority**: Count of high-priority items
-- **This Week**: New alerts in last 7 days
+### Alerts List
+- Grouped by category (ordered: Budget, Bills, Goals, Security, Account, Investments)
+- Each alert:
+  - Type icon (AlertTriangle for warning/error, CheckCircle for success, Info for info, Bell for default)
+  - Title + "New" badge (for unread alerts)
+  - Message text
+  - Timestamp (Just now, Xh ago, Yesterday, or locale date)
+  - "Mark Read" button (only for unread alerts)
+  - Unread alerts have `border-l-4`; read alerts have `opacity-70`
 
-### Alert Settings
-- Toggle email notifications
-- Toggle push notifications
-- Set budget threshold percentage (default: 80%)
-- Set large transaction threshold
-- Mute specific categories
+### Inline Alert Settings
+- Each setting: Title, Category badge, Description, Threshold display (when applicable), Toggle switch
+- Thresholds shown when `setting.enabled` and `setting.threshold != null`
+- Toggle calls `useToggleAlertSetting(setting.id)` — persists to backend
+- Error state handled with retry button
+
+### Quick Actions (4 Buttons)
+1. **Mark All Read** — CheckCircle icon (green), calls `useMarkAllAlertsRead`
+2. **Generate Alerts** — Sparkles icon (purple), calls `POST /api/alerts/generate/`
+3. **Manage Settings** — Calendar icon (blue), links to `/dashboard/notifications`
+4. **Clear All** — Trash2 icon (red), **disabled** (not yet implemented)
+
+### Header Actions
+- **Generate** button — calls `POST /api/alerts/generate/`, shows spinner while pending, refreshes alerts
+- **Notification Settings** link — navigates to `/dashboard/notifications`
 
 ---
 
-## Data Flow & Hooks
+## Notification Settings (`/dashboard/notifications`)
 
-### Custom Hooks Used Across Dashboard
+### File Location
+- `components/dashboard/pages/notification-settings.tsx`
+- Route: `/dashboard/notifications`
 
-#### useMonthlyStats(period: number)
-**Purpose**: Fetch monthly income/expense statistics
-**Returns**:
-```javascript
-{
-  data: [
-    {
-      month: "2024-01",
-      income: 50000,
-      expense: 35000,
-      net: 15000
-    }
-  ],
-  isLoading: boolean
-}
-```
+### Notification Categories (Data-Driven)
+| Key | Label | Icon | Backend Setting | Status |
+|-----|-------|------|----------------|--------|
+| budget | Budget alerts | Wallet | `budget_warning` (category: Budget) | Active |
+| category | Category alerts | LayoutGrid | `bill_reminders` (category: Bills) | Active |
+| report | Report notifications | FileBarChart | — | Coming soon |
+| email | Email notifications | Mail | — | Coming soon |
+| browser | Browser notifications | Monitor | — | Coming soon |
 
-#### useTransactions(filters, page, limit)
-**Purpose**: Fetch paginated transaction list
-**Parameters**:
-- filters: { category?, type? }
-- page: number
-- limit: number
-**Returns**:
-```javascript
-{
-  data: {
-    results: Transaction[],
-    count: number
-  },
-  isLoading: boolean
-}
-```
+### Per-Category Row
+- Icon in muted background, label, description
+- "Connected to {setting.title}" + threshold info (when mapped to a backend setting)
+- "Coming soon" badge for future categories (toggle disabled)
+- "Saved" badge briefly shown after successful toggle
+- Toggle switch: calls `useToggleAlertSetting(setting.id)`, disabled for future categories or when no setting mapped
 
-#### useTransactionSummary()
-**Purpose**: Get aggregated transaction totals
-**Returns**:
-```javascript
-{
-  data: {
-    income: number,
-    expense: number,
-    net: number
-  },
-  isLoading: boolean
-}
-```
+### Preferences
+- **Reset to defaults** button — calls `useResetAlertSettings()`
 
-#### useTransactionsByCategory()
-**Purpose**: Get spending grouped by category
-**Returns**:
-```javascript
-{
-  data: [
-    {
-      category: "Food & Dining",
-      total: 15000,
-      count: 45
-    }
-  ],
-  isLoading: boolean
-}
-```
-
-#### useGoals()
-**Purpose**: Fetch all financial goals
-**Returns**:
-```javascript
-{
-  data: {
-    results: Goal[],
-    count: number
-  },
-  isLoading: boolean
-}
-```
-
-#### useGoalProgress()
-**Purpose**: Get aggregated goal progress
-**Returns**:
-```javascript
-{
-  data: {
-    total_target: number,
-    total_saved: number,
-    percentage: number
-  },
-  isLoading: boolean
-}
-```
-
-#### useCreateGoal()
-**Purpose**: Mutation hook for creating goals
-**Returns**: mutate function with loading/error states
-
-#### useDeleteGoal()
-**Purpose**: Mutation hook for deleting goals
-**Returns**: mutate function with loading/error states
-
-### Data Refresh Strategy
-- **Real-time**: Critical metrics (balance, net flow)
-- **On Mount**: Page-specific data
-- **Background Refresh**: Every 5 minutes for active sessions
-- **Manual Refresh**: Pull-to-refresh or refresh button
-- **Optimistic Updates**: For mutations (create/delete/update)
-
-### Loading States
-All pages implement consistent loading UI:
-- **Skeleton Cards**: 3-4 shimmer cards matching layout
-- **Skeleton Charts**: Rectangle placeholders
-- **Skeleton Tables**: Row placeholders (3-5 rows)
-- **Loading Overlay**: For mutations and form submissions
+### Header
+- Title: "Notification Settings" with Bell icon
+- Subtitle: "Choose how and when WealthWise notifies you"
+- **Back to Alerts** link → `/dashboard/alerts`
 
 ---
 
-## Common UI Components
+## Settings Dialog
 
-### Card Component (Shadcn/ui)
-Used throughout dashboard for consistent styling:
-```
-<Card>
-  <CardHeader>
-    <CardTitle>Title</CardTitle>
-    <CardDescription>Subtitle</CardDescription>
-  </CardHeader>
-  <CardContent>
-    {/* Content */}
-  </CardContent>
-</Card>
-```
+### File Location
+- `components/dashboard/settings-dialog.tsx`
+- Opened from sidebar Settings button; local UI state, **NOT yet persisted to backend**
 
-### Badge Variants
-- **default**: Primary action, completed status
-- **secondary**: Pending status, neutral info
-- **outline**: Categories, tags
-- **destructive**: Overdue, error states
+### General Tab
+- **Currency Select** — INR (₹), USD ($), EUR (€), GBP (£)
+- **Language Select** — English, Hindi, Spanish, French
 
-### Button Variants
-- **default**: Primary actions (Add, Create)
-- **outline**: Secondary actions (Export, Cancel)
-- **ghost**: Icon buttons, subtle actions
-- **destructive**: Delete, Remove
+### Appearance Tab
+- **Theme Mode** — 3-button grid: Light, Dark, System (uses `next-themes` `useTheme()`)
 
-### Icons Used (Lucide React)
-- Navigation: Menu, Home, Wallet, Target, PieChart, Bell, Settings
-- Actions: Plus, Download, Search, Filter, Trash2, Edit
-- Financial: TrendingUp, TrendingDown, DollarSign, ArrowUpRight, ArrowDownLeft
-- Status: AlertTriangle, CheckCircle, Info, AlertCircle
-- Categories: UtensilsCrossed, Car, Home, ShoppingBag, Film, Heart, Zap, Briefcase
+### Account Tab
+- **Download My Data** — outline button (UI only)
+- **Delete My Account** — destructive button with warning alert ("This action cannot be undone...")
 
 ---
 
-## Currency & Formatting
+## Currency, Icons, and Formatting
 
 ### Currency Display
 - **Symbol**: ₹ (Indian Rupee)
-- **Format**: ₹{value.toLocaleString('en-IN')}
-- **Decimals**: 0 for whole rupees, 2 for precise amounts
-- **Large Numbers**: Use toLocaleString() for comma separators
+- **Format**: `₹{value.toLocaleString()}` (no explicit `'en-IN'` locale in most components; `toLocaleString()` with defaults)
+- **Decimals**: 0 for whole rupees (via `Math.round()` where applicable)
 
-### Date Formatting
-- **Display**: DD/MM/YYYY (Indian format)
-- **Internal**: ISO 8601 (YYYY-MM-DD)
-- **Relative**: "2 days ago", "Just now", "Last week"
+### Icons
+- All icons from `lucide-react`
+- Common: `Menu`, `Plus`, `Calendar`, `Sparkles`, `Search`, `Download`, `TrendingUp`, `TrendingDown`, `Bell`, `Settings`, `Target`, `PieChart`, `AlertTriangle`, `CheckCircle`, `Info`, `Trash2`, `Edit`, `Eye`, `History`, `ArrowUpRight`, `ArrowDownLeft`, `CalendarClock`, `FileDown`, `FileSpreadsheet`, `Printer`, `Loader2`, `ChevronLeft`, `ChevronRight`, `SkipForward`, `Inbox`, `RefreshCw`, `CheckCheck`, `ArrowLeft`, `RotateCcw`
 
-### Percentage Display
-- **Format**: XX.X%
-- **Calculation**: (part / whole) × 100
-- **Precision**: 1 decimal place
+### UI Components
+- Built on `shadcn/ui`: Card, Button, Input, Select, Table, Badge, Progress, Dialog, Sheet, Switch, Label, Separator, Tooltip, Skeleton, Alert, Tabs, Checkbox, DropdownMenu
+- Custom shared components: `GlassCard`, `AIInsightsCard`, `MagneticButton`, `CountUp`, `LiveClock`, `CursorEffect`, `DynamicBackground`, `DataStream`
 
 ---
 
-## Responsive Breakpoints
+## Backend Endpoints
 
-### Mobile (< 640px)
-- Single column layouts
-- Collapsible sidebar (drawer)
-- Stacked cards
-- Simplified charts
-- Horizontal scroll for tables
-
-### Tablet (640px - 1024px)
-- 2-column grids where applicable
-- Persistent sidebar (collapsed)
-- Maintained chart complexity
-
-### Desktop (> 1024px)
-- Full multi-column layouts
-- Expanded sidebar
-- Full chart features with legends
-
----
-
-## Color Themes
-
-### Light Mode
-- Background: white / gray-50
-- Cards: white
-- Text: gray-900 (primary), gray-600 (secondary)
-- Borders: gray-200
-- Success: green-50 backgrounds, green-600 text
-- Warning: yellow-50 backgrounds, yellow-600 text
-- Error: red-50 backgrounds, red-600 text
-- Info: blue-50 backgrounds, blue-600 text
-
-### Dark Mode
-- Background: gray-900 / gray-800
-- Cards: gray-800
-- Text: white (primary), gray-300 (secondary)
-- Borders: gray-700
-- Success: green-950 backgrounds, green-400 text
-- Warning: yellow-950 backgrounds, yellow-400 text
-- Error: red-950 backgrounds, red-400 text
-- Info: blue-950 backgrounds, blue-400 text
-
----
-
-*Documentation generated from code analysis of WealthWise Dashboard*
-*Last updated: March 28, 2026*
+| Endpoint | Method | Used In | Description |
+|----------|--------|---------|-------------|
+| `/api/transactions/` | GET | Transactions, Reports | List transactions with pagination and filters |
+| `/api/transactions/export_csv/` | GET | Reports | Export transactions as CSV |
+| `/api/budget-categories/` | GET/PATCH | Budget Planner | List and update budget categories |
+| `/api/budget-overview/` | GET | Budget Planner | Get total budgeted/spent/remaining/percentage |
+| `/api/goals/` | GET/POST/DELETE | Goals | CRUD for financial goals |
+| `/api/goal-progress/` | GET | Goals | Aggregated goal progress |
+| `/api/alerts/` | GET | Alerts | List alerts with pagination |
+| `/api/alerts/generate/` | POST | Alerts | Trigger backend alert engine |
+| `/api/alert-settings/` | GET/PATCH | Alerts, Notification Settings | List and toggle alert settings |
+| `/api/reports/generate_pdf/` | GET | Reports | Generate PDF report |
+| `/api/reports/filter/` | POST | Reports | Apply trend filters |
+| `/api/reports/scheduled/` | GET/POST/PATCH/DELETE | Scheduled Reports | CRUD for scheduled report configurations |
+| `/api/reports/scheduled/{id}/trigger/` | GET | Scheduled Reports | Trigger immediate report generation (PDF blob) |

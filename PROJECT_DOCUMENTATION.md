@@ -2,7 +2,7 @@
 
 **Project**: WealthWise - Personal Finance Management Platform  
 **Version**: 1.0.0  
-**Last Updated**: March 28, 2026  
+**Last Updated**: July 11, 2026  
 **Tech Stack**: Next.js 15 (Frontend) + Django REST Framework (Backend)
 
 ---
@@ -43,14 +43,18 @@ WealthWise is a full-stack personal finance management application with:
 ## Project Structure
 
 ```
-Wealth wise/
+WealthWise/
 ├── Frontend/                          # Next.js Application
 │   ├── app/                          # Next.js App Router
 │   │   ├── dashboard/                # Dashboard pages
 │   │   │   ├── alerts/                 # Alerts page
 │   │   │   ├── budget/                 # Budget planner page
+│   │   │   │   ├── customize/          # Customize categories
+│   │   │   │   └── [category]/         # Category detail
 │   │   │   ├── goals/                  # Financial goals page
+│   │   │   ├── notifications/          # Notification settings
 │   │   │   ├── reports/                # Reports page
+│   │   │   │   └── scheduled/          # Scheduled reports
 │   │   │   ├── transactions/           # Transactions page
 │   │   │   ├── layout.tsx              # Dashboard layout
 │   │   │   └── page.tsx                # Dashboard home
@@ -59,9 +63,11 @@ Wealth wise/
 │   │   └── page.tsx                    # Landing page
 │   ├── components/
 │   │   ├── dashboard/                  # Dashboard-specific components
+│   │   │   ├── budget-gauge.tsx        # Circular budget gauge
 │   │   │   ├── expense-tracker.tsx     # Quick expense entry
 │   │   │   ├── main-content.tsx        # Main dashboard content
 │   │   │   ├── monthly-chart.tsx       # Monthly stats chart
+│   │   │   ├── notification-toasts.tsx # Dashboard load-time toasts
 │   │   │   ├── overview-cards.tsx      # Dashboard stat cards
 │   │   │   ├── recent-transactions.tsx # Transaction list
 │   │   │   ├── settings-dialog.tsx     # Settings modal
@@ -70,7 +76,9 @@ Wealth wise/
 │   │   │       ├── alerts.tsx          # Alerts management
 │   │   │       ├── budget-planner.tsx  # Budget planning
 │   │   │       ├── goals.tsx           # Goals tracking
+│   │   │       ├── notification-settings.tsx # Notification settings
 │   │   │       ├── reports.tsx         # Analytics reports
+│   │   │       ├── scheduled-reports.tsx # Scheduled reports management
 │   │   │       └── transactions.tsx    # Transaction history
 │   │   ├── ui/                         # shadcn/ui components
 │   │   ├── contact-section.tsx         # Landing page sections
@@ -98,6 +106,7 @@ Wealth wise/
 │   │       ├── expenses.ts
 │   │       ├── goals.ts
 │   │       ├── index.ts
+│   │       ├── reports.ts
 │   │       ├── transactions.ts
 │   │       └── users.ts
 │   ├── hooks/                          # React Query hooks
@@ -118,17 +127,22 @@ Wealth wise/
 │   ├── public/                         # Static assets
 │   └── reports/                        # Generated reports
 │
-└── wealthwise_backend/                  # Django Application
+└── Backend/                            # Django Application
     ├── api/                             # Main API app
     │   ├── migrations/
+    │   ├── services/                    # Business logic services
+    │   │   ├── __init__.py
+    │   │   └── alert_engine.py
     │   ├── views/                       # ViewSets (split by entity)
     │   │   ├── __init__.py
     │   │   ├── accounts.py
     │   │   ├── alert_settings.py
     │   │   ├── alerts.py
     │   │   ├── budget_categories.py
+    │   │   ├── categories.py
     │   │   ├── expenses.py
     │   │   ├── goals.py
+    │   │   ├── reports.py
     │   │   ├── system.py
     │   │   ├── transactions.py
     │   │   └── users.py
@@ -186,6 +200,7 @@ Wealth wise/
 - **Budget Allocation**: Set budgeted amounts per category
 - **Spent Tracking**: Auto-calculate spent from transactions
 - **Progress Tracking**: Visual progress bars, percentage used
+- **Circular Budget Gauge**: `budget-gauge.tsx` displays Total Budget/Spent/Remaining/% Used with color-coded status (On Track / Near Limit / Exceeded)
 - **Overview**: Total budgeted, spent, remaining across all categories
 - **Over-budget Alerts**: Visual indicators when exceeding budget
 
@@ -204,8 +219,10 @@ Wealth wise/
 - **Read/Unread**: Mark alerts as read/unread
 - **Bulk Actions**: Mark all as read
 - **Unread Count**: Badge showing unread notifications
-- **Alert Settings**: Toggle notifications per category
-- **Thresholds**: Configurable thresholds for alerts
+- **Backend Alert Engine**: Extensible rule registry generates budget/category exceeded and approaching-threshold alerts respecting user settings; de-dupes recent unread alerts
+- **Alert Settings**: Toggle notifications per category with thresholds
+- **Notification Settings Page**: Dedicated `/dashboard/notifications` page with per-category toggles and future-ready Report/Email/Browser categories
+- **Dashboard Toasts**: Load-time notification toasts via `notification-toasts.tsx`
 
 #### 7. Quick Expense Tracking
 - **Fast Entry**: Quick expense logging without full transaction details
@@ -221,9 +238,15 @@ Wealth wise/
 - **Key Metrics**: Average monthly income/expenses/savings
 - **Financial Health Score**: Calculated score with breakdown
 - **AI Insights**: Placeholder for AI-powered financial advice
-- **Export**: Export reports (UI only)
+- **Export**: functional PDF, CSV, and Excel (client-side .xls) export with presets (Budget Summary, Monthly Report, Category Analysis, Spending Trends, Complete Financial Report).
 
-#### 9. Landing Page
+#### 9. Scheduled Reports
+- **Schedule Creation**: Create daily/weekly/monthly report schedules with CRUD operations
+- **Report Types**: Budget Summary, Monthly Report, Category Analysis, Spending Trends, Complete Financial Report
+- **PDF Generation**: Generate/download PDF reports on demand or via scheduled trigger
+- **Backend-Powered**: Uses `reportlab` for PDF generation with monthly stats, category breakdowns, and key insights
+
+#### 10. Landing Page
 - **Sections**: Hero, Features, Finance Tips, Gallery, Testimonials, Pricing, Newsletter, Contact, Footer
 - **Responsive**: Mobile-friendly design
 - **Dark Mode**: Full dark mode support
@@ -268,9 +291,13 @@ Wealth wise/
 ├── /                 # Overview (main-content.tsx)
 ├── /transactions     # Transaction history
 ├── /budget           # Budget planner
+├── /budget/customize # Customize categories
+├── /budget/[category] # Category detail
 ├── /goals            # Financial goals
 ├── /alerts           # Notifications
+├── /notifications    # Notification settings
 └── /reports          # Analytics
+    └── /scheduled    # Scheduled reports
 ```
 
 ---
@@ -349,6 +376,7 @@ django-filter>=23.5
 | GET | `/api/transactions/{id}/` | Get transaction |
 | PATCH | `/api/transactions/{id}/` | Update transaction |
 | DELETE | `/api/transactions/{id}/` | Delete transaction |
+| GET | `/api/transactions/export_csv/` | Export transactions as CSV |
 
 ### Budget Categories
 | Method | Endpoint | Description |
@@ -386,6 +414,7 @@ django-filter>=23.5
 | POST | `/api/alerts/{id}/mark_read/` | Mark as read |
 | POST | `/api/alerts/{id}/mark_unread/` | Mark as unread |
 | POST | `/api/alerts/mark_all_read/` | Mark all as read |
+| POST | `/api/alerts/generate/` | Run backend alert engine |
 
 ### Alert Settings
 | Method | Endpoint | Description |
@@ -398,6 +427,18 @@ django-filter>=23.5
 | DELETE | `/api/alert-settings/{id}/` | Delete setting |
 | POST | `/api/alert-settings/{id}/toggle/` | Toggle enabled |
 | POST | `/api/alert-settings/reset_defaults/` | Reset to defaults |
+
+### Reports
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/reports/filter/` | Filtered report data (monthly_stats, by_category, summary) |
+| GET | `/api/reports/export_pdf/` | PDF report summary |
+| GET | `/api/reports/generate_pdf/` | Generate PDF report by type (?type=) |
+| GET | `/api/reports/schedules/` | List/create scheduled reports |
+| GET | `/api/reports/schedules/{id}/` | Scheduled report detail |
+| PATCH | `/api/reports/schedules/{id}/` | Scheduled report detail |
+| DELETE | `/api/reports/schedules/{id}/` | Scheduled report detail |
+| POST | `/api/reports/schedules/{id}/trigger/` | Generate scheduled report PDF |
 
 ### Expenses
 | Method | Endpoint | Description |
@@ -540,6 +581,20 @@ django-filter>=23.5
 - updated_at: DateTime
 ```
 
+### ScheduledReport
+```python
+- id: UUID (primary key)
+- user: ForeignKey(User)
+- name: String
+- report_type: Enum ['budget_summary', 'monthly_report', 'category_analysis', 'spending_trends', 'complete']
+- frequency: Enum ['daily', 'weekly', 'monthly']
+- enabled: Boolean (default: True)
+- last_run: DateTime (nullable)
+- next_run: DateTime (nullable)
+- created_at: DateTime
+- updated_at: DateTime
+```
+
 ### Expense
 ```python
 - id: UUID (primary key)
@@ -599,9 +654,12 @@ django-filter>=23.5
    - Read/unread management
    - Bulk mark as read
    - Unread count badge
+   - Backend alert engine (`alert_engine.py`) generating budget-exceeded / category-exceeded / approaching-threshold alerts
    - Alert settings management
    - Toggle settings
    - Reset to defaults
+   - Notification settings page (`/dashboard/notifications`) with per-category toggles
+   - Dashboard load-time toasts
 
 7. **Quick Expenses**
    - Fast expense entry
@@ -616,6 +674,9 @@ django-filter>=23.5
    - Savings analysis
    - Key metrics cards
    - Financial health score
+   - Functional PDF, CSV, and Excel export with report presets
+   - Scheduled reports CRUD with on-demand and trigger-based PDF generation
+   - Backend PDF generation via `reportlab`
 
 9. **UI/UX**
    - Responsive design
@@ -652,8 +713,6 @@ django-filter>=23.5
 
 3. **Import/Export**
    - CSV import for transactions
-   - PDF report generation
-   - Excel export
    - Bank statement import (CSV/OFX)
 
 4. **Advanced Analytics**
@@ -709,7 +768,6 @@ django-filter>=23.5
 ### 🐛 Known Issues
 
 1. **Frontend**
-   - Export button doesn't have actual export functionality
    - Some date formatting inconsistencies
    - Settings dialog not fully connected to API
    - Add Transaction button is non-functional (needs modal)
@@ -759,7 +817,7 @@ django-filter>=23.5
 
 #### Backend
 ```bash
-cd wealthwise_backend
+cd Backend
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver

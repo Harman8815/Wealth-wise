@@ -259,6 +259,8 @@ Configure alert preferences and notification settings. Users can enable/disable 
 
 ## Categories
 
+> These map to the `AlertSetting.category` choices defined on the model.
+
 | Category | Description |
 |----------|-------------|
 | `Budget` | Budget-related alert settings |
@@ -266,7 +268,7 @@ Configure alert preferences and notification settings. Users can enable/disable 
 | `Goals` | Goal notification settings |
 | `Security` | Security alert settings |
 | `Account` | Account-related alert settings |
-| `Other` | Custom user-defined settings |
+| `Investments` | Investment-related notification settings |
 
 ---
 

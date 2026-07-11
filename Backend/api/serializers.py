@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense, Category
+from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense, Category, ScheduledReport
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -125,3 +125,10 @@ class ExpenseSerializer(serializers.ModelSerializer):
         if attrs.get('category_name') and attrs.get('category'):
             raise serializers.ValidationError({'category': 'Provide either category_id or category_name, not both.'})
         return attrs
+
+
+class ScheduledReportSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ScheduledReport
+        fields = ['id', 'name', 'report_type', 'frequency', 'enabled', 'last_run', 'next_run', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'last_run', 'created_at', 'updated_at']

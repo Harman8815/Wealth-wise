@@ -121,14 +121,14 @@ export function MainContent() {
       />
 
       {/* Main Content */}
-      <main className="p-6 space-y-6 max-w-7xl mx-auto">
+      <main className="p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* Overview Cards */}
         <section className="animate-fade-in">
           <OverviewCards />
         </section>
 
         {/* Charts and Insights Grid */}
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid xl:grid-cols-3 gap-4 sm:gap-6 items-stretch">
           {/* Monthly Chart - Takes up 2/3 */}
           <div className="lg:col-span-2 animate-slide-up stagger-1">
             <div className="h-full w-full flex justify-normal items-start flex-col gap-6 p-0">
@@ -171,12 +171,11 @@ export function MainContent() {
                 </GlassCard>
               </div>
             </div>
-            {/* Quick Stats Row */}
           </div>
 
           {/* AI Insights - Takes up 1/3 */}
-          <div className="animate-slide-up stagger-2">
-            <AIInsightsCard insights={sampleInsights} />
+          <div className="xl:col-span-1 w-full flex animate-slide-up stagger-2 h-full ">
+            <AIInsightsCard insights={sampleInsights} className="h-full w-full" />
           </div>
         </div>
 

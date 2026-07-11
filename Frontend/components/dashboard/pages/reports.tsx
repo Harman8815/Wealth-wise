@@ -11,6 +11,17 @@ import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   Menu,
   Download,
   TrendingUp,
@@ -26,12 +37,17 @@ import {
   Filter,
   GitCompare,
   FileDown,
+  FileSpreadsheet,
+  Printer,
+  Loader2,
   ChevronLeft,
   ChevronRight,
   Settings2,
   Plus,
   Trash2,
+  CalendarClock,
 } from "lucide-react"
+import Link from "next/link"
 import {
   BarChart,
   Bar,
@@ -54,6 +70,7 @@ import {
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import { useMonthlyStats, useTransactionsByCategory, useTransactionSummary } from "@/hooks"
 import { apiClient } from "@/api/client"
+import { toast } from "sonner"
 
 const COLORS = ["#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ec4899", "#06b6d4", "#f97316"]
 
@@ -75,7 +92,7 @@ type RadarView = "monthly" | "yearly"
 export function ReportsPage() {
   const { openSidebar } = useDashboardSidebar()
   const [timeView, setTimeView] = useState<TimeView>("monthly")
-  const [trendChartType, setTrendChartType] = useState<TrendChartType>("bar")
+  const [trendChartType, setTrendChartType] = useState<TrendChartType>("line")
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [compareWithPrevious, setCompareWithPrevious] = useState(false)
   const [showGrid, setShowGrid] = useState(true)
@@ -83,6 +100,7 @@ export function ReportsPage() {
   const [radarView, setRadarView] = useState<RadarView>("monthly")
   const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
+  const [exportingFormat, setExportingFormat] = useState<string | null>(null)
 
   const { data: monthlyStats, isLoading: isLoadingMonthly } = useMonthlyStats(24)
   const { data: categoryData, isLoading: isLoadingCategory } = useTransactionsByCategory()
@@ -196,8 +214,121 @@ export function ReportsPage() {
   const activeTabDataAny = activeTabData as any[]
   const radarLabelKey = radarView === "yearly" ? "year" : "category"
 
-  const handleDownloadCSV = async () => {
+  const handleApplyFilters = async () => {
+    try {
+      const response = await apiClient.post("/reports/filter/", {
+        start_date: undefined,
+        end_date: undefined,
+        categories: selectedCategories,
+        time_view: timeView,
+      })
+      console.log("Filtered reports data", response.data)
+    } catch (error) {
+      console.error("Failed to apply filters", error)
+      toast.error("Failed to apply filters")
+    }
+  }
+
+  const exportAsExcel = (fileName = "reports.xls") => {
     setIsExporting(true)
+    setExportingFormat("excel")
+    try {
+      const rows = [
+        ['Month', 'Income', 'Expense', 'Net'],
+        ...(monthlyData || []).map((m) => [m.month || '', m.income || 0, m.expenses || 0, m.savings || 0]),
+        [],
+        ['Category', 'Amount', 'Percentage'],
+        ...(categoryChartData || []).map((c) => [c.name, c.value, ((c.value / (totalCategoryAmount || 1)) * 100).toFixed(1) + '%']),
+      ]
+
+      const htmlTable = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Report</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>
+        <body>
+        <table border="1">
+          ${rows
+            .map(
+              (row) =>
+                `<tr>${row
+                  .map(
+                    (cell) =>
+                      `<td style="font-size:12px;padding:4px">${cell === '' ? '&nbsp;' : cell}</td>`
+                  )
+                  .join('')}</tr>`
+            )
+            .join('')}
+        </table>
+        </body>
+        </html>`
+
+      const blob = new Blob([htmlTable], { type: 'application/vnd.ms-excel' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', fileName)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      toast.success("Excel report downloaded")
+    } catch (e) {
+      toast.error("Failed to export Excel")
+    } finally {
+      setIsExporting(false)
+      setExportingFormat(null)
+    }
+  }
+
+  const handleExportPreset = async (reportType: string, format: 'pdf' | 'csv' | 'xls') => {
+    if (isExporting) return
+    setIsExporting(true)
+    setExportingFormat(format)
+
+    try {
+      if (format === 'pdf') {
+        const response = await apiClient.get('/reports/generate_pdf/', {
+          params: { type: reportType },
+          responseType: 'blob',
+        })
+        const url = window.URL.createObjectURL(new Blob([response.data]))
+        const link = document.createElement('a')
+        link.href = url
+        link.setAttribute('download', `report_${reportType}.pdf`)
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+        window.URL.revokeObjectURL(url)
+        toast.success("PDF report generated and downloaded")
+      } else if (format === 'csv') {
+        const response = await apiClient.get('/transactions/export_csv/', {
+          responseType: 'blob',
+          params: { type: reportType },
+        })
+        const url = window.URL.createObjectURL(new Blob([response.data]))
+        const link = document.createElement('a')
+        link.href = url
+        link.setAttribute('download', `report_${reportType}.csv`)
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+        window.URL.revokeObjectURL(url)
+        toast.success("CSV report downloaded")
+      } else if (format === 'xls') {
+        await exportAsExcel(`report_${reportType}.xls`)
+      }
+    } catch (e) {
+      console.error("Export failed", e)
+      toast.error("Export failed. Please try again.")
+    } finally {
+      setIsExporting(false)
+      setExportingFormat(null)
+    }
+  }
+
+  const handleDownloadCSV = async () => {
+    if (isExporting) return
+    setIsExporting(true)
+    setExportingFormat("csv")
     try {
       const response = await apiClient.get("/transactions/export_csv/", {
         responseType: "blob",
@@ -210,15 +341,20 @@ export function ReportsPage() {
       link.click()
       link.remove()
       window.URL.revokeObjectURL(url)
+      toast.success("CSV report downloaded")
     } catch (error) {
       console.error("Failed to download CSV", error)
+      toast.error("Failed to download CSV")
     } finally {
       setIsExporting(false)
+      setExportingFormat(null)
     }
   }
 
   const handleDownloadPDF = async () => {
+    if (isExporting) return
     setIsExporting(true)
+    setExportingFormat("pdf")
     try {
       const response = await apiClient.get("/reports/export_pdf/", {
         responseType: "blob",
@@ -231,24 +367,13 @@ export function ReportsPage() {
       link.click()
       link.remove()
       window.URL.revokeObjectURL(url)
+      toast.success("PDF report downloaded")
     } catch (error) {
       console.error("Failed to download PDF", error)
+      toast.error("Failed to download PDF")
     } finally {
       setIsExporting(false)
-    }
-  }
-
-  const handleApplyFilters = async () => {
-    try {
-      const response = await apiClient.post("/reports/filter/", {
-        start_date: undefined,
-        end_date: undefined,
-        categories: selectedCategories,
-        time_view: timeView,
-      })
-      console.log("Filtered reports data", response.data)
-    } catch (error) {
-      console.error("Failed to apply filters", error)
+      setExportingFormat(null)
     }
   }
 
@@ -377,10 +502,85 @@ export function ReportsPage() {
                 </div>
               </DialogContent>
             </Dialog>
-            <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" disabled={isExporting}>
+                  {isExporting ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4 mr-2" />
+                  )}
+                  {isExporting ? `Exporting ${exportingFormat?.toUpperCase()}...` : "Export"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Export Presets</DropdownMenuLabel>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Printer className="w-4 h-4 mr-2" />
+                    Export as PDF
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {[
+                      { value: 'complete', label: 'Complete Financial Report' },
+                      { value: 'budget_summary', label: 'Budget Summary' },
+                      { value: 'monthly_report', label: 'Monthly Report' },
+                      { value: 'category_analysis', label: 'Category Analysis' },
+                      { value: 'spending_trends', label: 'Spending Trends' },
+                    ].map((preset) => (
+                      <DropdownMenuItem key={preset.value} onClick={() => handleExportPreset(preset.value, 'pdf')}>
+                        {preset.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <FileDown className="w-4 h-4 mr-2" />
+                    Export as CSV
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {[
+                      { value: 'complete', label: 'Complete Financial Report' },
+                      { value: 'budget_summary', label: 'Budget Summary' },
+                      { value: 'monthly_report', label: 'Monthly Report' },
+                      { value: 'category_analysis', label: 'Category Analysis' },
+                      { value: 'spending_trends', label: 'Spending Trends' },
+                    ].map((preset) => (
+                      <DropdownMenuItem key={preset.value} onClick={() => handleExportPreset(preset.value, 'csv')}>
+                        {preset.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                    Export as Excel
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {[
+                      { value: 'complete', label: 'Complete Financial Report' },
+                      { value: 'budget_summary', label: 'Budget Summary' },
+                      { value: 'monthly_report', label: 'Monthly Report' },
+                      { value: 'category_analysis', label: 'Category Analysis' },
+                      { value: 'spending_trends', label: 'Spending Trends' },
+                    ].map((preset) => (
+                      <DropdownMenuItem key={preset.value} onClick={() => handleExportPreset(preset.value, 'xls')}>
+                        {preset.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/dashboard/reports/scheduled" className="flex items-center">
+                    <CalendarClock className="w-4 h-4 mr-2" />
+                    Scheduled Reports
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
@@ -433,8 +633,8 @@ export function ReportsPage() {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-7">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          <div className="xl:col-span-7">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -528,14 +728,14 @@ export function ReportsPage() {
                             </div>
                           </div>
                           <Separator />
-                          <Button
-                            variant="outline"
-                            className="w-full justify-start"
-                            onClick={handleApplyFilters}
-                          >
-                            <GitCompare className="w-4 h-4 mr-2" />
-                            Apply Filters
-                          </Button>
+                           <Button
+                             variant="outline"
+                             className="w-full justify-start"
+                             onClick={() => handleExportPreset('complete', 'xls')}
+                           >
+                             <FileSpreadsheet className="w-4 h-4 mr-2" />
+                             Export as Excel
+                           </Button>
                           <Button variant="outline" className="w-full justify-start" onClick={handleDownloadCSV}>
                             <FileDown className="w-4 h-4 mr-2" />
                             Export as CSV
@@ -620,8 +820,8 @@ export function ReportsPage() {
             </Card>
           </div>
 
-          <div className="lg:col-span-5">
-            <Card className="h-full">
+          <div className="xl:col-span-5 w-full">
+            <Card className="h-full w-full">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
@@ -769,16 +969,23 @@ export function ReportsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <RadarChart data={radarData}>
+              <ResponsiveContainer width="100%" aspect={1.15} minHeight={260} maxHeight={460}>
+                <RadarChart
+                  data={radarData}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius="72%"
+                  margin={{ top: 16, right: 24, bottom: 16, left: 24 }}
+                >
                   <PolarGrid stroke="currentColor" className="text-muted-foreground/20" />
                   <PolarAngleAxis
                     dataKey="category"
                     tick={{ fontSize: 11, fill: "currentColor" }}
+                    tickMargin={10}
                     className="text-muted-foreground"
                   />
                   <PolarRadiusAxis
-                    angle={30}
+                    angle={90}
                     domain={[0, "dataMax"]}
                     tick={false}
                     className="text-muted-foreground"

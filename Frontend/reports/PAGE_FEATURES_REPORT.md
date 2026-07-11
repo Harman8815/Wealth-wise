@@ -1,3 +1,5 @@
+⚠️ This report may be outdated — see Frontend/docs for current docs.
+
 # WealthWise - Page-wise Features & Functionality Report
 
 ## Executive Summary

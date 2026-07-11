@@ -5,19 +5,23 @@ Handles exports and filtering for reports page.
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework import status
 
-from ..models import Transaction
+from ..models import Transaction, ScheduledReport
+from ..serializers import ScheduledReportSerializer
 from django.db.models import Sum, Count, Q
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
 from django.http import HttpResponse
-from datetime import datetime
+from datetime import datetime, timedelta
 import csv
 import io
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.graphics.shapes import Drawing
+from reportlab.graphics.charts.barcharts import VerticalBarChart
 
 
 @api_view(['GET'])
@@ -173,3 +177,78 @@ def filter_reports(request):
             'net': float((summary['total_income'] or 0) - (summary['total_expense'] or 0)),
         }
     })
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def scheduled_reports(request):
+    """List or create scheduled reports for the authenticated user."""
+    if request.method == 'GET':
+        reports = ScheduledReport.objects.filter(user=request.user).order_by('-created_at')
+        serializer = ScheduledReportSerializer(reports, many=True)
+        return Response(serializer.data)
+
+    if request.method == 'POST':
+        serializer = ScheduledReportSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(user=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET', 'PATCH', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def scheduled_report_detail(request, id):
+    """Retrieve, update, or delete a scheduled report."""
+    try:
+        report = ScheduledReport.objects.get(id=id, user=request.user)
+    except ScheduledReport.DoesNotExist:
+        return Response({'detail': 'Scheduled report not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = ScheduledReportSerializer(report)
+        return Response(serializer.data)
+
+    if request.method == 'PATCH':
+        serializer = ScheduledReportSerializer(report, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    if request.method == 'DELETE':
+        report.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def trigger_scheduled_report(request, id):
+    """Trigger a scheduled report generation and return the PDF."""
+    try:
+        report = ScheduledReport.objects.get(id=id, user=request.user)
+    except ScheduledReport.DoesNotExist:
+        return Response({'detail': 'Scheduled report not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    from ..models import generate_report_pdf
+    pdf_bytes = generate_report_pdf(request.user, report.report_type)
+    report.last_run = timezone.now()
+    report.next_run = timezone.now() + timedelta(days=1)
+    report.save(update_fields=['last_run', 'next_run'])
+
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{report.name.replace(" ", "_")}.pdf"'
+    return response
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def generate_pdf_report(request):
+    """Generate a PDF report by type query parameter."""
+    report_type = request.query_params.get('type', 'complete')
+    user = request.user
+
+    from ..models import generate_report_pdf
+    pdf_bytes = generate_report_pdf(user, report_type)
+
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="report_{report_type}.pdf"'
+    return response
