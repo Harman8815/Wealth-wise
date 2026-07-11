@@ -20,7 +20,7 @@ Additional utility endpoints for health checks, data seeding, and system operati
     "status": "healthy",
     "timestamp": "2024-01-21T14:30:00.123456Z",
     "database": "healthy",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "services": {
         "api": "up",
         "database": "healthy"
@@ -34,7 +34,7 @@ Additional utility endpoints for health checks, data seeding, and system operati
     "status": "degraded",
     "timestamp": "2024-01-21T14:30:00.123456Z",
     "database": "unhealthy: connection refused",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "services": {
         "api": "up",
         "database": "unhealthy: connection refused"

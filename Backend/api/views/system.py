@@ -78,7 +78,7 @@ def health_check(request):
         "status": "healthy" if db_status == "healthy" else "degraded",
         "timestamp": timezone.now().isoformat(),
         "database": db_status,
-        "version": "1.0.0",
+        "version": "2.0.0",
         "services": {
             "api": "up",
             "database": db_status

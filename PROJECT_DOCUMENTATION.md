@@ -1,7 +1,7 @@
 # WealthWise - System Documentation
 
 **Project**: WealthWise - Personal Finance Management Platform  
-**Version**: 1.0.0  
+**Version**: 2.0.0  
 **Last Updated**: July 11, 2026  
 **Tech Stack**: Next.js 15 (Frontend) + Django REST Framework (Backend)
 

@@ -96,10 +96,10 @@ pip install -r requirements.txt
 
 **Required packages:**
 ```
-Django>=5.0
+Django>=5.1
 djangorestframework>=3.15
 djangorestframework-simplejwt>=5.3
-django-cors-headers>=4.3
+django-cors-headers>=4.4
 django-filter>=24.0
 reportlab>=4.0
 ```
