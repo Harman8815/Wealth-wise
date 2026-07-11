@@ -969,16 +969,23 @@ export function ReportsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <RadarChart data={radarData}>
+              <ResponsiveContainer width="100%" aspect={1.15} minHeight={260} maxHeight={460}>
+                <RadarChart
+                  data={radarData}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius="72%"
+                  margin={{ top: 16, right: 24, bottom: 16, left: 24 }}
+                >
                   <PolarGrid stroke="currentColor" className="text-muted-foreground/20" />
                   <PolarAngleAxis
                     dataKey="category"
                     tick={{ fontSize: 11, fill: "currentColor" }}
+                    tickMargin={10}
                     className="text-muted-foreground"
                   />
                   <PolarRadiusAxis
-                    angle={30}
+                    angle={90}
                     domain={[0, "dataMax"]}
                     tick={false}
                     className="text-muted-foreground"

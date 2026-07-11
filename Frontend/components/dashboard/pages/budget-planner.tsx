@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Menu, Plus, Edit, TrendingUp, AlertTriangle, Eye } from "lucide-react"
 import { useBudgetOverview, useBudgetCategories, useUpdateBudgetCategory } from "@/hooks"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
-import { BudgetGauge } from "@/components/dashboard/budget-gauge"
+import { BudgetOverviewPanel } from "@/components/dashboard/budget-overview-panel"
 import Link from "next/link"
 import { AddCategoryDialog } from "../add-category-dialog"
 import { ICON_MAP } from "../symbol-picker"
@@ -48,6 +48,15 @@ export function BudgetPlannerPage() {
     const pctB = (b.spent / b.budgeted) * 100
     return pctB - pctA
   })
+
+  // Map backend budget categories into the shape BudgetOverviewPanel expects
+  // (the panel sorts by consumption and renders the top 3 needing attention).
+  const categoryInputs = budgetCategories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    spent: c.spent,
+    budget: c.budgeted,
+  }))
 
   function getCategoryDisplay(category: BudgetCategory) {
     const icon = ICON_MAP[category.symbol || "utensils"] || ICON_MAP.utensils
@@ -116,62 +125,23 @@ export function BudgetPlannerPage() {
       {/* Main Content */}
       <main className="p-6 space-y-6">
         {/* Budget Overview — Hero */}
-        <Card className="overflow-hidden border-2 border-border/60 shadow-lg">
+        <Card className="overflow-hidden shadow-lg border-0 -pt-4 bg-transparent">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Budget Overview</CardTitle>
+            <CardTitle className="text-4xl">Budget Overview</CardTitle>
             <CardDescription>Your spending progress across all categories</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center">
-            <BudgetGauge
+            <BudgetOverviewPanel
               totalBudget={totalBudgeted}
               spent={totalSpent}
               remaining={remainingBudget}
               percentage={overallPercentage}
-              size={320}
+              categories={categoryInputs}
             />
-
-            {/* Stat cards surrounding the gauge */}
-            <div className="mt-6 grid w-full grid-cols-1 gap-4 sm:grid-cols-3">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Total Budget</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">₹{totalBudgeted.toLocaleString()}</div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Monthly allocation</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Total Spent</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-red-600">₹{totalSpent.toLocaleString()}</div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {totalBudgeted > 0 ? ((totalSpent / totalBudgeted) * 100).toFixed(1) : "0.0"}% of budget
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Remaining</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className={`text-2xl font-bold ${remainingBudget >= 0 ? "text-green-600" : "text-red-600"}`}>
-                    ₹{remainingBudget.toLocaleString()}
-                  </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {remainingBudget >= 0 ? "Under budget" : "Over budget"}
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
           </CardContent>
-        </Card>
+          </Card>
 
-        {/* Category Budgets */}
+          {/* Category Budgets */}
         <Card>
           <CardHeader>
             <CardTitle>Category Budgets</CardTitle>
