@@ -109,30 +109,32 @@ export function MainContent() {
       <AddTransactionDialog isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
 
       {/* Main Content */}
-      <main className="p-6 space-y-6 max-w-7xl mx-auto">
+      <main className="p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* Overview Cards */}
         <section className="animate-fade-in">
           <OverviewCards />
         </section>
 
         {/* Charts and Insights Grid */}
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 items-stretch">
           {/* Monthly Chart - Takes up 2/3 */}
           <div className="lg:col-span-2 animate-slide-up stagger-1">
-            <GlassCard className="h-full">
+            <GlassCard className="h-full w-full">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="font-semibold text-lg">Cash Flow</h3>
                   <p className="text-sm text-muted-foreground">Income vs Expenses over time</p>
                 </div>
               </div>
-              <MonthlyChart />
+              <div className="w-full">
+                <MonthlyChart />
+              </div>
             </GlassCard>
           </div>
 
           {/* AI Insights - Takes up 1/3 */}
-          <div className="animate-slide-up stagger-2">
-            <AIInsightsCard insights={sampleInsights} />
+          <div className="flex animate-slide-up stagger-2 h-full">
+            <AIInsightsCard insights={sampleInsights} className="h-full w-full" />
           </div>
         </div>
 

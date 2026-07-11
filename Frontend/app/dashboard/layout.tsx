@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { SettingsDialog } from "@/components/dashboard/settings-dialog"
 import { DashboardSidebarProvider } from "@/components/dashboard/sidebar-context"
+import { NotificationToasts } from "@/components/dashboard/notification-toasts"
 import { useIsAuthenticated } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 
@@ -53,6 +54,9 @@ export default function DashboardLayout({
           >
             {children}
           </div>
+
+          {/* Notification Toasts */}
+          <NotificationToasts />
 
           {/* Settings Dialog */}
           <SettingsDialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
