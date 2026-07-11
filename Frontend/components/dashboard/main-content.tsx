@@ -116,9 +116,9 @@ export function MainContent() {
         </section>
 
         {/* Charts and Insights Grid */}
-        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 items-stretch">
+        <div className="grid xl:grid-cols-3 gap-4 sm:gap-6 items-stretch">
           {/* Monthly Chart - Takes up 2/3 */}
-          <div className="lg:col-span-2 animate-slide-up stagger-1">
+          <div className="xl:col-span-2 animate-slide-up stagger-1">
             <GlassCard className="h-full w-full">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -133,7 +133,7 @@ export function MainContent() {
           </div>
 
           {/* AI Insights - Takes up 1/3 */}
-          <div className="flex animate-slide-up stagger-2 h-full">
+          <div className="xl:col-span-1 w-full flex animate-slide-up stagger-2 h-full ">
             <AIInsightsCard insights={sampleInsights} className="h-full w-full" />
           </div>
         </div>

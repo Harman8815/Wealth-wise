@@ -92,7 +92,7 @@ type RadarView = "monthly" | "yearly"
 export function ReportsPage() {
   const { openSidebar } = useDashboardSidebar()
   const [timeView, setTimeView] = useState<TimeView>("monthly")
-  const [trendChartType, setTrendChartType] = useState<TrendChartType>("bar")
+  const [trendChartType, setTrendChartType] = useState<TrendChartType>("line")
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [compareWithPrevious, setCompareWithPrevious] = useState(false)
   const [showGrid, setShowGrid] = useState(true)
@@ -633,8 +633,8 @@ export function ReportsPage() {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-7">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          <div className="xl:col-span-7">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -820,8 +820,8 @@ export function ReportsPage() {
             </Card>
           </div>
 
-          <div className="lg:col-span-5">
-            <Card className="h-full">
+          <div className="xl:col-span-5 w-full">
+            <Card className="h-full w-full">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
