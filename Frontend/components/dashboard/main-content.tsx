@@ -19,7 +19,8 @@ const sampleInsights = [
     id: "1",
     type: "spending" as const,
     title: "Spending Alert",
-    description: "You've spent 15% more on dining out this month compared to last month. Consider setting a dining budget.",
+    description:
+      "You've spent 15% more on dining out this month compared to last month. Consider setting a dining budget.",
     impact: "negative" as const,
     metadata: { percentage: 15, category: "Dining" },
     action: { label: "Set Budget", onClick: () => {} },
@@ -28,7 +29,8 @@ const sampleInsights = [
     id: "2",
     type: "saving" as const,
     title: "Savings Opportunity",
-    description: "You could save ₹2,500 monthly by switching to a different subscription plan for your streaming services.",
+    description:
+      "You could save ₹2,500 monthly by switching to a different subscription plan for your streaming services.",
     impact: "positive" as const,
     metadata: { amount: 2500 },
     action: { label: "View Details", onClick: () => {} },
@@ -37,7 +39,8 @@ const sampleInsights = [
     id: "3",
     type: "investment" as const,
     title: "Investment Tip",
-    description: "Based on your savings pattern, consider investing ₹5,000 monthly in SIP for better returns.",
+    description:
+      "Based on your savings pattern, consider investing ₹5,000 monthly in SIP for better returns.",
     impact: "positive" as const,
     metadata: { amount: 5000 },
     action: { label: "Learn More", onClick: () => {} },
@@ -54,12 +57,14 @@ export function MainContent() {
       const result = await seedMutation.mutateAsync(undefined);
       toast({
         title: "Seed data generated",
-        description: result?.message || "Demo data has been populated for your account.",
+        description:
+          result?.message || "Demo data has been populated for your account.",
       });
     } catch (err: any) {
       toast({
         title: "Failed to seed data",
-        description: err.response?.data?.detail || err.message || "Please try again.",
+        description:
+          err.response?.data?.detail || err.message || "Please try again.",
       });
     }
   };
@@ -79,8 +84,12 @@ export function MainContent() {
               <Menu className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-xl font-semibold text-foreground">Welcome back</h1>
-              <p className="text-sm text-muted-foreground">Here's what's happening with your finances</p>
+              <h1 className="text-xl font-semibold text-foreground">
+                Welcome back
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Here's what's happening with your finances
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -106,7 +115,10 @@ export function MainContent() {
         </div>
       </header>
 
-      <AddTransactionDialog isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
+      <AddTransactionDialog
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+      />
 
       {/* Main Content */}
       <main className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -119,15 +131,47 @@ export function MainContent() {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Monthly Chart - Takes up 2/3 */}
           <div className="lg:col-span-2 animate-slide-up stagger-1">
-            <GlassCard className="h-full">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="font-semibold text-lg">Cash Flow</h3>
-                  <p className="text-sm text-muted-foreground">Income vs Expenses over time</p>
-                </div>
-              </div>
+            <div className="h-full w-full flex justify-normal items-start flex-col gap-6 p-0">
               <MonthlyChart />
-            </GlassCard>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-slide-up stagger-4">
+                <GlassCard hover className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-blue-500/10 text-blue-500">
+                    <Calendar className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Upcoming Bills
+                    </p>
+                    <p className="text-lg font-semibold">3 due this week</p>
+                  </div>
+                </GlassCard>
+
+                <GlassCard hover className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-500">
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      AI Recommendations
+                    </p>
+                    <p className="text-lg font-semibold">5 new insights</p>
+                  </div>
+                </GlassCard>
+
+                <GlassCard hover className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-purple-500/10 text-purple-500">
+                    <Calendar className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Next Payday
+                    </p>
+                    <p className="text-lg font-semibold">In 5 days</p>
+                  </div>
+                </GlassCard>
+              </div>
+            </div>
+            {/* Quick Stats Row */}
           </div>
 
           {/* AI Insights - Takes up 1/3 */}
@@ -140,39 +184,6 @@ export function MainContent() {
         <section className="animate-slide-up stagger-3">
           <RecentTransactions />
         </section>
-
-        {/* Quick Stats Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-slide-up stagger-4">
-          <GlassCard hover className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-blue-500/10 text-blue-500">
-              <Calendar className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Upcoming Bills</p>
-              <p className="text-lg font-semibold">3 due this week</p>
-            </div>
-          </GlassCard>
-
-          <GlassCard hover className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-500">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">AI Recommendations</p>
-              <p className="text-lg font-semibold">5 new insights</p>
-            </div>
-          </GlassCard>
-
-          <GlassCard hover className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-purple-500/10 text-purple-500">
-              <Calendar className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Next Payday</p>
-              <p className="text-lg font-semibold">In 5 days</p>
-            </div>
-          </GlassCard>
-        </div>
       </main>
     </div>
   );
