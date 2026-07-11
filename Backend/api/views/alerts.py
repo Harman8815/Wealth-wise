@@ -12,6 +12,7 @@ from django.utils import timezone
 from ..models import Alert
 from ..serializers import AlertSerializer
 from ..base import StandardResultsSetPagination, IsOwner
+from ..services.alert_engine import generate_user_alerts
 
 
 class AlertViewSet(viewsets.ModelViewSet):
@@ -133,3 +134,18 @@ class AlertViewSet(viewsets.ModelViewSet):
             }
             for cat, counts in categories.items()
         ])
+
+    @action(detail=False, methods=['post'])
+    def generate(self, request):
+        """
+        Generate alerts for the current user based on budget data and preferences.
+
+        Evaluates the configured alert rules (overall budget exceeded, specific
+        category budget exceeded, approaching threshold) and creates Alert rows
+        for conditions the user has enabled. Does not mark any alerts as read.
+
+        Returns:
+            generated: Number of alerts created.
+        """
+        generated = generate_user_alerts(request.user)
+        return Response({'generated': generated})
