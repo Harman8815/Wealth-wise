@@ -12,10 +12,12 @@ import {
   BarChart,
   ChevronLeft,
   ChevronRight,
+  FolderKanban,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { usePathname, useRouter } from "next/navigation"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
+import { ProjectSwitcher } from "@/components/dashboard/project-switcher"
 
 interface SidebarProps {
   onSettingsClick: () => void
@@ -25,6 +27,7 @@ interface SidebarProps {
 
 const navigationItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
+  { icon: FolderKanban, label: "Projects", href: "/dashboard/projects" },
   { icon: PiggyBank, label: "Budget Planner", href: "/dashboard/budget" },
   { icon: CreditCard, label: "Transactions", href: "/dashboard/transactions" },
   { icon: BarChart3, label: "Reports & Insights", href: "/dashboard/reports" },
@@ -72,6 +75,11 @@ function SidebarContent({
             {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </Button>
         )}
+      </div>
+
+      {/* Project switcher */}
+      <div className={cn("px-3 pt-3", isCollapsed && "hidden")}>
+        <ProjectSwitcher />
       </div>
 
       {/* Navigation */}
