@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mail, UserPlus, RotateCw, X, LogOut, ShieldCheck } from "lucide-react";
+import { Mail, UserPlus, RotateCw, X, ShieldCheck, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,19 +25,18 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  useActiveProject,
-} from "@/components/project/project-context";
+import { useActiveProject } from "@/components/project/project-context";
+import { AddMemberDialog } from "@/components/dashboard/add-member-dialog";
 import {
   useProjectMembers,
   useProjectInvitations,
-  useAddMember,
   useUpdateMemberRole,
   useRemoveMember,
   useCreateInvitation,
   useCancelInvitation,
   useResendInvitation,
 } from "@/hooks/use-projects";
+import { useMe } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { type ProjectRole } from "@/api/services";
 
@@ -49,15 +48,33 @@ const ROLE_STYLES: Record<string, string> = {
   viewer: "bg-slate-500/20 text-slate-300 border-slate-500/40",
 };
 
+const PAGE_SIZE = 10;
+
 export default function AccountManagementPage() {
   const router = useRouter();
-  const { activeProject, role, setActiveProject } = useActiveProject();
+  const { activeProject, role } = useActiveProject();
+  const { data: me } = useMe();
   const projectId = activeProject?.id ?? "";
 
-  const { data: members = [], isLoading: loadingMembers } = useProjectMembers(projectId);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
+
+  // Debounce the search box so we don't fire a request per keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const { data: membersData, isLoading: loadingMembers, isFetching } = useProjectMembers(projectId, {
+    page,
+    page_size: PAGE_SIZE,
+    search: search || undefined,
+    role: roleFilter === "all" ? undefined : roleFilter,
+  });
   const { data: invitations = [], isLoading: loadingInvites } = useProjectInvitations(projectId);
 
-  const addMember = useAddMember(projectId);
   const updateMemberRole = useUpdateMemberRole(projectId);
   const removeMember = useRemoveMember(projectId);
   const createInvitation = useCreateInvitation(projectId);
@@ -70,6 +87,10 @@ export default function AccountManagementPage() {
   const isOwner = role === "owner";
   const canManage = isOwner || role === "admin";
 
+  const members = membersData?.results ?? [];
+  const total = membersData?.count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
   if (!activeProject) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center">
@@ -81,6 +102,8 @@ export default function AccountManagementPage() {
       </div>
     );
   }
+
+  const pendingInvitations = invitations.filter((i) => i.status === "pending");
 
   const handleInvite = async () => {
     if (!inviteEmail.trim()) {
@@ -97,14 +120,13 @@ export default function AccountManagementPage() {
     }
   };
 
-  const handleAddExisting = async (email: string) => {
-    try {
-      await addMember.mutateAsync({ email, role: "editor" });
-      toast({ title: "Member added" });
-    } catch (e: any) {
-      const detail = e?.response?.data?.detail || "Could not add member";
-      toast({ title: detail, variant: "destructive" });
-    }
+  const handleRemove = (memberId: string, name: string) => {
+    if (!window.confirm(`Remove ${name} from this project?`)) return;
+    removeMember.mutate(memberId, {
+      onSuccess: () => toast({ title: "Member removed" }),
+      onError: (e: any) =>
+        toast({ title: e?.response?.data?.detail || "Could not remove member", variant: "destructive" }),
+    });
   };
 
   return (
@@ -130,127 +152,191 @@ export default function AccountManagementPage() {
               </p>
             </div>
           </div>
-          {!isOwner && (
-            <Button variant="outline" className="gap-2" disabled>
-              <LogOut className="h-4 w-4" /> Leave project
-            </Button>
-          )}
         </div>
 
         <Tabs defaultValue="members">
           <TabsList className="bg-slate-200 dark:bg-slate-800">
-            <TabsTrigger value="members">Members ({members.length})</TabsTrigger>
+            <TabsTrigger value="members">
+              Members ({total})
+            </TabsTrigger>
             <TabsTrigger value="invitations">
-              Pending invitations ({invitations.filter((i) => i.status === "pending").length})
+              Pending invitations ({pendingInvitations.length})
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="members">
             <Card className="border-slate-200 dark:border-slate-800">
-              <CardHeader>
-                <CardTitle className="text-slate-900 dark:text-white">Project members</CardTitle>
+              <CardHeader className="gap-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <CardTitle className="text-slate-900 dark:text-white">Project members</CardTitle>
+                  {canManage && (
+                    <AddMemberDialog
+                      projectId={projectId}
+                      trigger={
+                        <Button className="gap-2">
+                          <UserPlus className="h-4 w-4" /> Add member
+                        </Button>
+                      }
+                    />
+                  )}
+                </div>
+
+                {/* Toolbar: search + role filter */}
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                    <Input
+                      value={searchInput}
+                      onChange={(e) => {
+                        setSearchInput(e.target.value);
+                        setPage(1);
+                      }}
+                      placeholder="Search by name or email…"
+                      className="bg-slate-900 border-slate-700 pl-9"
+                    />
+                  </div>
+                  <Select
+                    value={roleFilter}
+                    onValueChange={(v) => {
+                      setRoleFilter(v);
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="bg-slate-900 border-slate-700 sm:w-44">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="border-slate-800 bg-[#0b1220] text-slate-100">
+                      <SelectItem value="all">All roles</SelectItem>
+                      {ROLES.map((r) => (
+                        <SelectItem key={r} value={r}>
+                          {r}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardHeader>
+
               <CardContent>
                 {loadingMembers ? (
                   <p className="text-slate-500">Loading members…</p>
+                ) : members.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-slate-500">
+                    No members match your filters.
+                  </p>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-slate-800 hover:bg-transparent">
-                        <TableHead className="text-slate-400">Member</TableHead>
-                        <TableHead className="text-slate-400">Role</TableHead>
-                        <TableHead className="text-right text-slate-400">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {members.map((member) => {
-                        const isSelf = member.user === activeProject.created_by;
-                        return (
-                          <TableRow key={member.id} className="border-slate-800">
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                <Avatar className="h-8 w-8">
-                                  <AvatarFallback className="bg-slate-700 text-xs">
-                                    {member.name?.charAt(0)?.toUpperCase() ??
-                                      member.email.charAt(0).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div>
-                                  <div className="text-sm font-medium text-slate-800 dark:text-slate-100">
-                                    {member.name || member.email}
+                  <div className={isFetching ? "opacity-60 transition-opacity" : "transition-opacity"}>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-slate-800 hover:bg-transparent">
+                          <TableHead className="text-slate-400">Member</TableHead>
+                          <TableHead className="text-slate-400">Role</TableHead>
+                          <TableHead className="text-right text-slate-400">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {members.map((member) => {
+                          const isSelf = me?.id === member.user;
+                          return (
+                            <TableRow key={member.id} className="border-slate-800">
+                              <TableCell>
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarFallback className="bg-slate-700 text-xs">
+                                      {member.name?.charAt(0)?.toUpperCase() ??
+                                        member.email.charAt(0).toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <div className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                                      {member.name || member.email}
+                                      {isSelf && (
+                                        <span className="ml-2 text-[10px] text-slate-500">(you)</span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-slate-500">{member.email}</div>
                                   </div>
-                                  <div className="text-xs text-slate-500">{member.email}</div>
                                 </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {isOwner ? (
-                                <Select
-                                  value={member.role}
-                                  onValueChange={(value) =>
-                                    updateMemberRole.mutateAsync({
-                                      memberId: member.id,
-                                      role: value as ProjectRole,
-                                    })
-                                  }
-                                >
-                                  <SelectTrigger className="h-8 w-32 border-slate-700 bg-slate-900">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent className="border-slate-800 bg-[#0b1220] text-slate-100">
-                                    {ROLES.map((r) => (
-                                      <SelectItem key={r} value={r}>
-                                        {r}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              ) : (
-                                <Badge variant="outline" className={ROLE_STYLES[member.role]}>
-                                  {member.role}
-                                </Badge>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {isOwner && members.length > 1 && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-red-400 hover:text-red-300"
-                                  onClick={() => removeMember.mutateAsync(member.id)}
-                                >
-                                  Remove
-                                </Button>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                              </TableCell>
+                              <TableCell>
+                                {isOwner ? (
+                                  <Select
+                                    value={member.role}
+                                    onValueChange={(value) =>
+                                      updateMemberRole.mutateAsync({
+                                        memberId: member.id,
+                                        role: value as ProjectRole,
+                                      })
+                                    }
+                                  >
+                                    <SelectTrigger className="h-8 w-32 border-slate-700 bg-slate-900">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="border-slate-800 bg-[#0b1220] text-slate-100">
+                                      {ROLES.map((r) => (
+                                        <SelectItem key={r} value={r}>
+                                          {r}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Badge variant="outline" className={ROLE_STYLES[member.role]}>
+                                    {member.role}
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {isOwner && members.length > 1 && !isSelf && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-red-400 hover:text-red-300"
+                                    onClick={() =>
+                                      handleRemove(member.id, member.name || member.email)
+                                    }
+                                  >
+                                    Remove
+                                  </Button>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
 
-                {canManage && (
-                  <div className="mt-5 flex items-end gap-2 border-t border-slate-800 pt-4">
-                    <div className="flex-1 space-y-1">
-                      <Label htmlFor="add-member" className="text-xs text-slate-400">
-                        Add existing user by email
-                      </Label>
-                      <Input
-                        id="add-member"
-                        placeholder="teammate@example.com"
-                        className="bg-slate-900 border-slate-700"
-                        value={inviteEmail}
-                        onChange={(e) => setInviteEmail(e.target.value)}
-                      />
+                {/* Pagination */}
+                {total > 0 && (
+                  <div className="mt-4 flex items-center justify-between text-sm text-slate-400">
+                    <span>
+                      {total} member{total === 1 ? "" : "s"}
+                      {total > PAGE_SIZE && (
+                        <> · page {page} of {totalPages}</>
+                      )}
+                    </span>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1"
+                        disabled={page <= 1}
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      >
+                        <ChevronLeft className="h-4 w-4" /> Prev
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1"
+                        disabled={page >= totalPages}
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      >
+                        Next <ChevronRight className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <Button
-                      className="gap-2"
-                      onClick={() => handleAddExisting(inviteEmail.trim())}
-                      disabled={!inviteEmail.trim() || addMember.isPending}
-                    >
-                      <UserPlus className="h-4 w-4" /> Add
-                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -303,45 +389,43 @@ export default function AccountManagementPage() {
                   <h4 className="mb-2 text-sm font-medium text-slate-400">Pending invitations</h4>
                   {loadingInvites ? (
                     <p className="text-slate-500">Loading…</p>
-                  ) : invitations.filter((i) => i.status === "pending").length === 0 ? (
+                  ) : pendingInvitations.length === 0 ? (
                     <p className="text-sm text-slate-500">No pending invitations.</p>
                   ) : (
                     <div className="space-y-2">
-                      {invitations
-                        .filter((i) => i.status === "pending")
-                        .map((inv) => (
-                          <div
-                            key={inv.id}
-                            className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/40 px-3 py-2"
-                          >
-                            <div>
-                              <div className="text-sm text-slate-200">{inv.email}</div>
-                              <Badge variant="outline" className={ROLE_STYLES[inv.role]}>
-                                {inv.role}
-                              </Badge>
-                            </div>
-                            {canManage && (
-                              <div className="flex gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-slate-400 hover:text-white"
-                                  onClick={() => resendInvitation.mutateAsync(inv.id)}
-                                >
-                                  <RotateCw className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-red-400 hover:text-red-300"
-                                  onClick={() => cancelInvitation.mutateAsync(inv.id)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )}
+                      {pendingInvitations.map((inv) => (
+                        <div
+                          key={inv.id}
+                          className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/40 px-3 py-2"
+                        >
+                          <div>
+                            <div className="text-sm text-slate-200">{inv.email}</div>
+                            <Badge variant="outline" className={ROLE_STYLES[inv.role]}>
+                              {inv.role}
+                            </Badge>
                           </div>
-                        ))}
+                          {canManage && (
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-slate-400 hover:text-white"
+                                onClick={() => resendInvitation.mutateAsync(inv.id)}
+                              >
+                                <RotateCw className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-400 hover:text-red-300"
+                                onClick={() => cancelInvitation.mutateAsync(inv.id)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

@@ -113,8 +113,15 @@ export const projectApi = {
   },
 
   // --- Members ---
-  getMembers: async (id: string) => {
-    const response = await apiClient.get<PaginatedResponse<ProjectMember>>(`/projects/${id}/members/`);
+  getMembers: async (id: string, params?: { page?: number; page_size?: number; search?: string; role?: string }) => {
+    const response = await apiClient.get<PaginatedResponse<ProjectMember>>(`/projects/${id}/members/`, {
+      params: {
+        page: params?.page,
+        page_size: params?.page_size,
+        search: params?.search,
+        role: params?.role,
+      },
+    });
     return response.data;
   },
 

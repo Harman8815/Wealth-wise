@@ -68,12 +68,20 @@ export const useDeleteProject = () => {
   });
 };
 
-// Members of a project
-export const useProjectMembers = (id: string) => {
+// Members of a project (supports search / role filter / pagination)
+export interface MemberQuery {
+  page?: number;
+  page_size?: number;
+  search?: string;
+  role?: string;
+}
+
+export const useProjectMembers = (id: string, params: MemberQuery = {}) => {
   return useQuery({
-    queryKey: queryKeys.projects.members(id),
-    queryFn: () => projectApi.getMembers(id).then((d) => d.results ?? []),
+    queryKey: [...queryKeys.projects.members(id), params],
+    queryFn: () => projectApi.getMembers(id, params),
     enabled: !!id,
+    placeholderData: (prev) => prev,
   });
 };
 
