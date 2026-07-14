@@ -24,9 +24,22 @@ export interface RegisterInput {
   password: string;
 }
 
+// Seeded dummy users for the development "Quick Login" feature.
+export const QUICK_LOGIN_USERS = [
+  { label: "User 1", email: "user1@wealthwise.test", role: "Owner @ Personal Finance" },
+  { label: "User 2", email: "user2@wealthwise.test", role: "Owner @ Family Budget" },
+  { label: "User 3", email: "user3@wealthwise.test", role: "Editor / Viewer" },
+];
+
 export const authApi = {
   login: async (data: LoginInput) => {
     const response = await apiClient.post<LoginResponse>('/auth/login/', data);
+    return response.data;
+  },
+
+  // Development-only: credential-less login for a seeded dummy user.
+  quickLogin: async (email: string) => {
+    const response = await apiClient.post<LoginResponse>('/auth/quick-login/', { email });
     return response.data;
   },
 

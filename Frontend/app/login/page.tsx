@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useLogin, useEnsureDefaultUser } from "@/hooks";
-import { Mail, Lock, LogIn, Chrome, ArrowLeft, TrendingUp } from "lucide-react";
+import { authApi, QUICK_LOGIN_USERS } from "@/api/services";
+import { Mail, Lock, LogIn, Chrome, ArrowLeft, TrendingUp, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 
 const DEFAULT_USER_EMAIL = "demo@wealthwise.com";
@@ -41,6 +42,18 @@ export default function LoginPage() {
             router.push("/dashboard");
         } catch (err: any) {
             setError(err.response?.data?.detail || "Unable to login with default credentials");
+        }
+    };
+
+    const handleQuickLogin = async (email: string) => {
+        setError("");
+        try {
+            const tokens = await authApi.quickLogin(email);
+            localStorage.setItem("access_token", tokens.access);
+            localStorage.setItem("refresh_token", tokens.refresh);
+            router.push("/dashboard");
+        } catch (err: any) {
+            setError(err.response?.data?.detail || "Quick login failed");
         }
     };
 
@@ -311,14 +324,38 @@ export default function LoginPage() {
                         {loginMutation.isPending || ensureDefaultUserMutation.isPending ? (
                             "LOGIN WITH DEFAULT DATA..."
                         ) : (
-                            <>
-                                <LogIn className="w-5 h-5" />
-                                Login with Default Data
-                            </>
-                        )}
-                    </button>
+                        <>
+                            <LogIn className="w-5 h-5" />
+                            Login with Default Data
+                        </>
+                    )}
+                </button>
 
-                    <div className="relative my-10">
+                {/* TEMPORARY DEV-ONLY: quick login as seeded dummy users */}
+                <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+                    <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-amber-400/90">
+                        <Zap className="w-3.5 h-3.5" /> Quick Login (dev only)
+                    </p>
+                    <p className="mt-1 text-xs text-amber-200/80">
+                        Instantly authenticate as a seeded test user (no password). Run{" "}
+                        <code className="rounded bg-black/30 px-1">manage.py seed_dummy</code> first.
+                    </p>
+                    <div className="mt-3 grid grid-cols-1 gap-2">
+                        {QUICK_LOGIN_USERS.map((u) => (
+                            <button
+                                key={u.email}
+                                type="button"
+                                onClick={() => handleQuickLogin(u.email)}
+                                className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2 text-left text-white transition-colors hover:bg-amber-500/20"
+                            >
+                                <span className="text-sm font-medium">Login as {u.label}</span>
+                                <span className="text-[10px] text-amber-200/70">{u.role}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="relative my-10">
                         <div className="absolute inset-0 flex items-center">
                             <div className="w-full border-t border-white/5"></div>
                         </div>
