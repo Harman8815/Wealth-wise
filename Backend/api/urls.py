@@ -21,6 +21,7 @@ from .views import (
     health_check,
     seed_historical_data,
     default_user_info,
+    quick_login,
     export_transactions_csv,
     export_reports_pdf,
     filter_reports,
@@ -55,6 +56,7 @@ urlpatterns = [
     # Authentication endpoints
     path('auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('auth/quick-login/', quick_login, name='quick_login'),
     
     # System endpoints
     path('health/', health_check, name='health_check'),

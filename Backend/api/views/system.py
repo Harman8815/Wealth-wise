@@ -6,6 +6,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from django.db import connection, transaction
+from django.conf import settings
 from django.utils import timezone
 from datetime import datetime, timedelta
 import random
@@ -14,6 +15,7 @@ from ..models import (
     User, Account, Transaction, BudgetCategory, 
     Goal, Alert, AlertSetting, Expense, Category
 )
+from ..base import NotFoundException, PermissionDenied
 
 DEFAULT_DEMO_USER_EMAIL = "demo@wealthwise.com"
 DEFAULT_DEMO_USER_PASSWORD = "WealthWise123!"
@@ -50,6 +52,30 @@ def default_user_info(request):
         "created": created,
         "message": "Default demo user is ready.",
     })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def quick_login(request):
+    """Development-only credential-less login for a seeded dummy user.
+
+    Body: { "email": "user1@wealthwise.test" }
+    Returns JWT access/refresh tokens. Disabled unless settings.DEBUG is True.
+    """
+    if not settings.DEBUG:
+        raise PermissionDenied("Quick login is only available in development.")
+
+    email = (request.data or {}).get("email")
+    if not email:
+        raise NotFoundException("email is required.")
+
+    user = User.objects.filter(email__iexact=email).first()
+    if not user:
+        raise NotFoundException("No user with that email. Run `python manage.py seed_dummy` first.")
+
+    from rest_framework_simplejwt.tokens import RefreshToken
+    refresh = RefreshToken.for_user(user)
+    return Response({"access": str(refresh.access_token), "refresh": str(refresh)})
 
 
 
