@@ -154,6 +154,20 @@ SIMPLE_JWT = {
 # CORS Configuration
 CORS_ALLOW_ALL_ORIGINS = True  # Configure properly for production
 CORS_ALLOW_CREDENTIALS = True
+# Allow custom headers such as X-Project-Id (sent on every request) so the
+# browser preflight (OPTIONS) succeeds.
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    "x-project-id",
+]
 
 # Custom User Model
 AUTH_USER_MODEL = 'api.User'
