@@ -112,7 +112,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
         require_role(project, request.user, 'viewer')
 
         if request.method == 'GET':
+            from django.db.models import Q
             qs = project.members.select_related('user', 'invited_by').order_by('joined_at')
+            search = request.query_params.get('search')
+            role = request.query_params.get('role')
+            if search:
+                qs = qs.filter(Q(user__email__icontains=search) | Q(user__name__icontains=search))
+            if role:
+                qs = qs.filter(role=role)
             page = self.paginate_queryset(qs)
             if page is not None:
                 return self.get_paginated_response(ProjectMemberSerializer(page, many=True).data)
