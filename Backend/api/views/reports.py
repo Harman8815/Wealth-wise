@@ -9,6 +9,7 @@ from rest_framework import status
 
 from ..models import Transaction, ScheduledReport
 from ..serializers import ScheduledReportSerializer
+from ..base import project_scope_filter
 from django.db.models import Sum, Count, Q
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
@@ -34,7 +35,7 @@ def export_transactions_csv(request):
     category = request.query_params.get('category')
     trans_type = request.query_params.get('type')
 
-    queryset = Transaction.objects.filter(user=user).select_related('category')
+    queryset = Transaction.objects.filter(user=user, **project_scope_filter(request))
 
     if start_date:
         queryset = queryset.filter(date__gte=start_date)
@@ -75,7 +76,7 @@ def export_reports_pdf(request):
     start_date = request.query_params.get('start_date')
     end_date = request.query_params.get('end_date')
 
-    queryset = Transaction.objects.filter(user=user)
+    queryset = Transaction.objects.filter(user=user, **project_scope_filter(request))
 
     if start_date:
         queryset = queryset.filter(date__gte=start_date)
@@ -83,8 +84,6 @@ def export_reports_pdf(request):
         queryset = queryset.filter(date__lte=end_date)
 
     monthly_data = queryset.annotate(
-        month=TruncMonth('date')
-    ).values('month').annotate(
         income=Sum('amount', filter=Q(type='income')),
         expense=Sum('amount', filter=Q(type='expense'))
     ).order_by('month')
@@ -142,7 +141,7 @@ def filter_reports(request):
     categories = data.get('categories', [])
     time_view = data.get('time_view', 'monthly')
 
-    queryset = Transaction.objects.filter(user=user)
+    queryset = Transaction.objects.filter(user=user, **project_scope_filter(request))
 
     if start_date:
         queryset = queryset.filter(date__gte=start_date)
@@ -184,14 +183,14 @@ def filter_reports(request):
 def scheduled_reports(request):
     """List or create scheduled reports for the authenticated user."""
     if request.method == 'GET':
-        reports = ScheduledReport.objects.filter(user=request.user).order_by('-created_at')
+        reports = ScheduledReport.objects.filter(user=request.user, **project_scope_filter(request)).order_by('-created_at')
         serializer = ScheduledReportSerializer(reports, many=True)
         return Response(serializer.data)
 
     if request.method == 'POST':
         serializer = ScheduledReportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(user=request.user)
+        serializer.save(user=request.user, project=getattr(request, 'active_project', None))
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -200,7 +199,7 @@ def scheduled_reports(request):
 def scheduled_report_detail(request, id):
     """Retrieve, update, or delete a scheduled report."""
     try:
-        report = ScheduledReport.objects.get(id=id, user=request.user)
+        report = ScheduledReport.objects.get(id=id, user=request.user, **project_scope_filter(request))
     except ScheduledReport.DoesNotExist:
         return Response({'detail': 'Scheduled report not found.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -224,12 +223,12 @@ def scheduled_report_detail(request, id):
 def trigger_scheduled_report(request, id):
     """Trigger a scheduled report generation and return the PDF."""
     try:
-        report = ScheduledReport.objects.get(id=id, user=request.user)
+        report = ScheduledReport.objects.get(id=id, user=request.user, **project_scope_filter(request))
     except ScheduledReport.DoesNotExist:
         return Response({'detail': 'Scheduled report not found.'}, status=status.HTTP_404_NOT_FOUND)
 
     from ..models import generate_report_pdf
-    pdf_bytes = generate_report_pdf(request.user, report.report_type)
+    pdf_bytes = generate_report_pdf(request.user, report.report_type, project=getattr(request, 'active_project', None))
     report.last_run = timezone.now()
     report.next_run = timezone.now() + timedelta(days=1)
     report.save(update_fields=['last_run', 'next_run'])
@@ -247,7 +246,7 @@ def generate_pdf_report(request):
     user = request.user
 
     from ..models import generate_report_pdf
-    pdf_bytes = generate_report_pdf(user, report_type)
+    pdf_bytes = generate_report_pdf(user, report_type, project=getattr(request, 'active_project', None))
 
     response = HttpResponse(pdf_bytes, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="report_{report_type}.pdf"'

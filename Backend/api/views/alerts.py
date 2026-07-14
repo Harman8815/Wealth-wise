@@ -11,8 +11,7 @@ from django.utils import timezone
 
 from ..models import Alert
 from ..serializers import AlertSerializer
-from ..base import StandardResultsSetPagination, IsOwner
-from ..services.alert_engine import generate_user_alerts
+from ..base import StandardResultsSetPagination, IsOwner, project_scope_filter
 
 
 class AlertViewSet(viewsets.ModelViewSet):
@@ -36,14 +35,14 @@ class AlertViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        """Return alerts for current user, ordered by timestamp."""
+        """Return alerts for current user (and active project), ordered by timestamp."""
         return Alert.objects.filter(
-            user=self.request.user
+            user=self.request.user, **project_scope_filter(self.request)
         ).order_by('-timestamp')
 
     def perform_create(self, serializer):
         """Create alert with current user as owner."""
-        serializer.save(user=self.request.user)
+        serializer.save(user=self.request.user, project=self.request.active_project)
 
     @action(detail=True, methods=['post'])
     def mark_read(self, request, pk=None):
@@ -81,6 +80,7 @@ class AlertViewSet(viewsets.ModelViewSet):
         """
         updated = Alert.objects.filter(
             user=request.user,
+            project=getattr(request, 'active_project', None),
             read=False
         ).update(read=True, read_at=timezone.now())
         

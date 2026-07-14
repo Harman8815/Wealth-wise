@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from ..models import Goal
 from ..serializers import GoalSerializer
-from ..base import StandardResultsSetPagination, IsOwner
+from ..base import StandardResultsSetPagination, IsOwner, project_scope_filter
 
 
 class GoalViewSet(viewsets.ModelViewSet):
@@ -39,14 +39,14 @@ class GoalViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        """Return goals for current user, ordered by creation date."""
+        """Return goals for current user (and active project), ordered by creation date."""
         return Goal.objects.filter(
-            user=self.request.user
+            user=self.request.user, **project_scope_filter(self.request)
         ).order_by('-created_at')
 
     def perform_create(self, serializer):
         """Create goal with current user as owner."""
-        serializer.save(user=self.request.user)
+        serializer.save(user=self.request.user, project=self.request.active_project)
 
     @action(detail=True, methods=['post'])
     def contribute(self, request, pk=None):

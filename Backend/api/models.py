@@ -65,6 +65,7 @@ class Account(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='accounts')
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, null=True, blank=True, related_name='project_accounts')
     name = models.CharField(max_length=255)
     type = models.CharField(max_length=50, choices=ACCOUNT_TYPES)
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -99,6 +100,7 @@ class Transaction(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transactions')
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, null=True, blank=True, related_name='project_transactions')
     account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
     date = models.DateField()
     description = models.CharField(max_length=500)
@@ -133,6 +135,7 @@ class TransactionHistory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     transaction = models.ForeignKey(Transaction, on_delete=models.CASCADE, related_name='history')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transaction_history')
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, null=True, blank=True, related_name='project_transaction_history')
     changed_at = models.DateTimeField(auto_now_add=True)
     changed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='changes_made')
     field_name = models.CharField(max_length=50)
@@ -178,6 +181,7 @@ class BudgetCategory(models.Model):
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='budget_categories')
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, null=True, blank=True, related_name='project_budget_categories')
     name = models.CharField(max_length=100)
     category = models.ForeignKey('Category', on_delete=models.PROTECT, null=True, blank=True, related_name='budget_allocations')
     budgeted = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -191,7 +195,7 @@ class BudgetCategory(models.Model):
 
     class Meta:
         db_table = 'budget_categories'
-        unique_together = [['user', 'name']]
+        unique_together = [['user', 'project', 'name']]
         indexes = [
             models.Index(fields=['user']),
         ]
@@ -236,6 +240,7 @@ class Goal(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='goals')
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, null=True, blank=True, related_name='project_goals')
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     target_amount = models.DecimalField(max_digits=12, decimal_places=2)
@@ -292,6 +297,7 @@ class Alert(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='alerts')
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, null=True, blank=True, related_name='project_alerts')
     type = models.CharField(max_length=20, choices=ALERT_TYPES)
     title = models.CharField(max_length=255)
     message = models.TextField()
@@ -333,6 +339,7 @@ class AlertSetting(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='alert_settings')
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, null=True, blank=True, related_name='project_alert_settings')
     setting_id = models.CharField(max_length=100)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -345,7 +352,7 @@ class AlertSetting(models.Model):
 
     class Meta:
         db_table = 'alert_settings'
-        unique_together = [['user', 'setting_id']]
+        unique_together = [['user', 'project', 'setting_id']]
         indexes = [
             models.Index(fields=['user']),
         ]
@@ -388,6 +395,7 @@ class Category(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='categories')
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, null=True, blank=True, related_name='project_categories')
     name = models.CharField(max_length=100)
     type = models.CharField(max_length=20, choices=CATEGORY_TYPES, default='expense')
     color = models.CharField(max_length=7, default='#3b82f6')
@@ -400,7 +408,7 @@ class Category(models.Model):
 
     class Meta:
         db_table = 'categories'
-        unique_together = [['user', 'name', 'type']]
+        unique_together = [['user', 'project', 'name', 'type']]
         indexes = [
             models.Index(fields=['user']),
             models.Index(fields=['type']),
@@ -414,6 +422,7 @@ class Expense(models.Model):
     """Quick expense tracking for daily expenses"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='expenses')
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, null=True, blank=True, related_name='project_expenses')
     date = models.DateField()
     category = models.ForeignKey('Category', on_delete=models.PROTECT, related_name='expenses')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
@@ -450,6 +459,7 @@ class ScheduledReport(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='scheduled_reports')
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, null=True, blank=True, related_name='project_scheduled_reports')
     name = models.CharField(max_length=255)
     report_type = models.CharField(max_length=50, choices=REPORT_TYPES)
     frequency = models.CharField(max_length=20, choices=FREQUENCY_CHOICES)
@@ -585,10 +595,11 @@ class ProjectInvitation(models.Model):
         return timezone.now() > self.expires_at
 
 
-def create_schedule(user, name, report_type, frequency, next_run=None):
+def create_schedule(user, name, report_type, frequency, next_run=None, project=None):
     """Create a new scheduled report configuration."""
     return ScheduledReport.objects.create(
         user=user,
+        project=project,
         name=name,
         report_type=report_type,
         frequency=frequency,
@@ -596,7 +607,7 @@ def create_schedule(user, name, report_type, frequency, next_run=None):
     )
 
 
-def generate_report_pdf(user, report_type='complete'):
+def generate_report_pdf(user, report_type='complete', project=None):
     """Generate a professional PDF report for the given user and report type."""
     from reportlab.lib.pagesizes import letter
     from reportlab.lib import colors
@@ -607,7 +618,7 @@ def generate_report_pdf(user, report_type='complete'):
     from reportlab.graphics import renderPDF
     from django.db.models import Sum, Count, Q
 
-    transactions = Transaction.objects.filter(user=user)
+    transactions = Transaction.objects.filter(user=user, project=project)
     monthly_data = list(
         transactions.annotate(month=TruncMonth('date'))
         .values('month')

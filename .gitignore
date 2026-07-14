@@ -4,3 +4,5 @@ context.ai.model
 *.list
 ./Task.list
 **/Task.list
+./Feature.md
+**/Feature.md

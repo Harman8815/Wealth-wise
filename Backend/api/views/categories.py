@@ -12,7 +12,7 @@ from django.db.models import Case, When, Value, IntegerField
 
 from ..models import Category
 from ..serializers import CategorySerializer, CategoryCreateUpdateSerializer
-from ..base import StandardResultsSetPagination, IsOwner
+from ..base import StandardResultsSetPagination, IsOwner, project_scope_filter
 
 
 CATEGORY_ICON_KEYWORDS = {
@@ -98,9 +98,9 @@ class CategoryViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        """Return categories for current user plus global defaults."""
+        """Return categories for current user (and active project) plus global defaults."""
         return Category.objects.filter(
-            user=self.request.user
+            user=self.request.user, **project_scope_filter(self.request)
         ).order_by('type', 'name')
 
     def get_serializer_class(self):
@@ -114,7 +114,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
         name = serializer.validated_data.get('name', '').strip()
         cat_type = serializer.validated_data.get('type', 'expense')
         
-        existing = Category.objects.filter(user=user, name__iexact=name, type=cat_type).first()
+        existing = Category.objects.filter(user=user, project=self.request.active_project, name__iexact=name, type=cat_type).first()
         if existing:
             serializer.instance = existing
             return
@@ -122,6 +122,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
         icon, symbol = get_icon_for_category_name(name)
         defaults = {
             'user': user,
+            'project': self.request.active_project,
             'color': '#3b82f6',
             'text_color': '#ffffff',
             'icon': icon,
@@ -145,7 +146,9 @@ class CategoryViewSet(viewsets.ModelViewSet):
         query = request.query_params.get('q', '')
         category_type = request.query_params.get('type')
         
-        queryset = Category.objects.filter(user=request.user)
+        queryset = Category.objects.filter(
+            user=request.user, **project_scope_filter(request)
+        )
         
         if category_type:
             queryset = queryset.filter(type=category_type)
@@ -184,6 +187,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
         """
         defaults = Category.objects.filter(
             user=request.user,
+            project=getattr(request, 'active_project', None),
             is_default=True
         ).order_by('type', 'name')
         

@@ -15,7 +15,7 @@ from ..models import (
     User, Account, Transaction, BudgetCategory, 
     Goal, Alert, AlertSetting, Expense, Category
 )
-from ..base import NotFoundException, PermissionDenied
+from ..base import NotFoundException, PermissionDenied, project_scope_filter
 
 DEFAULT_DEMO_USER_EMAIL = "demo@wealthwise.com"
 DEFAULT_DEMO_USER_PASSWORD = "WealthWise123!"
@@ -129,15 +129,16 @@ def seed_historical_data(request):
     """
     user = request.user
     years = request.data.get('years', 5)
+    project = getattr(request, 'active_project', None)
     
     with transaction.atomic():
         # Clear existing user data
-        Transaction.objects.filter(user=user).delete()
-        Expense.objects.filter(user=user).delete()
-        Goal.objects.filter(user=user).delete()
-        Alert.objects.filter(user=user).delete()
-        BudgetCategory.objects.filter(user=user).delete()
-        Account.objects.filter(user=user).delete()
+        Transaction.objects.filter(user=user, **project_scope_filter(request)).delete()
+        Expense.objects.filter(user=user, **project_scope_filter(request)).delete()
+        Goal.objects.filter(user=user, **project_scope_filter(request)).delete()
+        Alert.objects.filter(user=user, **project_scope_filter(request)).delete()
+        BudgetCategory.objects.filter(user=user, **project_scope_filter(request)).delete()
+        Account.objects.filter(user=user, **project_scope_filter(request)).delete()
         
         # Create accounts
         accounts_data = [
@@ -151,7 +152,7 @@ def seed_historical_data(request):
         
         accounts = []
         for acc_data in accounts_data:
-            account = Account.objects.create(user=user, **acc_data)
+            account = Account.objects.create(user=user, project=project, **acc_data)
             accounts.append(account)
         
         # Categories for transactions
@@ -169,6 +170,7 @@ def seed_historical_data(request):
         for cat_data in categories_data:
             cat, _ = Category.objects.get_or_create(
                 user=user,
+                project=project,
                 name=cat_data['name'],
                 type=cat_data['type'],
                 defaults={
@@ -200,6 +202,7 @@ def seed_historical_data(request):
         for cat_data in budget_categories_data:
             cat = BudgetCategory.objects.create(
                 user=user,
+                project=project,
                 category=category_lookup.get(cat_data['name']),
                 name=cat_data['name'],
                 budgeted=cat_data['budgeted'],
@@ -264,7 +267,7 @@ def seed_historical_data(request):
         ]
         
         for goal_data in goals_data:
-            Goal.objects.create(user=user, **goal_data)
+            Goal.objects.create(user=user, project=project, **goal_data)
         
         # Generate transactions (simplified)
         end_date = timezone.now().date()
@@ -277,6 +280,7 @@ def seed_historical_data(request):
             if current_date.day == 25:
                 Transaction.objects.create(
                     user=user,
+                    project=project,
                     account=accounts[1],
                     date=current_date,
                     description=f"Salary - {current_date.strftime('%B %Y')}",
@@ -298,6 +302,7 @@ def seed_historical_data(request):
                 
                 Transaction.objects.create(
                     user=user,
+                    project=project,
                     account=random.choice(accounts[2:5]),
                     date=current_date,
                     description=f'{selected_name} expense',
@@ -318,7 +323,7 @@ def seed_historical_data(request):
         ]
         
         for alert_data in alerts_data:
-            Alert.objects.create(user=user, **alert_data)
+            Alert.objects.create(user=user, project=project, **alert_data)
     
     return Response({
         'status': 'success',

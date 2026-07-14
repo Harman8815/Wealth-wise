@@ -11,7 +11,7 @@ from decimal import Decimal
 
 from ..models import BudgetCategory, Transaction, Category
 from ..serializers import BudgetCategorySerializer
-from ..base import StandardResultsSetPagination, IsOwner
+from ..base import StandardResultsSetPagination, IsOwner, project_scope_filter
 
 
 class BudgetCategoryViewSet(viewsets.ModelViewSet):
@@ -32,19 +32,23 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        """Return budget categories for current user with properly synced spent values."""
-        queryset = BudgetCategory.objects.filter(user=self.request.user)
+        """Return budget categories for current user (and active project) with synced spent values."""
+        queryset = BudgetCategory.objects.filter(
+            user=self.request.user, **project_scope_filter(self.request)
+        )
         
         for category in queryset:
             if category.category:
                 total_spent = Transaction.objects.filter(
                     user=self.request.user,
+                    project=self.request.active_project,
                     category=category.category,
                     type='expense'
                 ).aggregate(total=Sum('amount'))['total']
             else:
                 total_spent = Transaction.objects.filter(
                     user=self.request.user,
+                    project=self.request.active_project,
                     category__name=category.name,
                     type='expense'
                 ).aggregate(total=Sum('amount'))['total']
@@ -67,6 +71,7 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
                 user=self.request.user,
                 name=name,
                 type='expense',
+                project=self.request.active_project,
                 defaults={
                     'color': '#3b82f6',
                     'text_color': '#ffffff',
@@ -77,7 +82,11 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
             )
         
         try:
-            existing = BudgetCategory.objects.get(user=self.request.user, name=name)
+            existing = BudgetCategory.objects.get(
+                user=self.request.user,
+                project=self.request.active_project,
+                name=name
+            )
             existing.category = category_instance
             for attr, value in serializer.validated_data.items():
                 if attr != 'category':
@@ -85,7 +94,11 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
             existing.save()
             serializer.instance = existing
         except BudgetCategory.DoesNotExist:
-            serializer.save(user=self.request.user, category=category_instance)
+            serializer.save(
+                user=self.request.user,
+                project=self.request.active_project,
+                category=category_instance
+            )
 
     @action(detail=True, methods=['post'])
     def update_spent(self, request, pk=None):
@@ -104,12 +117,14 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
         if category.category:
             total_spent = Transaction.objects.filter(
                 user=request.user,
+                project=request.active_project,
                 category=category.category,
                 type='expense'
             ).aggregate(total=Sum('amount'))['total'] or 0
         else:
             total_spent = Transaction.objects.filter(
                 user=request.user,
+                project=request.active_project,
                 category__name=category.name,
                 type='expense'
             ).aggregate(total=Sum('amount'))['total'] or 0

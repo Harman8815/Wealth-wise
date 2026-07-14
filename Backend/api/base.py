@@ -54,3 +54,14 @@ class PermissionDenied(APIException):
     status_code = status.HTTP_403_FORBIDDEN
     default_detail = 'You do not have permission to perform this action.'
     default_code = 'permission_denied'
+
+
+def project_scope_filter(request):
+    """Return a filter dict scoping data to the active project.
+
+    Uses ``request.active_project`` set by ProjectContextMiddleware from the
+    X-Project-Id header. Returns ``{}`` when no active project is set so that
+    legacy / pre-scoping data remains visible.
+    """
+    project = getattr(request, 'active_project', None)
+    return {'project': project} if project else {}

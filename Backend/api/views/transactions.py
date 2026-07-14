@@ -12,8 +12,7 @@ from django.db.models import Sum, Count, Q
 
 from ..models import Transaction, TransactionHistory, Category
 from ..serializers import TransactionSerializer, TransactionHistorySerializer
-from ..base import StandardResultsSetPagination, IsOwner
-
+from ..base import StandardResultsSetPagination, IsOwner, project_scope_filter
 
 class TransactionViewSet(viewsets.ModelViewSet):
     """
@@ -38,9 +37,9 @@ class TransactionViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        """Return transactions for current user, ordered by date."""
+        """Return transactions for current user (and active project), ordered by date."""
         return Transaction.objects.filter(
-            user=self.request.user
+            user=self.request.user, **project_scope_filter(self.request)
         ).select_related('category').order_by('-date', '-created_at')
 
     def perform_create(self, serializer):
@@ -55,6 +54,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
                     user=self.request.user,
                     name=category_name,
                     type='expense' if serializer.validated_data.get('type') == 'expense' else 'income',
+                    project=self.request.active_project,
                     defaults={
                         'color': '#3b82f6',
                         'text_color': '#ffffff',
@@ -63,7 +63,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
                         'is_default': False,
                     }
                 )
-        serializer.save(user=self.request.user)
+        serializer.save(user=self.request.user, project=self.request.active_project)
 
     def perform_update(self, serializer):
         """Update transaction and track changes in history."""

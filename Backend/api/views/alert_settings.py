@@ -10,7 +10,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 
 from ..models import AlertSetting
 from ..serializers import AlertSettingSerializer
-from ..base import StandardResultsSetPagination, IsOwner
+from ..base import StandardResultsSetPagination, IsOwner, project_scope_filter
 
 
 class AlertSettingViewSet(viewsets.ModelViewSet):
@@ -37,12 +37,14 @@ class AlertSettingViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        """Return alert settings for current user."""
-        return AlertSetting.objects.filter(user=self.request.user)
+        """Return alert settings for current user (and active project)."""
+        return AlertSetting.objects.filter(
+            user=self.request.user, **project_scope_filter(self.request)
+        )
 
     def perform_create(self, serializer):
         """Create alert setting with current user as owner."""
-        serializer.save(user=self.request.user)
+        serializer.save(user=self.request.user, project=self.request.active_project)
 
     @action(detail=True, methods=['post'])
     def toggle(self, request, pk=None):
@@ -72,7 +74,7 @@ class AlertSettingViewSet(viewsets.ModelViewSet):
         user = request.user
         
         # Clear existing settings
-        AlertSetting.objects.filter(user=user).delete()
+        AlertSetting.objects.filter(user=user, project=getattr(request, 'active_project', None)).delete()
         
         # Create default settings
         default_settings = [
@@ -121,7 +123,7 @@ class AlertSettingViewSet(viewsets.ModelViewSet):
         
         created = []
         for setting_data in default_settings:
-            setting = AlertSetting.objects.create(user=user, **setting_data)
+            setting = AlertSetting.objects.create(user=user, project=getattr(request, 'active_project', None), **setting_data)
             created.append(setting)
         
         serializer = self.get_serializer(created, many=True)

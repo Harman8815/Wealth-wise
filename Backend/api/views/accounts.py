@@ -10,8 +10,7 @@ from django.db.models import Sum
 
 from ..models import Account
 from ..serializers import AccountSerializer
-from ..base import StandardResultsSetPagination, IsOwner
-
+from ..base import StandardResultsSetPagination, IsOwner, project_scope_filter
 
 class AccountViewSet(viewsets.ModelViewSet):
     """
@@ -32,12 +31,14 @@ class AccountViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        """Return accounts belonging to the current user."""
-        return Account.objects.filter(user=self.request.user)
+        """Return accounts belonging to the current user (and active project)."""
+        return Account.objects.filter(
+            user=self.request.user, **project_scope_filter(self.request)
+        )
 
     def perform_create(self, serializer):
         """Create account with current user as owner."""
-        serializer.save(user=self.request.user)
+        serializer.save(user=self.request.user, project=self.request.active_project)
 
     @action(detail=False, methods=['get'])
     def summary(self, request):

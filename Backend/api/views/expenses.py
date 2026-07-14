@@ -11,7 +11,7 @@ from django.db.models import Sum
 
 from ..models import Expense, Category
 from ..serializers import ExpenseSerializer
-from ..base import StandardResultsSetPagination, IsOwner
+from ..base import StandardResultsSetPagination, IsOwner, project_scope_filter
 
 
 class ExpenseViewSet(viewsets.ModelViewSet):
@@ -30,9 +30,9 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        """Return expenses for current user, ordered by date."""
+        """Return expenses for current user (and active project), ordered by date."""
         return Expense.objects.filter(
-            user=self.request.user
+            user=self.request.user, **project_scope_filter(self.request)
         ).select_related('category').order_by('-date')
 
     def perform_create(self, serializer):
@@ -47,6 +47,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                     user=self.request.user,
                     name=category_name,
                     type='expense',
+                    project=self.request.active_project,
                     defaults={
                         'color': '#3b82f6',
                         'text_color': '#ffffff',
@@ -55,7 +56,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                         'is_default': False,
                     }
                 )
-        serializer.save(user=self.request.user)
+        serializer.save(user=self.request.user, project=self.request.active_project)
 
     @action(detail=False, methods=['get'])
     def summary(self, request):
