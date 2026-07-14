@@ -28,6 +28,17 @@ export { alertApi, type Alert, type CreateAlertInput, type UpdateAlertInput, typ
 export { alertSettingApi, type AlertSetting, type CreateAlertSettingInput, type UpdateAlertSettingInput, type AlertSettingSummary } from './alert-settings';
 export { expenseApi, type Expense, type CreateExpenseInput, type UpdateExpenseInput, type ExpenseSummary } from './expenses';
 export {
+  projectApi,
+  type Project,
+  type ProjectRole,
+  type CreateProjectInput,
+  type UpdateProjectInput,
+  type ProjectMember,
+  type ProjectInvitation,
+  type ProjectContext,
+  type AddMemberInput,
+} from './projects';
+export {
   reportsApi,
   type ScheduledReport,
   type CreateScheduledReportInput,

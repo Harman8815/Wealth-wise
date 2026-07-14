@@ -37,6 +37,12 @@ class ApiClient {
           config.headers.Authorization = `Bearer ${token}`;
         }
 
+        // Scope requests to the active project workspace.
+        const activeProject = localStorage.getItem('wealthwise_active_project');
+        if (activeProject) {
+          config.headers['X-Project-Id'] = activeProject;
+        }
+
         const method = config.method?.toLowerCase();
         if (method === 'get') {
           const loadingToast = toast({
