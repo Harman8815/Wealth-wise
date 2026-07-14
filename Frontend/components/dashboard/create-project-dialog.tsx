@@ -71,10 +71,10 @@ export function CreateProjectDialog({ trigger }: { trigger: ReactNode }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="bg-[#0b1220] text-slate-100 border-slate-800 max-w-lg">
+      <DialogContent className="border-border max-w-lg">
         <DialogHeader>
           <DialogTitle>Create a new project</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-muted-foreground">
             A project is an independent finance workspace. You'll be its owner.
           </DialogDescription>
         </DialogHeader>
@@ -87,7 +87,7 @@ export function CreateProjectDialog({ trigger }: { trigger: ReactNode }) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Family Budget"
-              className="bg-slate-900 border-slate-700"
+              className="bg-background"
             />
           </div>
 
@@ -98,7 +98,7 @@ export function CreateProjectDialog({ trigger }: { trigger: ReactNode }) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What is this project for?"
-              className="bg-slate-900 border-slate-700"
+              className="bg-background"
             />
           </div>
 
@@ -106,10 +106,10 @@ export function CreateProjectDialog({ trigger }: { trigger: ReactNode }) {
             <div className="space-y-2">
               <Label>Currency</Label>
               <Select value={currency} onValueChange={setCurrency}>
-                <SelectTrigger className="bg-slate-900 border-slate-700">
+                <SelectTrigger className="bg-background">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-[#0b1220] border-slate-800 text-slate-100">
+                <SelectContent className="border-border">
                   {["INR", "USD", "EUR", "GBP", "JPY", "AUD", "CAD"].map((c) => (
                     <SelectItem key={c} value={c}>
                       {c}
@@ -126,7 +126,7 @@ export function CreateProjectDialog({ trigger }: { trigger: ReactNode }) {
                 value={initialBudget}
                 onChange={(e) => setInitialBudget(e.target.value)}
                 placeholder="0"
-                className="bg-slate-900 border-slate-700"
+                className="bg-background"
               />
             </div>
           </div>
@@ -139,10 +139,10 @@ export function CreateProjectDialog({ trigger }: { trigger: ReactNode }) {
                   key={opt.value}
                   type="button"
                   onClick={() => setIcon(opt.value)}
-                  className={`flex h-9 w-9 items-center justify-center rounded-md border ${
+                  className={`flex h-9 w-9 items-center justify-center rounded-md border transition-colors ${
                     icon === opt.value
-                      ? "border-blue-500 bg-blue-500/20 text-blue-300"
-                      : "border-slate-700 text-slate-300 hover:bg-slate-800"
+                      ? "border-primary bg-primary/20 text-primary"
+                      : "border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   }`}
                   title={opt.label}
                 >
@@ -161,7 +161,7 @@ export function CreateProjectDialog({ trigger }: { trigger: ReactNode }) {
                   type="button"
                   onClick={() => setColor(c)}
                   className={`h-7 w-7 rounded-full border-2 ${
-                    color === c ? "border-white" : "border-transparent"
+                    color === c ? "border-foreground" : "border-transparent"
                   }`}
                   style={{ backgroundColor: c }}
                   aria-label={c}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Plus, Users, Wallet, ArrowRight, Settings2 } from "lucide-react";
+import { Plus, Users, Wallet, ArrowRight, Settings2, FolderKanban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,11 +11,11 @@ import { CreateProjectDialog } from "@/components/dashboard/create-project-dialo
 import { ProjectIcon } from "@/components/project/project-icon";
 import { cn } from "@/lib/utils";
 
-const ROLE_STYLES: Record<string, string> = {
-  owner: "bg-amber-500/20 text-amber-300 border-amber-500/40",
-  admin: "bg-blue-500/20 text-blue-300 border-blue-500/40",
-  editor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
-  viewer: "bg-slate-500/20 text-slate-300 border-slate-500/40",
+const ROLE_BADGE: Record<string, string> = {
+  owner: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-800",
+  admin: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border-blue-200 dark:border-blue-800",
+  editor: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+  viewer: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
 };
 
 function formatCurrency(amount: number, currency: string) {
@@ -32,38 +32,43 @@ export default function ProjectsPage() {
   const { activeProject, setActiveProject } = useActiveProject();
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        <div className="mb-8 flex items-center justify-between">
+    <div className="flex-1 min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      {/* Header */}
+      <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/80 border-b border-border/50 px-4 md:px-6 py-4">
+        <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Projects</h1>
-            <p className="mt-1 text-slate-500 dark:text-slate-400">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Projects</h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               Collaborative finance workspaces. Each project keeps its own budgets, transactions, and members.
             </p>
           </div>
           <CreateProjectDialog
             trigger={
-              <Button className="gap-2">
+              <Button className="gap-2 shrink-0">
                 <Plus className="h-4 w-4" />
                 New project
               </Button>
             }
           />
         </div>
+      </header>
 
+      <main className="p-4 md:p-6 space-y-6">
         {isLoading ? (
-          <p className="text-slate-500">Loading projects…</p>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {[...Array(3)].map((_, i) => (
+              <Card key={i} className="h-56 animate-pulse" />
+            ))}
+          </div>
         ) : projects.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-500/10 text-blue-400">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <Wallet className="h-7 w-7" />
               </div>
               <div>
-                <p className="text-lg font-medium text-slate-700 dark:text-slate-200">
-                  No projects yet
-                </p>
-                <p className="text-sm text-slate-500">Create your first workspace to get started.</p>
+                <p className="text-lg font-medium text-gray-900 dark:text-white">No projects yet</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Create your first workspace to get started.</p>
               </div>
               <CreateProjectDialog
                 trigger={
@@ -83,14 +88,11 @@ export default function ProjectsPage() {
                 <Card
                   key={project.id}
                   className={cn(
-                    "relative overflow-hidden border-slate-200 dark:border-slate-800",
-                    isActive && "ring-2 ring-blue-500"
+                    "relative overflow-hidden pt-0 transition-colors",
+                    isActive && "ring-2 ring-primary"
                   )}
                 >
-                  <div
-                    className="h-1.5 w-full"
-                    style={{ backgroundColor: project.color }}
-                  />
+                  <div className="h-1.5 w-full" style={{ backgroundColor: project.color }} />
                   <CardContent className="space-y-4 p-5">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
@@ -101,50 +103,41 @@ export default function ProjectsPage() {
                           <ProjectIcon icon={project.icon} className="h-5 w-5" />
                         </div>
                         <div>
-                          <h3 className="font-semibold text-slate-900 dark:text-white">
-                            {project.name}
-                          </h3>
+                          <h3 className="font-semibold text-gray-900 dark:text-white">{project.name}</h3>
                           {project.user_role && (
-                            <Badge
-                              variant="outline"
-                              className={cn("mt-1", ROLE_STYLES[project.user_role])}
-                            >
+                            <Badge variant="outline" className={cn("mt-1 capitalize", ROLE_BADGE[project.user_role])}>
                               {project.user_role}
                             </Badge>
                           )}
                         </div>
                       </div>
-                      {isActive && (
-                        <Badge className="bg-blue-600 hover:bg-blue-600">Active</Badge>
-                      )}
+                      {isActive && <Badge>Active</Badge>}
                     </div>
 
-                    <p className="line-clamp-2 min-h-[2.5rem] text-sm text-slate-500 dark:text-slate-400">
+                    <p className="line-clamp-2 min-h-[2.5rem] text-sm text-gray-600 dark:text-gray-400">
                       {project.description || "No description"}
                     </p>
 
                     <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                      <div className="rounded-md bg-slate-100 p-2 dark:bg-slate-800">
-                        <div className="flex items-center justify-center gap-1 text-slate-500">
+                      <div className="rounded-md bg-muted/60 p-2">
+                        <div className="flex items-center justify-center gap-1 text-gray-500">
                           <Users className="h-3 w-3" /> Members
                         </div>
-                        <div className="mt-1 font-semibold text-slate-800 dark:text-slate-100">
+                        <div className="mt-1 font-semibold text-gray-900 dark:text-white">
                           {project.member_count}
                         </div>
                       </div>
-                      <div className="rounded-md bg-slate-100 p-2 dark:bg-slate-800">
-                        <div className="flex items-center justify-center gap-1 text-slate-500">
+                      <div className="rounded-md bg-muted/60 p-2">
+                        <div className="flex items-center justify-center gap-1 text-gray-500">
                           <Wallet className="h-3 w-3" /> Budget
                         </div>
-                        <div className="mt-1 font-semibold text-slate-800 dark:text-slate-100">
+                        <div className="mt-1 font-semibold text-gray-900 dark:text-white">
                           {formatCurrency(project.initial_budget, project.currency)}
                         </div>
                       </div>
-                      <div className="rounded-md bg-slate-100 p-2 dark:bg-slate-800">
-                        <div className="text-slate-500">Currency</div>
-                        <div className="mt-1 font-semibold text-slate-800 dark:text-slate-100">
-                          {project.currency}
-                        </div>
+                      <div className="rounded-md bg-muted/60 p-2">
+                        <div className="text-gray-500">Currency</div>
+                        <div className="mt-1 font-semibold text-gray-900 dark:text-white">{project.currency}</div>
                       </div>
                     </div>
 
@@ -176,7 +169,7 @@ export default function ProjectsPage() {
             })}
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }

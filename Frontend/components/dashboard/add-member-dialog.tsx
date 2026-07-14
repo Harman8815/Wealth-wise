@@ -81,7 +81,7 @@ export function AddMemberDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="bg-[#0b1220] text-slate-100 border-slate-800">
+      <DialogContent className="border-border">
         <DialogHeader>
           <DialogTitle>Add or invite a member</DialogTitle>
           <DialogDescription className="text-slate-400">
@@ -99,16 +99,16 @@ export function AddMemberDialog({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="teammate@example.com"
-              className="bg-slate-900 border-slate-700"
+              className="bg-background"
             />
           </div>
           <div className="space-y-2">
             <Label>Role</Label>
             <Select value={role} onValueChange={(v) => setRole(v as ProjectRole)}>
-              <SelectTrigger className="bg-slate-900 border-slate-700">
+              <SelectTrigger className="bg-background">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-[#0b1220] border-slate-800 text-slate-100">
+              <SelectContent className="border-border">
                 {ROLES.map((r) => (
                   <SelectItem key={r} value={r}>
                     {r}
