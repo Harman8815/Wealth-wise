@@ -471,6 +471,120 @@ class ScheduledReport(models.Model):
         return f"{self.name} - {self.user.email}"
 
 
+class Project(models.Model):
+    """A collaborative finance workspace. Every financial entity belongs to a project.
+
+    A project represents an independent finance workspace (e.g. personal, household,
+    a club, or a small business). Users join projects through ProjectMember records
+    and each membership has its own role (RBAC is project-scoped, not user-scoped).
+    """
+
+    ROLE_CHOICES = [
+        ('owner', 'Owner'),
+        ('admin', 'Admin'),
+        ('editor', 'Editor'),
+        ('viewer', 'Viewer'),
+    ]
+
+    ICON_CHOICES = [
+        ('wallet', 'Wallet'),
+        ('briefcase', 'Work'),
+        ('home', 'Home'),
+        ('users', 'Team'),
+        ('piggy-bank', 'Savings'),
+        ('plane', 'Travel'),
+        ('heart', 'Health'),
+        ('graduation-cap', 'Education'),
+        ('shopping-cart', 'Shopping'),
+        ('chart-line', 'Investments'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    currency = models.CharField(max_length=10, default='INR')
+    icon = models.CharField(max_length=50, blank=True, default='wallet')
+    color = models.CharField(max_length=7, default='#3b82f6')
+    initial_budget = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_projects')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'projects'
+        indexes = [
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class ProjectMember(models.Model):
+    """Membership linking a User to a Project with a project-scoped role."""
+
+    ROLE_CHOICES = Project.ROLE_CHOICES
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='members')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='project_memberships')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
+    invited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='invited_members')
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'project_members'
+        unique_together = [['project', 'user']]
+        indexes = [
+            models.Index(fields=['project']),
+            models.Index(fields=['user']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.email} @ {self.project.name} ({self.role})"
+
+
+class ProjectInvitation(models.Model):
+    """Email invitation to join a project. Converted to a ProjectMember on accept."""
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('declined', 'Declined'),
+        ('expired', 'Expired'),
+    ]
+
+    ROLE_CHOICES = Project.ROLE_CHOICES
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='invitations')
+    email = models.EmailField()
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='editor')
+    invited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_invitations')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    token = models.CharField(max_length=64, unique=True, default=uuid.uuid4, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'project_invitations'
+        unique_together = [['project', 'email']]
+        indexes = [
+            models.Index(fields=['project', 'status']),
+            models.Index(fields=['email', 'status']),
+        ]
+
+    def __str__(self):
+        return f"Invite {self.email} -> {self.project.name} ({self.status})"
+
+    @property
+    def is_expired(self):
+        if not self.expires_at:
+            return False
+        return timezone.now() > self.expires_at
+
+
 def create_schedule(user, name, report_type, frequency, next_run=None):
     """Create a new scheduled report configuration."""
     return ScheduledReport.objects.create(

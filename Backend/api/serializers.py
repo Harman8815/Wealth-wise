@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense, Category, ScheduledReport
+from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense, Category, ScheduledReport, Project, ProjectMember, ProjectInvitation
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -132,3 +132,83 @@ class ScheduledReportSerializer(serializers.ModelSerializer):
         model = ScheduledReport
         fields = ['id', 'name', 'report_type', 'frequency', 'enabled', 'last_run', 'next_run', 'created_at', 'updated_at']
         read_only_fields = ['id', 'last_run', 'created_at', 'updated_at']
+
+
+# ---------------------------------------------------------------------------
+# Projects / Account Management (multi-project architecture + RBAC)
+# ---------------------------------------------------------------------------
+
+class ProjectSerializer(serializers.ModelSerializer):
+    member_count = serializers.IntegerField(read_only=True)
+    user_role = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = Project
+        fields = [
+            'id', 'name', 'description', 'currency', 'icon', 'color',
+            'initial_budget', 'created_by', 'created_at', 'updated_at',
+            'member_count', 'user_role',
+        ]
+        read_only_fields = ['id', 'created_by', 'created_at', 'updated_at', 'member_count', 'user_role']
+
+    def get_user_role(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            membership = obj.members.filter(user=request.user).first()
+            return membership.role if membership else None
+        return None
+
+
+class ProjectCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Project
+        fields = ['id', 'name', 'description', 'currency', 'icon', 'color', 'initial_budget']
+        read_only_fields = ['id']
+
+    def validate_name(self, value):
+        return value.strip()
+
+
+class ProjectMemberSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(source='user.email', read_only=True)
+    name = serializers.CharField(source='user.name', read_only=True)
+
+    class Meta:
+        model = ProjectMember
+        fields = ['id', 'project', 'user', 'email', 'name', 'role', 'invited_by', 'joined_at']
+        read_only_fields = ['id', 'project', 'user', 'email', 'name', 'invited_by', 'joined_at']
+
+
+class AddProjectMemberSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    role = serializers.ChoiceField(choices=ProjectMember.ROLE_CHOICES, default='editor')
+
+    def validate_email(self, value):
+        return value.strip().lower()
+
+
+class UpdateProjectMemberSerializer(serializers.Serializer):
+    role = serializers.ChoiceField(choices=ProjectMember.ROLE_CHOICES)
+
+
+class ProjectInvitationSerializer(serializers.ModelSerializer):
+    invited_by_email = serializers.EmailField(source='invited_by.email', read_only=True)
+
+    class Meta:
+        model = ProjectInvitation
+        fields = [
+            'id', 'project', 'email', 'role', 'invited_by', 'invited_by_email',
+            'status', 'token', 'created_at', 'expires_at', 'accepted_at',
+        ]
+        read_only_fields = [
+            'id', 'project', 'invited_by', 'invited_by_email',
+            'status', 'token', 'created_at', 'expires_at', 'accepted_at',
+        ]
+
+
+class CreateProjectInvitationSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    role = serializers.ChoiceField(choices=ProjectInvitation.ROLE_CHOICES, default='editor')
+
+    def validate_email(self, value):
+        return value.strip().lower()
