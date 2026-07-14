@@ -16,6 +16,8 @@ from .views import (
     AlertSettingViewSet,
     ExpenseViewSet,
     CategoryViewSet,
+    ProjectViewSet,
+    accept_invitation,
     health_check,
     seed_historical_data,
     default_user_info,
@@ -39,9 +41,14 @@ router.register(r'alerts', AlertViewSet, basename='alert')
 router.register(r'alert-settings', AlertSettingViewSet, basename='alertsetting')
 router.register(r'expenses', ExpenseViewSet, basename='expense')
 router.register(r'categories', CategoryViewSet, basename='category')
+router.register(r'projects', ProjectViewSet, basename='project')
 
 # URL patterns
 urlpatterns = [
+    # Project invitation acceptance (registered before the router so it is not
+    # captured by the router's project detail route).
+    path('projects/accept-invitation/', accept_invitation, name='accept_invitation'),
+
     # API router endpoints
     path('', include(router.urls)),
     
