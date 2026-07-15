@@ -37,9 +37,9 @@ export const useSeedHistoricalData = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (years?: number) => systemApi.seedHistoricalData(years),
+    mutationFn: ({ years, projectId, budgetSimulation }: { years?: number; projectId?: string; budgetSimulation?: { under_budget: number; at_budget: number; slightly_over: number; heavily_over: number } } = {}) => systemApi.seedHistoricalData(years, projectId, budgetSimulation),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.me });
+      queryClient.invalidateQueries();
     },
   });
 };

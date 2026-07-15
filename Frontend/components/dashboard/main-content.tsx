@@ -7,11 +7,11 @@ import { OverviewCards } from "./overview-cards";
 import { RecentTransactions } from "./recent-transactions";
 import { MonthlyChart } from "./monthly-chart";
 import { cn } from "@/lib/utils";
-import { useSeedHistoricalData } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { AddTransactionDialog } from "./add-transaction-dialog";
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context";
+import { SeedDataDialog } from "./seed-data-dialog";
 
 // Sample AI insights data - would come from API in production
 const sampleInsights = [
@@ -49,25 +49,8 @@ const sampleInsights = [
 
 export function MainContent() {
   const { openSidebar } = useDashboardSidebar();
-  const seedMutation = useSeedHistoricalData();
   const [isAddOpen, setIsAddOpen] = useState(false);
-
-  const handleSeedData = async () => {
-    try {
-      const result = await seedMutation.mutateAsync(undefined);
-      toast({
-        title: "Seed data generated",
-        description:
-          result?.message || "Demo data has been populated for your account.",
-      });
-    } catch (err: any) {
-      toast({
-        title: "Failed to seed data",
-        description:
-          err.response?.data?.detail || err.message || "Please try again.",
-      });
-    }
-  };
+  const [isSeedOpen, setIsSeedOpen] = useState(false);
 
   return (
     <div className="flex-1 min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -101,8 +84,7 @@ export function MainContent() {
               variant="outline"
               size="sm"
               className="hidden sm:flex"
-              onClick={handleSeedData}
-              loading={seedMutation.isPending}
+              onClick={() => setIsSeedOpen(true)}
             >
               <Sparkles className="h-4 w-4 mr-2" />
               Seed Demo Data
@@ -118,6 +100,11 @@ export function MainContent() {
       <AddTransactionDialog
         isOpen={isAddOpen}
         onClose={() => setIsAddOpen(false)}
+      />
+
+      <SeedDataDialog
+        open={isSeedOpen}
+        onOpenChange={setIsSeedOpen}
       />
 
       {/* Main Content */}

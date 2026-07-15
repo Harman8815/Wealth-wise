@@ -617,6 +617,7 @@ def generate_report_pdf(user, report_type='complete', project=None):
     from reportlab.graphics.charts.barcharts import VerticalBarChart
     from reportlab.graphics import renderPDF
     from django.db.models import Sum, Count, Q
+    from django.db.models.functions import TruncMonth
 
     transactions = Transaction.objects.filter(user=user, project=project)
     monthly_data = list(

@@ -13,7 +13,7 @@ import random
 
 from ..models import (
     User, Account, Transaction, BudgetCategory, 
-    Goal, Alert, AlertSetting, Expense, Category
+    Goal, Alert, AlertSetting, Expense, Category, Project
 )
 from ..base import NotFoundException, PermissionDenied, project_scope_filter
 
@@ -123,24 +123,40 @@ def seed_historical_data(request):
     
     Request body:
         years: Number of years to generate (default: 5)
+        project_id: Optional project UUID to seed data for a specific project.
+                    If omitted, uses the active project from the X-Project-Id header,
+                    or seeds all projects if no active project is set.
         
     Returns:
         Summary of created data including counts and date range.
     """
     user = request.user
     years = request.data.get('years', 5)
-    project = getattr(request, 'active_project', None)
+    project_id = request.data.get('project_id')
+    budget_simulation = request.data.get('budget_simulation', {
+        'under_budget': 20,
+        'at_budget': 50,
+        'slightly_over': 20,
+        'heavily_over': 10,
+    })
+    
+    if project_id:
+        project = Project.objects.filter(id=project_id, members__user=user).first()
+        if not project:
+            raise NotFoundException('Project not found or you are not a member.')
+        project_filter = {'project': project}
+    else:
+        project = getattr(request, 'active_project', None)
+        project_filter = {'project': project} if project else {}
     
     with transaction.atomic():
-        # Clear existing user data
-        Transaction.objects.filter(user=user, **project_scope_filter(request)).delete()
-        Expense.objects.filter(user=user, **project_scope_filter(request)).delete()
-        Goal.objects.filter(user=user, **project_scope_filter(request)).delete()
-        Alert.objects.filter(user=user, **project_scope_filter(request)).delete()
-        BudgetCategory.objects.filter(user=user, **project_scope_filter(request)).delete()
-        Account.objects.filter(user=user, **project_scope_filter(request)).delete()
+        Transaction.objects.filter(user=user, **project_filter).delete()
+        Expense.objects.filter(user=user, **project_filter).delete()
+        Goal.objects.filter(user=user, **project_filter).delete()
+        Alert.objects.filter(user=user, **project_filter).delete()
+        BudgetCategory.objects.filter(user=user, **project_filter).delete()
+        Account.objects.filter(user=user, **project_filter).delete()
         
-        # Create accounts
         accounts_data = [
             {'name': 'HDFC Savings', 'type': 'bank', 'balance': 125000, 'bank_name': 'HDFC Bank'},
             {'name': 'SBI Salary Account', 'type': 'bank', 'balance': 85000, 'bank_name': 'State Bank of India'},
@@ -155,7 +171,6 @@ def seed_historical_data(request):
             account = Account.objects.create(user=user, project=project, **acc_data)
             accounts.append(account)
         
-        # Categories for transactions
         categories_data = [
             {'name': 'Income', 'type': 'income', 'color': '#22c55e', 'icon': 'briefcase', 'symbol': 'briefcase'},
             {'name': 'Food & Dining', 'type': 'expense', 'color': '#ef4444', 'icon': 'utensils', 'symbol': 'utensils'},
@@ -164,6 +179,8 @@ def seed_historical_data(request):
             {'name': 'Entertainment', 'type': 'expense', 'color': '#8b5cf6', 'icon': 'film', 'symbol': 'film'},
             {'name': 'Bills & Utilities', 'type': 'expense', 'color': '#f59e0b', 'icon': 'zap', 'symbol': 'zap'},
             {'name': 'Healthcare', 'type': 'expense', 'color': '#ec4899', 'icon': 'heart-pulse', 'symbol': 'heart-pulse'},
+            {'name': 'Education', 'type': 'expense', 'color': '#14b8a6', 'icon': 'book', 'symbol': 'book'},
+            {'name': 'Home & Maintenance', 'type': 'expense', 'color': '#f97316', 'icon': 'home', 'symbol': 'home'},
         ]
 
         category_lookup = {}
@@ -186,7 +203,6 @@ def seed_historical_data(request):
         income_category = category_lookup['Income']
         expense_categories = [category_lookup['Food & Dining'], category_lookup['Transportation'], category_lookup['Shopping'], category_lookup['Entertainment'], category_lookup['Bills & Utilities'], category_lookup['Healthcare']]
 
-        # Create budget categories and link to transaction categories
         budget_categories_data = [
             {'name': 'Food & Dining', 'budgeted': 18000, 'color': '#ef4444', 'icon': 'utensils', 'monthly_spend': 1500},
             {'name': 'Transportation', 'budgeted': 12000, 'color': '#3b82f6', 'icon': 'car', 'monthly_spend': 1000},
@@ -223,6 +239,43 @@ def seed_historical_data(request):
             'Home & Maintenance': {'min': 500, 'max': 2000, 'monthly': 700, 'weight': 1},
         }
 
+        budget_cat_names = list(budget_cats.keys())
+        random.shuffle(budget_cat_names)
+
+        under_budget_pct = budget_simulation.get('under_budget', 20)
+        at_budget_pct = budget_simulation.get('at_budget', 50)
+        slightly_over_pct = budget_simulation.get('slightly_over', 20)
+        heavily_over_pct = budget_simulation.get('heavily_over', 10)
+
+        total_cats = len(budget_cat_names)
+        under_count = int(total_cats * under_budget_pct / 100)
+        at_count = int(total_cats * at_budget_pct / 100)
+        slightly_over_count = int(total_cats * slightly_over_pct / 100)
+        heavily_over_count = total_cats - under_count - at_count - slightly_over_count
+
+        multipliers = {
+            'under': (0.3, 0.7),
+            'at': (0.9, 1.1),
+            'slightly_over': (1.2, 1.5),
+            'heavily_over': (1.6, 2.5),
+        }
+
+        idx = 0
+        for status, count in [('under', under_count), ('at', at_count), ('slightly_over', slightly_over_count), ('heavily_over', heavily_over_count)]:
+            for _ in range(count):
+                if idx >= total_cats:
+                    break
+                name = budget_cat_names[idx]
+                base = category_spend_profile[name]
+                low, high = multipliers[status]
+                category_spend_profile[name] = {
+                    'min': max(1, int(base['min'] * low)),
+                    'max': max(2, int(base['max'] * high)),
+                    'monthly': base['monthly'],
+                    'weight': base['weight'],
+                }
+                idx += 1
+
         expense_category_lookup = {
             'Food & Dining': category_lookup.get('Food & Dining'),
             'Transportation': category_lookup.get('Transportation'),
@@ -230,9 +283,10 @@ def seed_historical_data(request):
             'Entertainment': category_lookup.get('Entertainment'),
             'Bills & Utilities': category_lookup.get('Bills & Utilities'),
             'Healthcare': category_lookup.get('Healthcare'),
+            'Education': category_lookup.get('Education'),
+            'Home & Maintenance': category_lookup.get('Home & Maintenance'),
         }
         
-        # Create goals
         goals_data = [
             {
                 'title': 'Emergency Fund',
@@ -269,14 +323,12 @@ def seed_historical_data(request):
         for goal_data in goals_data:
             Goal.objects.create(user=user, project=project, **goal_data)
         
-        # Generate transactions (simplified)
         end_date = timezone.now().date()
         start_date = end_date - timedelta(days=365 * years)
         transactions_created = 0
         
         current_date = start_date
         while current_date <= end_date:
-            # Monthly salary
             if current_date.day == 25:
                 Transaction.objects.create(
                     user=user,
@@ -292,8 +344,7 @@ def seed_historical_data(request):
                 )
                 transactions_created += 1
             
-            # Random expenses correlated with budget categories
-            if random.random() < 0.35:  # ~35% chance of expense per day
+            if random.random() < 0.35:
                 category_names = list(category_spend_profile.keys())
                 weights = [category_spend_profile[name]['weight'] for name in category_names]
                 selected_name = random.choices(category_names, weights=weights, k=1)[0]
@@ -315,7 +366,6 @@ def seed_historical_data(request):
             
             current_date += timedelta(days=1)
         
-        # Create sample alerts
         alerts_data = [
             {'type': 'warning', 'title': 'Budget Alert', 'message': 'You have spent 85% of your Food & Dining budget', 'category': 'Budget', 'read': False},
             {'type': 'info', 'title': 'Bill Reminder', 'message': 'Your electricity bill is due in 3 days', 'category': 'Bills', 'read': False},

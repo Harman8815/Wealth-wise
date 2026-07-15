@@ -19,7 +19,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 
-from ..models import Project, ProjectMember, ProjectInvitation, User
+from django.db import OperationalError
+from ..models import Project, ProjectMember, ProjectInvitation, User, Category, BudgetCategory, AlertSetting
 from ..serializers import (
     ProjectSerializer,
     ProjectCreateSerializer,
@@ -56,6 +57,99 @@ def require_role(project, user, min_role):
 
 
 # ---------------------------------------------------------------------------
+# Project initialization helpers
+# ---------------------------------------------------------------------------
+
+def _create_with_project_fallback(model, user, project, **kwargs):
+    try:
+        return model.objects.create(user=user, project=project, **kwargs)
+    except OperationalError:
+        return model.objects.create(user=user, **kwargs)
+
+
+def _get_or_create_with_project_fallback(model, user, project, lookup, defaults):
+    try:
+        obj, _ = model.objects.get_or_create(user=user, project=project, **lookup, defaults=defaults)
+    except OperationalError:
+        obj, _ = model.objects.get_or_create(user=user, **lookup, defaults=defaults)
+    return obj
+
+
+def _initialize_project_defaults(project, user):
+    """Create default categories, budget categories, and alert settings for a new project."""
+    expense_categories = [
+        {"name": "Food & Dining", "color": "#ef4444", "icon": "utensils", "symbol": "utensils"},
+        {"name": "Transportation", "color": "#3b82f6", "icon": "car", "symbol": "car"},
+        {"name": "Shopping", "color": "#10b981", "icon": "shopping-cart", "symbol": "shopping-cart"},
+        {"name": "Entertainment", "color": "#8b5cf6", "icon": "film", "symbol": "film"},
+        {"name": "Bills & Utilities", "color": "#f59e0b", "icon": "zap", "symbol": "zap"},
+        {"name": "Healthcare", "color": "#ec4899", "icon": "heart-pulse", "symbol": "heart-pulse"},
+    ]
+
+    income_categories = [
+        {"name": "Salary", "color": "#22c55e", "icon": "briefcase", "symbol": "briefcase"},
+        {"name": "Freelance", "color": "#22c55e", "icon": "briefcase", "symbol": "briefcase"},
+    ]
+
+    created_categories = {}
+    for cat_data in expense_categories + income_categories:
+        cat_type = "expense" if cat_data in expense_categories else "income"
+        cat = _get_or_create_with_project_fallback(
+            Category,
+            user,
+            project,
+            lookup={"name": cat_data["name"], "type": cat_type},
+            defaults={
+                "color": cat_data["color"],
+                "text_color": "#ffffff",
+                "icon": cat_data["icon"],
+                "symbol": cat_data["symbol"],
+                "is_default": True,
+            },
+        )
+        created_categories[cat_data["name"]] = cat
+
+    budget_defs = [
+        "Food & Dining",
+        "Transportation",
+        "Shopping",
+        "Entertainment",
+        "Bills & Utilities",
+        "Healthcare",
+    ]
+    for name in budget_defs:
+        _get_or_create_with_project_fallback(
+            BudgetCategory,
+            user,
+            project,
+            lookup={"name": name},
+            defaults={
+                "category": created_categories.get(name),
+                "budgeted": 0,
+                "spent": 0,
+                "color": created_categories[name].color if name in created_categories else "#3b82f6",
+                "icon": created_categories[name].symbol if name in created_categories else "utensils",
+            },
+        )
+
+    default_settings = [
+        {"setting_id": "budget_warning", "title": "Budget Warnings", "description": "Get notified when approaching budget limits", "category": "Budget", "enabled": True, "threshold": 80, "threshold_unit": "%"},
+        {"setting_id": "bill_reminders", "title": "Bill Reminders", "description": "Receive reminders for upcoming bills", "category": "Bills", "enabled": True},
+        {"setting_id": "goal_milestones", "title": "Goal Milestones", "description": "Celebrate savings achievements", "category": "Goals", "enabled": True},
+        {"setting_id": "unusual_spending", "title": "Unusual Spending Alert", "description": "Alert for out-of-pattern transactions", "category": "Security", "enabled": True, "threshold": 15000, "threshold_unit": "₹"},
+        {"setting_id": "low_balance", "title": "Low Balance Alert", "description": "Warning when account falls below threshold", "category": "Account", "enabled": False, "threshold": 5000, "threshold_unit": "₹"},
+    ]
+    for setting_data in default_settings:
+        _get_or_create_with_project_fallback(
+            AlertSetting,
+            user,
+            project,
+            lookup={"setting_id": setting_data["setting_id"]},
+            defaults={k: v for k, v in setting_data.items() if k != "setting_id"},
+        )
+
+
+# ---------------------------------------------------------------------------
 # Views
 # ---------------------------------------------------------------------------
 
@@ -81,7 +175,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         return {**super().get_serializer_context(), 'request': self.request}
 
     def perform_create(self, serializer):
-        """Create the project and make the creator the Owner."""
+        """Create the project, make the creator the Owner, and initialize defaults."""
         project = serializer.save(created_by=self.request.user)
         ProjectMember.objects.create(
             project=project,
@@ -89,6 +183,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             role='owner',
             invited_by=self.request.user,
         )
+        _initialize_project_defaults(project, self.request.user)
 
     def retrieve(self, request, *args, **kwargs):
         project = self.get_object()

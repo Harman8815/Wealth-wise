@@ -19,14 +19,21 @@ export interface SeedDataResponse {
   };
 }
 
+export interface BudgetSimulation {
+  under_budget: number;
+  at_budget: number;
+  slightly_over: number;
+  heavily_over: number;
+}
+
 export const systemApi = {
   getDefaultUser: async () => {
     const response = await apiClient.get<DefaultUserResponse>('/default-user/');
     return response.data;
   },
 
-  seedHistoricalData: async (years: number = 5) => {
-    const response = await apiClient.post<SeedDataResponse>('/seed-data/', { years });
+  seedHistoricalData: async (years: number = 5, projectId?: string, budgetSimulation?: BudgetSimulation) => {
+    const response = await apiClient.post<SeedDataResponse>('/seed-data/', { years, project_id: projectId, budget_simulation: budgetSimulation });
     return response.data;
   },
 };

@@ -7,7 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Sum
+from django.db.models import Sum, Count
 
 from ..models import Expense, Category
 from ..serializers import ExpenseSerializer
@@ -88,7 +88,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         # Category breakdown
         by_category = queryset.values('category').annotate(
             total=Sum('amount'),
-            count=Sum('id')
+            count=Count('id')
         ).order_by('-total')
         
         return Response({
