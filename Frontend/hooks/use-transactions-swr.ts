@@ -2,6 +2,7 @@
 
 import useSWR from 'swr'
 import { transactionApi } from '@/api/services'
+import { getProjectVersion } from '@/lib/project-version'
 
 const fetcher = async (key: string, ...args: any[]) => {
   // key will be the endpoint-like identifier
@@ -25,7 +26,7 @@ const fetcher = async (key: string, ...args: any[]) => {
 }
 
 export const useSWRTransactions = (filters?: any, page = 1, pageSize = 20) => {
-  const key = ['transactions_all', filters, page, pageSize]
+  const key = ['transactions_all', filters, page, pageSize, getProjectVersion()]
   const { data, error, isLoading } = useSWR(key, () => fetcher('transactions_all', filters, page, pageSize), {
     revalidateOnFocus: false,
   })
@@ -38,7 +39,7 @@ export const useSWRTransactions = (filters?: any, page = 1, pageSize = 20) => {
 }
 
 export const useSWRTransactionSummary = (startDate?: string, endDate?: string) => {
-  const key = ['transactions_summary', startDate, endDate]
+  const key = ['transactions_summary', startDate, endDate, getProjectVersion()]
   const { data, error, isLoading } = useSWR(key, () => fetcher('transactions_summary', startDate, endDate), {
     revalidateOnFocus: false,
   })
@@ -47,7 +48,7 @@ export const useSWRTransactionSummary = (startDate?: string, endDate?: string) =
 }
 
 export const useSWRMonthlyStats = (months = 6) => {
-  const key = ['transactions_monthly', months]
+  const key = ['transactions_monthly', months, getProjectVersion()]
   const { data, error, isLoading } = useSWR(key, () => fetcher('transactions_monthly', months), {
     revalidateOnFocus: false,
   })
@@ -56,7 +57,7 @@ export const useSWRMonthlyStats = (months = 6) => {
 }
 
 export const useSWRRecentTransactions = (limit = 5) => {
-  const key = ['transactions_recent', limit]
+  const key = ['transactions_recent', limit, getProjectVersion()]
   const { data, error, isLoading } = useSWR(key, () => fetcher('transactions_recent', limit), {
     revalidateOnFocus: false,
   })

@@ -8,6 +8,7 @@ import { SettingsDialog } from "@/components/dashboard/settings-dialog"
 import { DashboardSidebarProvider } from "@/components/dashboard/sidebar-context"
 import { NotificationToasts } from "@/components/dashboard/notification-toasts"
 import { useIsAuthenticated } from "@/hooks/use-auth"
+import { useActiveProject } from "@/components/project/project-context"
 import { cn } from "@/lib/utils"
 
 export default function DashboardLayout({
@@ -17,6 +18,7 @@ export default function DashboardLayout({
 }) {
   const router = useRouter()
   const { isAuthenticated, isLoading } = useIsAuthenticated()
+  const { isSwitchingProject } = useActiveProject()
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
 
@@ -36,6 +38,14 @@ export default function DashboardLayout({
 
   return (
     <DashboardSidebarProvider>
+      {isSwitchingProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur-sm">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
+            <p className="mt-2 text-sm text-muted-foreground">Switching project...</p>
+          </div>
+        </div>
+      )}
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="flex">
           {/* Sidebar */}
