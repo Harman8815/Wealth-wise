@@ -13,11 +13,13 @@ import {
   ChevronLeft,
   ChevronRight,
   FolderKanban,
+  Inbox,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { usePathname, useRouter } from "next/navigation"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import { ProjectSwitcher } from "@/components/dashboard/project-switcher"
+import { NotificationBell } from "@/components/notifications"
 
 interface SidebarProps {
   onSettingsClick: () => void
@@ -32,7 +34,8 @@ const navigationItems = [
   { icon: CreditCard, label: "Transactions", href: "/dashboard/transactions" },
   { icon: BarChart3, label: "Reports & Insights", href: "/dashboard/reports" },
   { icon: Target, label: "Goals", href: "/dashboard/goals" },
-  { icon: Bell, label: "Alerts & Notifications", href: "/dashboard/alerts" },
+  { icon: Bell, label: "Alerts", href: "/dashboard/alerts" },
+  { icon: Inbox, label: "Notifications", href: "/dashboard/notifications" },
 ]
 
 function SidebarContent({ 
@@ -63,6 +66,10 @@ function SidebarContent({
           <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shrink-0 mb-2 mt-1">
             <BarChart className="w-5 h-5 text-white" />
           </div>
+        )}
+        
+        {!isCollapsed && (
+          <NotificationBell />
         )}
         
         {onToggleCollapse && (
