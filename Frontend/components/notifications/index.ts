@@ -1,5 +1,5 @@
 export { NotificationItem } from './notification-item'
 export { NotificationDropdown } from './notification-dropdown'
-export { NotificationBell } from './notification-bell'
+export { NotificationWidget } from './notification-widget'
 export { NotificationFiltersBar } from './notification-filters'
 export { NotificationsPage } from './notification-page'

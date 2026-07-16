@@ -48,9 +48,9 @@ export function NotificationDropdown() {
   return (
     <div className="relative" ref={dropdownRef}>
       <Button
-        variant="ghost"
+        variant="outline"
         size="icon"
-        className="relative text-slate-300 hover:text-white hover:bg-slate-800"
+        className="relative h-12 w-12 rounded-full shadow-lg bg-background hover:bg-muted"
         onClick={() => setIsOpen(!isOpen)}
       >
         <Bell className="h-5 w-5" />
@@ -64,7 +64,7 @@ export function NotificationDropdown() {
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 top-full mt-2 z-50 w-96 max-h-[500px] rounded-lg border border-border bg-background shadow-lg">
+          <div className="absolute bottom-full right-0 mb-2 z-50 w-96 max-h-[500px] rounded-lg border border-border bg-background shadow-lg">
             <div className="flex items-center justify-between p-4 border-b border-border">
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold">Notifications</h3>

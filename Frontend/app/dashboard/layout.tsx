@@ -11,6 +11,7 @@ import { useActiveProject } from "@/components/project/project-context"
 import { cn } from "@/lib/utils"
 import { NotificationProvider, NotificationSyncBridge } from "@/lib/notifications"
 import { NotificationPopupProvider } from "@/components/notifications/notification-popup"
+import { NotificationWidget } from "@/components/notifications/notification-widget"
 
 export default function DashboardLayout({
   children,
@@ -73,6 +74,9 @@ export default function DashboardLayout({
               <SettingsDialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
             </div>
           </div>
+
+          {/* Floating Notification Bell */}
+          <NotificationWidget />
         </DashboardSidebarProvider>
       </NotificationPopupProvider>
     </NotificationProvider>
