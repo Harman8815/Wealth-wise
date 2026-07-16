@@ -38,20 +38,21 @@ export class NotificationEngine {
   }
 
   /**
-   * Merge a notification that originated from the backend into the local cache.
-   * Used by the API sync bridge so server-side alerts appear in the UI. New
-   * remote ids replace local placeholders; existing ids are updated in place.
+   * Replace the entire local cache with the provided notifications. Used when
+   * switching the active project so the UI only shows that project's alerts.
+   * Clears IndexedDB and re-persists the supplied list.
    */
-  ingestFromRemote(notification: Notification): void {
-    const index = this.memoryCache.findIndex((n) => n.id === notification.id)
-    if (index !== -1) {
-      this.memoryCache[index] = { ...this.memoryCache[index], ...notification }
-    } else {
-      this.memoryCache.unshift(notification)
-      if (this.memoryCache.length > (this.options.maxInMemory ?? MAX_IN_MEMORY_NOTIFICATIONS)) {
-        this.memoryCache = this.memoryCache.slice(0, this.options.maxInMemory ?? MAX_IN_MEMORY_NOTIFICATIONS)
-      }
+  async replaceWith(notifications: Notification[]): Promise<void> {
+    this.memoryCache = []
+    if (this.options.autoPersist) {
+      await this.storage.clear().catch((error) => {
+        console.error('Failed to clear notification storage:', error)
+      })
+      await this.storage.putMany(notifications).catch((error) => {
+        console.error('Failed to persist notifications:', error)
+      })
     }
+    this.memoryCache = [...notifications].slice(0, this.options.maxInMemory ?? MAX_IN_MEMORY_NOTIFICATIONS)
     this.notifyListeners()
   }
 

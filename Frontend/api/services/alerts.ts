@@ -33,6 +33,8 @@ export interface Alert {
   timestamp: string;
   action_url?: string;
   created_at: string;
+  /** Active project the alert belongs to (null for personal/global alerts). */
+  project?: string | null;
 }
 
 export interface CreateAlertInput {

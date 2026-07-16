@@ -31,8 +31,10 @@ export interface Notification {
   dismissed?: boolean
   action_url?: string
   data?: Record<string, unknown>
-  /** Set when the notification originated from / is mirrored to the backend API. */
+  /** Set when the notification originated from / is mirrored to the backend. */
   remoteId?: string
+  /** Active project the notification belongs to (null for personal/global). */
+  projectId?: string | null
 }
 
 export interface CreateNotificationInput {

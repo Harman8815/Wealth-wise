@@ -37,6 +37,7 @@ export function alertToNotification(alert: Alert): Notification {
     dismissed: alert.dismissed,
     category: mapCategory(alert.category),
     action_url: alert.action_url || undefined,
+    projectId: alert.project ?? null,
   }
 }
 
