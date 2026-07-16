@@ -203,12 +203,12 @@ export function AlertsPage() {
               <Sparkles className={`w-4 h-4 mr-2 ${isGenerating ? "animate-spin" : ""}`} />
               Generate
             </Button>
-            <Button variant="outline" asChild>
-              <Link href="/dashboard/notifications">
-                <Settings className="w-4 h-4 mr-2" />
-                Notification Settings
-              </Link>
-            </Button>
+              <Button variant="outline" asChild>
+                <Link href="/dashboard/notifications/settings">
+                  <Settings className="w-4 h-4 mr-2" />
+                  Notification Settings
+                </Link>
+              </Button>
           </div>
         </div>
       </header>
