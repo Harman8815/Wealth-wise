@@ -7,12 +7,13 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Bell, Inbox, CheckCheck, Trash2, X } from 'lucide-react'
 import { NotificationItem } from './notification-item'
-import { groupNotificationsByDate, getNotificationGroup } from '@/lib/notifications/utils'
+import { groupNotificationsByDate, orderNotifications } from '@/lib/notifications/utils'
 import type { Notification } from '@/lib/notifications'
 
 const GROUP_LABELS: Record<string, string> = {
   today: 'Today',
   yesterday: 'Yesterday',
+  this_week: 'This Week',
   older: 'Older',
 }
 
@@ -26,7 +27,8 @@ export function NotificationDropdown() {
   const clearAll = useClearAllNotifications()
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const displayNotifications = notifications.slice(0, 20)
+  const ordered = orderNotifications(notifications)
+  const displayNotifications = ordered.slice(0, 20)
   const hasMore = notifications.length > 20
 
   useEffect(() => {

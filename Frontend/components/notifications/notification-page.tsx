@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
-import { useNotifications, useUnreadCount, useMarkNotificationRead, useDeleteNotification, useMarkAllNotificationsRead, useClearAllNotifications, useNotificationEngine } from '@/lib/notifications'
+import { useNotifications, useUnreadCount, useMarkNotificationRead, useDeleteNotification, useMarkAllNotificationsRead, useClearAllNotifications, useDismissNotification, useNotificationEngine } from '@/lib/notifications'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -17,15 +17,17 @@ import {
   ArrowLeft,
   RefreshCw,
   AlertTriangle,
+  Pin,
 } from 'lucide-react'
 import { NotificationItem } from './notification-item'
 import { NotificationFiltersBar } from './notification-filters'
-import { groupNotificationsByDate, getNotificationGroup, formatNotificationDate } from '@/lib/notifications/utils'
+import { groupNotificationsByDate, orderNotifications, isPersistent } from '@/lib/notifications/utils'
 import type { Notification, NotificationFilters } from '@/lib/notifications'
 
 const GROUP_LABELS: Record<string, string> = {
   today: 'Today',
   yesterday: 'Yesterday',
+  this_week: 'This Week',
   older: 'Older',
 }
 
@@ -40,10 +42,11 @@ export function NotificationsPage() {
   const deleteNotification = useDeleteNotification()
   const markAllRead = useMarkAllNotificationsRead()
   const clearAll = useClearAllNotifications()
+  const dismiss = useDismissNotification()
   const { publish } = useNotificationEngine()
 
   const filteredAndGrouped = useMemo(() => {
-    const sorted = [...notifications].sort((a, b) => b.timestamp - a.timestamp)
+    const sorted = orderNotifications(notifications)
     return groupNotificationsByDate(sorted)
   }, [notifications])
 
@@ -83,6 +86,7 @@ export function NotificationsPage() {
     setIsRefreshing(true)
     publish({
       type: 'system',
+      category: 'System',
       title: 'Notifications refreshed',
       message: 'Your notification list has been updated.',
       priority: 'low',
@@ -109,6 +113,7 @@ export function NotificationsPage() {
 
   const allSelected = selectedIds.size === totalFiltered && totalFiltered > 0
   const someSelected = selectedIds.size > 0 && !allSelected
+  const pinnedCount = notifications.filter((n: Notification) => isPersistent(n)).length
 
   return (
     <div className="flex-1 min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -138,6 +143,12 @@ export function NotificationsPage() {
               <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
+            {pinnedCount > 0 && (
+              <Button variant="outline" size="sm" onClick={() => notifications.filter((n: Notification) => isPersistent(n)).forEach((n: Notification) => dismiss(n.id))}>
+                <Pin className="w-4 h-4 mr-2" />
+                Dismiss Pinned
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={handleClearAll} disabled={totalFiltered === 0}>
               <Trash2 className="w-4 h-4 mr-2" />
               Clear All
@@ -246,6 +257,7 @@ export function NotificationsPage() {
                               notification={notification}
                               onMarkRead={markRead}
                               onDelete={deleteNotification}
+                              onDismiss={dismiss}
                             />
                           </div>
                         </div>
@@ -258,7 +270,7 @@ export function NotificationsPage() {
           </Card>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center text-gray-600 dark:text-gray-400">
@@ -297,6 +309,19 @@ export function NotificationsPage() {
                 {totalFiltered - unreadCount}
               </div>
               <p className="text-xs text-gray-500">Acknowledged</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center text-gray-600 dark:text-gray-400">
+                <Pin className="w-4 h-4 mr-2 text-amber-500" />
+                Pinned
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-amber-600">{pinnedCount}</div>
+              <p className="text-xs text-gray-500">Need acknowledgement</p>
             </CardContent>
           </Card>
 

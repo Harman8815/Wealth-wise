@@ -11,7 +11,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Search, X } from 'lucide-react'
-import type { NotificationFilters, NotificationType, NotificationPriority } from '@/lib/notifications'
+import type { NotificationFilters, NotificationType, NotificationPriority, NotificationCategory } from '@/lib/notifications'
+import { NOTIFICATION_CATEGORY_ORDER, NOTIFICATION_CATEGORY_CONFIG } from '@/lib/notifications'
 
 interface NotificationFiltersProps {
   filters: NotificationFilters
@@ -29,6 +30,7 @@ const NOTIFICATION_TYPES: { value: NotificationType; label: string }[] = [
 ]
 
 const NOTIFICATION_PRIORITIES: { value: NotificationPriority; label: string }[] = [
+  { value: 'critical', label: 'Critical' },
   { value: 'high', label: 'High' },
   { value: 'medium', label: 'Medium' },
   { value: 'low', label: 'Low' },
@@ -50,6 +52,10 @@ export function NotificationFiltersBar({ filters, onFiltersChange, onClear }: No
     onFiltersChange({ ...filters, priority: value === 'all' ? undefined : (value as NotificationPriority) })
   }
 
+  const handleCategoryChange = (value: string) => {
+    onFiltersChange({ ...filters, category: value === 'all' ? undefined : (value as NotificationCategory) })
+  }
+
   const handleReadChange = (value: string) => {
     if (value === 'all') {
       onFiltersChange({ ...filters, read: undefined })
@@ -58,7 +64,7 @@ export function NotificationFiltersBar({ filters, onFiltersChange, onClear }: No
     }
   }
 
-  const hasActiveFilters = filters.type || filters.priority || filters.read || filters.search
+  const hasActiveFilters = filters.type || filters.priority || filters.category || filters.read || filters.search
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
@@ -96,6 +102,20 @@ export function NotificationFiltersBar({ filters, onFiltersChange, onClear }: No
             {NOTIFICATION_PRIORITIES.map((priority) => (
               <SelectItem key={priority.value} value={priority.value}>
                 {priority.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={filters.category ?? 'all'} onValueChange={handleCategoryChange}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {NOTIFICATION_CATEGORY_ORDER.map((category) => (
+              <SelectItem key={category} value={category}>
+                {NOTIFICATION_CATEGORY_CONFIG[category].label}
               </SelectItem>
             ))}
           </SelectContent>

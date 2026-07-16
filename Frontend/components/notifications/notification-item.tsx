@@ -1,34 +1,42 @@
 "use client"
 
 import type { Notification } from '@/lib/notifications'
-import { NOTIFICATION_TYPE_CONFIG } from '@/lib/notifications'
+import { NOTIFICATION_TYPE_CONFIG, NOTIFICATION_PRIORITY_CONFIG, NOTIFICATION_CATEGORY_CONFIG } from '@/lib/notifications'
 import { formatNotificationTime } from '@/lib/notifications/utils'
-import { Button } from '@/components/ui/button'
-import { Check, Trash2, ExternalLink } from 'lucide-react'
+import { Check, Trash2, ExternalLink, Pin } from 'lucide-react'
 import Link from 'next/link'
+import { CheckCircle2, Info, AlertTriangle, XCircle, Sparkles, Settings } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+
+const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  CheckCircle2,
+  Info,
+  AlertTriangle,
+  XCircle,
+  Sparkles,
+  Settings,
+}
 
 interface NotificationItemProps {
   notification: Notification
   onMarkRead?: (id: string) => void
   onDelete?: (id: string) => void
+  onDismiss?: (id: string) => void
   compact?: boolean
 }
 
-export function NotificationItem({ notification, onMarkRead, onDelete, compact = false }: NotificationItemProps) {
+export function NotificationItem({ notification, onMarkRead, onDelete, onDismiss, compact = false }: NotificationItemProps) {
   const config = NOTIFICATION_TYPE_CONFIG[notification.type]
-
-  const Icon = config.icon === 'CheckCircle2' ? require('lucide-react').CheckCircle2
-    : config.icon === 'Info' ? require('lucide-react').Info
-    : config.icon === 'AlertTriangle' ? require('lucide-react').AlertTriangle
-    : config.icon === 'XCircle' ? require('lucide-react').XCircle
-    : config.icon === 'Sparkles' ? require('lucide-react').Sparkles
-    : require('lucide-react').Settings
+  const priorityConfig = NOTIFICATION_PRIORITY_CONFIG[notification.priority]
+  const Icon = TYPE_ICONS[config.icon] ?? Settings
+  const isPinned = notification.priority === 'critical' || notification.priority === 'high' || notification.dismissed
+  const categoryLabel = notification.category ? NOTIFICATION_CATEGORY_CONFIG[notification.category]?.label : undefined
 
   if (compact) {
     return (
       <div
         className={`flex items-start gap-3 p-3 rounded-lg transition-colors ${
-          notification.read ? 'opacity-60' : 'bg-muted/50'
+          notification.read ? 'opacity-60' : isPinned ? 'bg-muted/60' : 'bg-muted/30'
         }`}
       >
         <div className={`mt-0.5 ${config.color}`}>
@@ -41,9 +49,12 @@ export function NotificationItem({ notification, onMarkRead, onDelete, compact =
           <p className="text-xs text-muted-foreground truncate">
             {notification.message}
           </p>
-          <p className="text-[10px] text-muted-foreground mt-1">
-            {formatNotificationTime(notification.timestamp)}
-          </p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-[10px] text-muted-foreground">
+              {formatNotificationTime(notification.timestamp)}
+            </p>
+            {isPinned && <Pin className="h-2.5 w-2.5 text-amber-500" />}
+          </div>
         </div>
         {!notification.read && (
           <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
@@ -55,14 +66,14 @@ export function NotificationItem({ notification, onMarkRead, onDelete, compact =
   return (
     <div
       className={`flex items-start gap-4 p-4 rounded-lg border transition-colors ${
-        notification.read ? 'border-border/60 opacity-70' : 'border-l-4 bg-card'
+        notification.read ? 'border-border/60 opacity-70' : isPinned ? 'border-l-4 border-amber-400' : 'border-l-4 bg-card'
       }`}
     >
       <div className={`mt-0.5 shrink-0 ${config.color}`}>
         <Icon className="h-5 w-5" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
           <h3 className={`font-semibold truncate ${notification.read ? 'text-muted-foreground' : ''}`}>
             {notification.title}
           </h3>
@@ -71,9 +82,23 @@ export function NotificationItem({ notification, onMarkRead, onDelete, compact =
               New
             </span>
           )}
+          {isPinned && (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+              <Pin className="h-2.5 w-2.5" />
+              Pinned
+            </span>
+          )}
+          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${priorityConfig.bgColor} ${priorityConfig.color}`}>
+            {priorityConfig.label}
+          </span>
           <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${config.bgColor} ${config.color}`}>
             {config.label}
           </span>
+          {categoryLabel && (
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground">
+              {categoryLabel}
+            </span>
+          )}
         </div>
         <p className={`text-sm ${notification.read ? 'text-muted-foreground' : 'text-foreground'}`}>
           {notification.message}
@@ -101,6 +126,17 @@ export function NotificationItem({ notification, onMarkRead, onDelete, compact =
             title="Mark as read"
           >
             <Check className="h-4 w-4" />
+          </Button>
+        )}
+        {onDismiss && isPinned && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onDismiss(notification.id)}
+            className="h-8 w-8 p-0"
+            title="Dismiss"
+          >
+            <Pin className="h-4 w-4" />
           </Button>
         )}
         {onDelete && (
