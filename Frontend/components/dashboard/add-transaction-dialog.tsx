@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { useCreateTransaction, useAccounts } from "@/hooks"
 import { toast } from "@/hooks/use-toast"
 import { SearchableCategoryInput } from "@/components/ui/searchable-category-input"
+import { usePublishNotification } from "@/lib/notifications"
 
 interface AddTransactionDialogProps {
   isOpen: boolean
@@ -19,6 +20,7 @@ export function AddTransactionDialog({ isOpen, onClose }: AddTransactionDialogPr
   const createMutation = useCreateTransaction()
   const { data: accountsData } = useAccounts()
   const accounts = accountsData?.results || []
+  const publish = usePublishNotification()
 
   const [account, setAccount] = useState("")
   const [date, setDate] = useState("")
@@ -35,7 +37,12 @@ export function AddTransactionDialog({ isOpen, onClose }: AddTransactionDialogPr
     }
     try {
       await createMutation.mutateAsync({ account, date, description, category_name: category, amount: Number(amount), type })
-      toast({ title: "Transaction added", description: "Transaction was created successfully." })
+      publish({
+        type: "success",
+        title: "Transaction added",
+        message: "Transaction was created successfully.",
+        category: "Activity",
+      })
       onClose()
       // Reset form
       setAccount("")
