@@ -2,10 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useQueryClient } from "@tanstack/react-query"
-import { apiClient } from "@/api/client"
-import { queryKeys } from "@/api/query-client"
-import type { Alert as AlertType, AlertSetting } from "@/api/services"
+import { useAlerts, useAlertSettings, useMarkAlertRead, useMarkAllAlertsRead, useToggleAlertSetting, useGenerateAlerts } from "@/hooks"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
@@ -28,14 +25,8 @@ import {
   Inbox,
   Sparkles,
 } from "lucide-react"
-import {
-  useAlerts,
-  useAlertSettings,
-  useMarkAlertRead,
-  useMarkAllAlertsRead,
-  useToggleAlertSetting,
-} from "@/hooks"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
+import type { Alert as AlertType, AlertSetting } from "@/api/services"
 
 const ALERT_TABS = [
   { id: "all", label: "All" },
@@ -53,11 +44,13 @@ const CATEGORY_ORDER: Record<string, number> = {
   Security: 3,
   Account: 4,
   Investments: 5,
+  AI: 6,
+  Activity: 7,
+  System: 8,
 }
 
 export function AlertsPage() {
   const { openSidebar } = useDashboardSidebar()
-  const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<string>("all")
   const [isGenerating, setIsGenerating] = useState(false)
 
@@ -77,6 +70,7 @@ export function AlertsPage() {
   const markAlertRead = useMarkAlertRead()
   const markAllRead = useMarkAllAlertsRead()
   const toggleSetting = useToggleAlertSetting()
+  const generateAlerts = useGenerateAlerts()
 
   const alerts = alertsData?.results ?? []
   const alertSettings = settingsData?.results ?? []
@@ -110,9 +104,7 @@ export function AlertsPage() {
   const handleGenerate = async () => {
     setIsGenerating(true)
     try {
-      await apiClient.post<{ generated: number }>("/alerts/generate/")
-      await queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all })
-      await queryClient.invalidateQueries({ queryKey: queryKeys.alerts.unreadCount })
+      await generateAlerts.mutateAsync()
     } finally {
       setIsGenerating(false)
     }

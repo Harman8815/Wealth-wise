@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
-import { type LucideIcon, Wallet, LayoutGrid, FileBarChart, Mail, Monitor, ArrowLeft, RotateCcw, Bell, Check, Sparkles } from "lucide-react"
+import { type LucideIcon, Wallet, LayoutGrid, Target, ShieldAlert, PiggyBank, Monitor, ArrowLeft, RotateCcw, Bell, Check, Sparkles } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
@@ -10,9 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useAlertSettings, useToggleAlertSetting, useResetAlertSettings } from "@/hooks"
-import type { AlertSetting } from "@/api/services"
-
-type AlertCategory = AlertSetting["category"]
+import type { AlertSetting, AlertCategory } from "@/api/services"
 
 interface NotificationCategoryDef {
   key: string
@@ -35,39 +33,58 @@ const NOTIFICATION_CATEGORIES: NotificationCategoryDef[] = [
   {
     key: "budget",
     label: "Budget alerts",
-    description: "Get notified when you exceed or approach your overall and category budgets.",
+    description: "Get notified at 50%, 80%, 90% and when your budgets are exceeded.",
     icon: Wallet,
     settingId: "budget_warning",
     category: "Budget",
   },
   {
-    key: "category",
-    label: "Category alerts",
-    description: "Reminders for upcoming bills and per-category spending limits.",
+    key: "bills",
+    label: "Bill & recurring reminders",
+    description: "Reminders for upcoming and missed recurring payments.",
     icon: LayoutGrid,
     settingId: "bill_reminders",
     category: "Bills",
   },
   {
-    key: "report",
-    label: "Report notifications",
-    description: "Weekly and monthly spending summaries delivered to you.",
-    icon: FileBarChart,
-    future: true,
+    key: "goals",
+    label: "Goal milestones",
+    description: "Celebrate 50%, 75% and completion of your savings goals.",
+    icon: Target,
+    settingId: "goal_milestones",
+    category: "Goals",
   },
   {
-    key: "email",
-    label: "Email notifications",
-    description: "Receive alerts and digests directly in your inbox.",
-    icon: Mail,
-    future: true,
+    key: "security",
+    label: "Unusual spending",
+    description: "Alert for out-of-pattern and large transactions.",
+    icon: ShieldAlert,
+    settingId: "unusual_spending",
+    category: "Security",
   },
   {
-    key: "browser",
-    label: "Browser notifications",
-    description: "Real-time push alerts straight to your browser.",
+    key: "account",
+    label: "Low balance",
+    description: "Warning when an account falls below your threshold.",
+    icon: PiggyBank,
+    settingId: "low_balance",
+    category: "Account",
+  },
+  {
+    key: "ai",
+    label: "AI insights",
+    description: "Spending anomalies, forecasts and recommendations.",
+    icon: Sparkles,
+    settingId: "ai_insights",
+    category: "AI",
+  },
+  {
+    key: "system",
+    label: "System & activity",
+    description: "Welcome messages, data sync, imports and activity log.",
     icon: Monitor,
-    future: true,
+    settingId: "system_updates",
+    category: "System",
   },
 ]
 

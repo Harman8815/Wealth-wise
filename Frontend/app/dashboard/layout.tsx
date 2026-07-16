@@ -10,7 +10,7 @@ import { NotificationToasts } from "@/components/dashboard/notification-toasts"
 import { useIsAuthenticated } from "@/hooks/use-auth"
 import { useActiveProject } from "@/components/project/project-context"
 import { cn } from "@/lib/utils"
-import { NotificationProvider } from "@/lib/notifications"
+import { NotificationProvider, NotificationSyncBridge } from "@/lib/notifications"
 
 export default function DashboardLayout({
   children,
@@ -39,6 +39,7 @@ export default function DashboardLayout({
 
   return (
     <NotificationProvider>
+      <NotificationSyncBridge />
       <DashboardSidebarProvider>
         {isSwitchingProject && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur-sm">
