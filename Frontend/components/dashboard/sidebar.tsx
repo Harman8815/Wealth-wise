@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils"
 import { usePathname, useRouter } from "next/navigation"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import { ProjectSwitcher } from "@/components/dashboard/project-switcher"
+import { useActiveProject } from "@/components/project/project-context"
+import { useUnreadCount } from "@/lib/notifications"
 
 interface SidebarProps {
   onSettingsClick: () => void
@@ -27,12 +29,12 @@ interface SidebarProps {
 
 const navigationItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  { icon: FolderKanban, label: "Projects", href: "/dashboard/projects" },
+  { icon: FolderKanban, label: "Projects", href: "/dashboard/projects", badge: "projects" },
   { icon: PiggyBank, label: "Budget Planner", href: "/dashboard/budget" },
   { icon: CreditCard, label: "Transactions", href: "/dashboard/transactions" },
   { icon: BarChart3, label: "Reports & Insights", href: "/dashboard/reports" },
   { icon: Target, label: "Goals", href: "/dashboard/goals" },
-  { icon: Bell, label: "Alerts", href: "/dashboard/alerts" },
+  { icon: Bell, label: "Alerts", href: "/dashboard/alerts", badge: "alerts" },
 ]
 
 function SidebarContent({ 
@@ -46,6 +48,14 @@ function SidebarContent({
 }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { projects } = useActiveProject()
+  const unreadCount = useUnreadCount()
+
+  const badgeValue = (kind?: string): number => {
+    if (kind === "projects") return projects.length
+    if (kind === "alerts") return unreadCount
+    return 0
+  }
 
   return (
     <div className="flex flex-col h-full bg-[#020617]/80 backdrop-blur-md text-slate-200 border-r border-slate-800 transition-all duration-300">
@@ -91,7 +101,7 @@ function SidebarContent({
               key={item.label}
               variant={isActive ? "default" : "ghost"}
               className={cn(
-                "w-full transition-all duration-300",
+                "w-full transition-all duration-300 relative",
                 isCollapsed ? "justify-center px-2" : "justify-start px-4",
                 isActive 
                   ? "bg-blue-600 text-white hover:bg-blue-700" 
@@ -101,7 +111,18 @@ function SidebarContent({
               title={isCollapsed ? item.label : undefined}
             >
               <item.icon className={cn("w-5 h-5", isCollapsed ? "mr-0" : "mr-3 shrink-0")} />
-              {!isCollapsed && <span className="truncate">{item.label}</span>}
+              {!isCollapsed && <span className="truncate flex-1 text-left">{item.label}</span>}
+              {item.badge && badgeValue(item.badge) > 0 && (
+                isCollapsed ? (
+                  <span className="absolute top-1.5 right-1.5 inline-flex items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white min-w-[14px] h-[14px] px-1">
+                    {badgeValue(item.badge) > 99 ? "99+" : badgeValue(item.badge)}
+                  </span>
+                ) : (
+                  <span className="ml-auto inline-flex items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white min-w-[18px] h-[18px]">
+                    {badgeValue(item.badge) > 99 ? "99+" : badgeValue(item.badge)}
+                  </span>
+                )
+              )}
             </Button>
           )
         })}
