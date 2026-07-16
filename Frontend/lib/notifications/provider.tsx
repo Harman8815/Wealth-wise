@@ -55,6 +55,10 @@ export function NotificationProvider({ children, options }: NotificationProvider
     engine.delete(id)
   }, [engine])
 
+  const dismissNotification = useCallback((id: string) => {
+    engine.dismiss(id)
+  }, [engine])
+
   const clearAll = useCallback(() => {
     engine.clearAll()
   }, [engine])
@@ -72,11 +76,12 @@ export function NotificationProvider({ children, options }: NotificationProvider
     publish,
     markRead,
     markAllRead,
+    dismiss: dismissNotification,
     delete: deleteNotification,
     clearAll,
     getNotifications,
     eventBus: engine.getEventBus(),
-  }), [engine, notifications, unreadCount, publish, markRead, markAllRead, deleteNotification, clearAll, getNotifications])
+  }), [engine, notifications, unreadCount, publish, markRead, markAllRead, dismissNotification, deleteNotification, clearAll, getNotifications])
 
   return (
     <NotificationContext.Provider value={contextValue}>

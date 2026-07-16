@@ -37,6 +37,24 @@ export class NotificationEngine {
     this.memoryCache = stored.slice(0, this.options.maxInMemory)
   }
 
+  /**
+   * Merge a notification that originated from the backend into the local cache.
+   * Used by the API sync bridge so server-side alerts appear in the UI. New
+   * remote ids replace local placeholders; existing ids are updated in place.
+   */
+  ingestFromRemote(notification: Notification): void {
+    const index = this.memoryCache.findIndex((n) => n.id === notification.id)
+    if (index !== -1) {
+      this.memoryCache[index] = { ...this.memoryCache[index], ...notification }
+    } else {
+      this.memoryCache.unshift(notification)
+      if (this.memoryCache.length > (this.options.maxInMemory ?? MAX_IN_MEMORY_NOTIFICATIONS)) {
+        this.memoryCache = this.memoryCache.slice(0, this.options.maxInMemory ?? MAX_IN_MEMORY_NOTIFICATIONS)
+      }
+    }
+    this.notifyListeners()
+  }
+
   getEventBus(): EventBus {
     return this.eventBus
   }
@@ -121,6 +139,22 @@ export class NotificationEngine {
       if (this.options.autoPersist) {
         this.storage.delete(id).catch((error) => {
           console.error('Failed to delete notification:', error)
+        })
+      }
+
+      this.notifyListeners()
+    }
+  }
+
+  dismiss(id: string): void {
+    const notification = this.memoryCache.find((n) => n.id === id)
+    if (notification && !notification.dismissed) {
+      notification.dismissed = true
+      this.eventBus.emit('notification:dismissed', { id, notification })
+
+      if (this.options.autoPersist) {
+        this.storage.put(notification).catch((error) => {
+          console.error('Failed to persist dismissed state:', error)
         })
       }
 

@@ -13,6 +13,7 @@ export interface NotificationContextValue {
   publish: (input: CreateNotificationInput) => Notification
   markRead: (id: string) => void
   markAllRead: () => void
+  dismiss: (id: string) => void
   delete: (id: string) => void
   clearAll: () => void
   getNotifications: (filters?: NotificationFilters) => Notification[]
@@ -32,6 +33,7 @@ function createFallbackContext(): NotificationContextValue {
     publish: () => ({ id: '', type: 'info', priority: 'low', title: '', message: '', timestamp: 0, read: false }),
     markRead: () => {},
     markAllRead: () => {},
+    dismiss: () => {},
     delete: () => {},
     clearAll: () => {},
     getNotifications: () => [],

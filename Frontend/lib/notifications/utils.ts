@@ -1,10 +1,14 @@
-import type { Notification, NotificationGroup } from '@/lib/notifications'
+import type { Notification, NotificationGroup, NotificationPriority } from '@/lib/notifications'
+import { NOTIFICATION_PRIORITY_CONFIG } from './constants'
+
+const DAY_MS = 24 * 60 * 60 * 1000
 
 export function getNotificationGroup(timestamp: number): NotificationGroup {
   const date = new Date(timestamp)
   const now = new Date()
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const startOfYesterday = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000)
+  const startOfYesterday = new Date(startOfToday.getTime() - DAY_MS)
+  const startOfThisWeek = new Date(startOfToday.getTime() - 6 * DAY_MS)
 
   if (date >= startOfToday) {
     return 'today'
@@ -12,6 +16,10 @@ export function getNotificationGroup(timestamp: number): NotificationGroup {
 
   if (date >= startOfYesterday) {
     return 'yesterday'
+  }
+
+  if (date >= startOfThisWeek) {
+    return 'this_week'
   }
 
   return 'older'
@@ -48,6 +56,7 @@ export function groupNotificationsByDate(notifications: Notification[]): Record<
   const groups: Record<NotificationGroup, Notification[]> = {
     today: [],
     yesterday: [],
+    this_week: [],
     older: [],
   }
 
@@ -61,9 +70,38 @@ export function groupNotificationsByDate(notifications: Notification[]): Record<
 
 export function sortNotifications(notifications: Notification[]): Notification[] {
   return [...notifications].sort((a, b) => {
-    const priorityOrder = { high: 0, medium: 1, low: 2 }
-    const priorityDiff = (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1)
+    const priorityDiff =
+      (NOTIFICATION_PRIORITY_CONFIG[a.priority]?.order ?? 9) -
+      (NOTIFICATION_PRIORITY_CONFIG[b.priority]?.order ?? 9)
     if (priorityDiff !== 0) return priorityDiff
     return b.timestamp - a.timestamp
   })
 }
+
+/** Persistent notifications (critical/high or explicitly dismissed) stay visible. */
+export function isPersistent(notification: Notification): boolean {
+  return (
+    notification.priority === 'critical' ||
+    notification.priority === 'high' ||
+    notification.dismissed === true
+  )
+}
+
+const PRIORITY_RANK: Record<NotificationPriority, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+}
+
+/** Pin critical/high notifications to the top, then sort by recency. */
+export function orderNotifications(notifications: Notification[]): Notification[] {
+  return [...notifications].sort((a, b) => {
+    const pinnedDiff = Number(isPersistent(b)) - Number(isPersistent(a))
+    if (pinnedDiff !== 0) return pinnedDiff
+    const priorityDiff = PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority]
+    if (priorityDiff !== 0) return priorityDiff
+    return b.timestamp - a.timestamp
+  })
+}
+

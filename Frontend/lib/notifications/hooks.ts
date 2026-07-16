@@ -46,6 +46,11 @@ export function useDeleteNotification() {
   return deleteNotification
 }
 
+export function useDismissNotification() {
+  const { dismiss } = useNotificationEngine()
+  return dismiss
+}
+
 export function useClearAllNotifications() {
   const { clearAll } = useNotificationEngine()
   return clearAll

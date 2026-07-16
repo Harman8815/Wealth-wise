@@ -1,4 +1,4 @@
-import type { NotificationType, NotificationPriority } from './types'
+import type { NotificationType, NotificationPriority, NotificationCategory } from './types'
 
 export const NOTIFICATION_TYPE_CONFIG: Record<NotificationType, { label: string; color: string; bgColor: string; icon: string }> = {
   success: {
@@ -39,11 +39,36 @@ export const NOTIFICATION_TYPE_CONFIG: Record<NotificationType, { label: string;
   },
 }
 
-export const NOTIFICATION_PRIORITY_CONFIG: Record<NotificationPriority, { label: string; order: number }> = {
-  high: { label: 'High', order: 0 },
-  medium: { label: 'Medium', order: 1 },
-  low: { label: 'Low', order: 2 },
+export const NOTIFICATION_PRIORITY_CONFIG: Record<NotificationPriority, { label: string; order: number; color: string; bgColor: string }> = {
+  critical: { label: 'Critical', order: 0, color: 'text-red-700 dark:text-red-300', bgColor: 'bg-red-100 dark:bg-red-900/40' },
+  high: { label: 'High', order: 1, color: 'text-orange-600 dark:text-orange-400', bgColor: 'bg-orange-50 dark:bg-orange-950' },
+  medium: { label: 'Medium', order: 2, color: 'text-blue-600 dark:text-blue-400', bgColor: 'bg-blue-50 dark:bg-blue-950' },
+  low: { label: 'Low', order: 3, color: 'text-gray-600 dark:text-gray-400', bgColor: 'bg-gray-50 dark:bg-gray-950' },
 }
+
+export const NOTIFICATION_CATEGORY_CONFIG: Record<NotificationCategory, { label: string }> = {
+  Budget: { label: 'Budget' },
+  Bills: { label: 'Bills' },
+  Goals: { label: 'Goals' },
+  Security: { label: 'Security' },
+  Account: { label: 'Account' },
+  Investments: { label: 'Investments' },
+  Activity: { label: 'Activity' },
+  System: { label: 'System' },
+  AI: { label: 'AI' },
+}
+
+export const NOTIFICATION_CATEGORY_ORDER: NotificationCategory[] = [
+  'Budget',
+  'Bills',
+  'Goals',
+  'Security',
+  'Account',
+  'Investments',
+  'AI',
+  'Activity',
+  'System',
+]
 
 export const DEFAULT_PRIORITY: NotificationPriority = 'medium'
 
