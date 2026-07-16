@@ -4,6 +4,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { goalApi, CreateGoalInput, UpdateGoalInput } from '@/api/services';
 import { queryKeys } from '@/api/query-client';
+import { usePublishNotification } from '@/lib/notifications';
 
 interface GoalFilters {
   category?: string;
@@ -35,12 +36,20 @@ export const useGoalProgress = () => {
 
 export const useCreateGoal = () => {
   const queryClient = useQueryClient();
+  const publish = usePublishNotification();
 
   return useMutation({
     mutationFn: goalApi.create,
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.goals.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.goals.progress });
+      publish({
+        type: 'success',
+        title: 'Goal created',
+        message: `"${data.title}" has been added to your goals.`,
+        category: 'Goals',
+        priority: 'medium',
+      });
     },
   });
 };
@@ -73,14 +82,24 @@ export const useDeleteGoal = () => {
 
 export const useContributeToGoal = () => {
   const queryClient = useQueryClient();
+  const publish = usePublishNotification();
 
   return useMutation({
     mutationFn: ({ id, amount }: { id: string; amount: number }) =>
       goalApi.contribute(id, amount),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.goals.detail(variables.id) });
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.goals.detail(data.id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.goals.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.goals.progress });
+      if (data.percentage_complete >= 100) {
+        publish({
+          type: 'success',
+          title: 'Goal completed!',
+          message: `"${data.title}" has reached its target.`,
+          category: 'Goals',
+          priority: 'high',
+        });
+      }
     },
   });
 };

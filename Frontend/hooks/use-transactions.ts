@@ -5,6 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { transactionApi, CreateTransactionInput, UpdateTransactionInput } from '@/api/services';
 import { queryKeys } from '@/api/query-client';
+import { usePublishNotification } from '@/lib/notifications';
 
 interface TransactionFilters {
   category?: string;
@@ -59,15 +60,23 @@ export const useMonthlyStats = (months = 12) => {
 // Create transaction
 export const useCreateTransaction = () => {
   const queryClient = useQueryClient();
+  const publish = usePublishNotification();
 
   return useMutation({
     mutationFn: transactionApi.create,
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.summary });
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.byCategory });
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.monthlyStats });
       queryClient.invalidateQueries({ queryKey: queryKeys.budgetCategories.all });
+      publish({
+        type: 'info',
+        title: 'Transaction added',
+        message: `${data.type === 'income' ? 'Income' : 'Expense'} of ₹${data.amount} recorded.`,
+        category: data.type === 'income' ? 'Account' : 'Budget',
+        priority: 'low',
+      });
     },
   });
 };
@@ -90,12 +99,20 @@ export const useUpdateTransaction = () => {
 // Delete transaction
 export const useDeleteTransaction = () => {
   const queryClient = useQueryClient();
+  const publish = usePublishNotification();
 
   return useMutation({
     mutationFn: transactionApi.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.summary });
+      publish({
+        type: 'system',
+        title: 'Transaction deleted',
+        message: 'A transaction has been removed from your records.',
+        category: 'Account',
+        priority: 'low',
+      });
     },
   });
 };

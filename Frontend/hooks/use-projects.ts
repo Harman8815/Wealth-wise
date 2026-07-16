@@ -14,6 +14,7 @@ import {
   ProjectRole,
 } from '@/api/services';
 import { queryKeys } from '@/api/query-client';
+import { usePublishNotification } from '@/lib/notifications';
 
 // List all projects the current user belongs to
 export const useProjects = (page = 1, pageSize = 50) => {
@@ -34,11 +35,19 @@ export const useProjectContext = () => {
 // Create project
 export const useCreateProject = () => {
   const queryClient = useQueryClient();
+  const publish = usePublishNotification();
   return useMutation({
     mutationFn: (data: CreateProjectInput) => projectApi.create(data),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.context });
+      publish({
+        type: 'success',
+        title: 'Project created',
+        message: `"${data.name}" has been created.`,
+        category: 'Account',
+        priority: 'medium',
+      });
     },
   });
 };
@@ -59,11 +68,19 @@ export const useUpdateProject = () => {
 // Delete project
 export const useDeleteProject = () => {
   const queryClient = useQueryClient();
+  const publish = usePublishNotification();
   return useMutation({
     mutationFn: (id: string) => projectApi.remove(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.context });
+      publish({
+        type: 'warning',
+        title: 'Project deleted',
+        message: 'A project has been permanently removed.',
+        category: 'Account',
+        priority: 'medium',
+      });
     },
   });
 };

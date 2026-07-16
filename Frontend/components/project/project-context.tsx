@@ -14,6 +14,7 @@ import { projectApi, type Project, type ProjectRole } from "@/api/services";
 import { queryKeys } from "@/api/query-client";
 import { useMe, useSeedHistoricalData } from "@/hooks/use-auth";
 import { bumpProjectVersion } from "@/lib/project-version";
+import { usePublishNotification } from "@/lib/notifications";
 
 const STORAGE_KEY = "wealthwise_active_project";
 const SEEDED_KEY = "wealthwise_seeded_projects";
@@ -68,6 +69,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   });
 
   const seedMutation = useSeedHistoricalData();
+  const publish = usePublishNotification();
 
   const projects = projectsQuery.data ?? [];
   const contextProject = contextQuery.data?.project ?? null;
@@ -93,6 +95,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const setActiveProject = useCallback(
     async (id: string) => {
       const currentSwitchId = ++switchIdRef.current;
+      const previousProject = activeProject;
 
       setActiveProjectId(id);
       setIsSwitchingProject(true);
@@ -113,7 +116,25 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
             await seedMutation.mutateAsync({ years: 5, projectId: id });
             seeded.add(id);
             saveSeededProjects(seeded);
+            publish({
+              type: 'system',
+              title: 'Demo data generated',
+              message: 'Sample transactions have been loaded for this project.',
+              category: 'Account',
+              priority: 'medium',
+            });
           }
+        }
+
+        if (currentSwitchId === switchIdRef.current && previousProject?.id !== id) {
+          const switchedProject = projects.find((p) => p.id === id) ?? contextProject;
+          publish({
+            type: 'info',
+            title: 'Project switched',
+            message: `Switched to "${switchedProject?.name ?? 'Unknown'}".`,
+            category: 'Account',
+            priority: 'low',
+          });
         }
 
         await new Promise((resolve) => setTimeout(resolve, 800));
@@ -125,7 +146,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         }
       }
     },
-    [queryClient, seedMutation]
+    [queryClient, seedMutation, projects, contextProject, activeProject, publish]
   );
 
   return (
