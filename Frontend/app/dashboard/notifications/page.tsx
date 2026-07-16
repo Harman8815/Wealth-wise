@@ -1,5 +1,12 @@
-import { NotificationSettingsPage } from "@/components/dashboard/pages/notification-settings"
+"use client"
 
-export default function NotificationsPageRoute() {
-  return <NotificationSettingsPage />
+import { NotificationProvider } from "@/lib/notifications"
+import { NotificationsPage } from "@/components/notifications"
+
+export default function NotificationsHistoryPage() {
+  return (
+    <NotificationProvider>
+      <NotificationsPage />
+    </NotificationProvider>
+  )
 }
