@@ -278,7 +278,14 @@ class Goal(models.Model):
 
 
 class Alert(models.Model):
-    """User notifications and system alerts"""
+    """User notifications and system alerts
+
+    The unified Notification Center stores every user-facing event here as a
+    single ``Alert`` row. Each alert carries a ``category`` (what area of the
+    app it relates to), a ``type`` (severity/style), a ``priority`` (routing
+    weight), and a ``dismissed`` flag for persistent alerts that must be
+    acknowledged before disappearing.
+    """
     ALERT_TYPES = [
         ('warning', 'Warning'),
         ('info', 'Info'),
@@ -293,6 +300,16 @@ class Alert(models.Model):
         ('Security', 'Security'),
         ('Account', 'Account'),
         ('Investments', 'Investments'),
+        ('Activity', 'Activity'),
+        ('System', 'System'),
+        ('AI', 'AI'),
+    ]
+
+    PRIORITIES = [
+        ('critical', 'Critical'),
+        ('high', 'High'),
+        ('medium', 'Medium'),
+        ('low', 'Low'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -302,6 +319,9 @@ class Alert(models.Model):
     title = models.CharField(max_length=255)
     message = models.TextField()
     category = models.CharField(max_length=50, choices=ALERT_CATEGORIES)
+    priority = models.CharField(max_length=20, choices=PRIORITIES, default='medium')
+    dismissed = models.BooleanField(default=False)
+    dedup_key = models.CharField(max_length=255, blank=True, db_index=True)
     timestamp = models.DateTimeField(default=timezone.now)
     read = models.BooleanField(default=False)
     read_at = models.DateTimeField(null=True, blank=True)
@@ -313,17 +333,29 @@ class Alert(models.Model):
         indexes = [
             models.Index(fields=['user']),
             models.Index(fields=['read']),
+            models.Index(fields=['dismissed']),
+            models.Index(fields=['priority']),
             models.Index(fields=['timestamp']),
         ]
 
     def __str__(self):
         return f"{self.title} - {self.user.email}"
 
+    @property
+    def is_persistent(self):
+        """Persistent alerts stay visible until explicitly acknowledged."""
+        return self.priority in ('critical', 'high') or self.dismissed
+
     def mark_as_read(self):
         if not self.read:
             self.read = True
             self.read_at = timezone.now()
             self.save(update_fields=['read', 'read_at'])
+
+    def dismiss(self):
+        if not self.dismissed:
+            self.dismissed = True
+            self.save(update_fields=['dismissed'])
 
 
 class AlertSetting(models.Model):
@@ -335,6 +367,9 @@ class AlertSetting(models.Model):
         ('Security', 'Security'),
         ('Account', 'Account'),
         ('Investments', 'Investments'),
+        ('Activity', 'Activity'),
+        ('System', 'System'),
+        ('AI', 'AI'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
