@@ -13,7 +13,6 @@ import {
   ChevronLeft,
   ChevronRight,
   FolderKanban,
-  Inbox,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { usePathname, useRouter } from "next/navigation"
@@ -35,7 +34,6 @@ const navigationItems = [
   { icon: BarChart3, label: "Reports & Insights", href: "/dashboard/reports" },
   { icon: Target, label: "Goals", href: "/dashboard/goals" },
   { icon: Bell, label: "Alerts", href: "/dashboard/alerts" },
-  { icon: Inbox, label: "Notifications", href: "/dashboard/notifications" },
 ]
 
 function SidebarContent({ 
