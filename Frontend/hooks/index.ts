@@ -83,7 +83,10 @@ export {
   useDeleteAlert,
   useMarkAlertRead,
   useMarkAlertUnread,
+  useDismissAlert,
   useMarkAllAlertsRead,
+  useDismissAllAlerts,
+  useGenerateAlerts,
 } from './use-alerts';
 
 export {

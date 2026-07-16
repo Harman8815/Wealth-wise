@@ -1,5 +1,5 @@
 /**
- * Alert Hooks
+ * Alert / Notification Hooks
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { alertApi, CreateAlertInput, UpdateAlertInput } from '@/api/services';
@@ -8,7 +8,9 @@ import { queryKeys } from '@/api/query-client';
 interface AlertFilters {
   type?: string;
   category?: string;
+  priority?: string;
   read?: boolean;
+  dismissed?: boolean;
 }
 
 export const useAlerts = (filters?: AlertFilters, page = 1, pageSize = 20) => {
@@ -103,11 +105,47 @@ export const useMarkAlertUnread = () => {
   });
 };
 
+export const useDismissAlert = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: alertApi.markDismissed,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.alerts.unreadCount });
+    },
+  });
+};
+
 export const useMarkAllAlertsRead = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: alertApi.markAllRead,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.alerts.unreadCount });
+    },
+  });
+};
+
+export const useDismissAllAlerts = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: alertApi.dismissAll,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.alerts.unreadCount });
+    },
+  });
+};
+
+export const useGenerateAlerts = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: alertApi.generate,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.alerts.unreadCount });
