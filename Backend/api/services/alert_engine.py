@@ -31,11 +31,12 @@ def _is_enabled(settings: Dict[str, AlertSetting], setting_id: str) -> bool:
     return setting is not None and setting.enabled
 
 
-def _has_recent_unread_alert(user, title: str) -> bool:
+def _has_recent_unread_alert(user, title: str, project=None) -> bool:
     """Check whether an unread alert with the same title exists in the window."""
     since = timezone.now() - DUPLICATE_WINDOW
     return Alert.objects.filter(
         user=user,
+        project=project,
         title=title,
         read=False,
         timestamp__gte=since,
@@ -153,7 +154,7 @@ ALERT_RULES: List[Callable[[AlertContext], List[Candidate]]] = [
 ]
 
 
-def generate_user_alerts(user) -> int:
+def generate_user_alerts(user, project=None) -> int:
     """
     Evaluate all registered rules for ``user`` and create Alert rows.
 
@@ -162,10 +163,10 @@ def generate_user_alerts(user) -> int:
 
     Returns the number of alerts created.
     """
-    budget_categories = user.budget_categories.all()
+    budget_categories = user.budget_categories.filter(project=project) if project else user.budget_categories.filter(project__isnull=True)
     settings = {
         setting.setting_id: setting
-        for setting in AlertSetting.objects.filter(user=user)
+        for setting in AlertSetting.objects.filter(user=user, project=project)
     }
     context = AlertContext(user, budget_categories, settings)
 
@@ -173,10 +174,11 @@ def generate_user_alerts(user) -> int:
     for rule in ALERT_RULES:
         for candidate in rule(context):
             title = str(candidate.get('title', ''))
-            if _has_recent_unread_alert(user, title):
+            if _has_recent_unread_alert(user, title, project):
                 continue
             Alert.objects.create(
                 user=user,
+                project=project,
                 type=str(candidate.get('type', 'info')),
                 title=title,
                 message=str(candidate.get('message', '')),

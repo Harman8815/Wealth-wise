@@ -144,10 +144,19 @@ def seed_historical_data(request):
         project = Project.objects.filter(id=project_id, members__user=user).first()
         if not project:
             raise NotFoundException('Project not found or you are not a member.')
-        project_filter = {'project': project}
     else:
         project = getattr(request, 'active_project', None)
-        project_filter = {'project': project} if project else {}
+        if not project:
+            project = (
+                Project.objects.filter(members__user=user)
+                .order_by('-members__joined_at')
+                .first()
+            )
+            if not project:
+                raise NotFoundException('No active project found. Please create a project first.')
+
+    project_filter = {'project': project}
+
     
     with transaction.atomic():
         Transaction.objects.filter(user=user, **project_filter).delete()

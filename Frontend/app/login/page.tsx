@@ -340,15 +340,19 @@ export default function LoginPage() {
                         Instantly authenticate as a seeded test user (no password). Run{" "}
                         <code className="rounded bg-black/30 px-1">manage.py seed_dummy</code> first.
                     </p>
+                    <p className="mt-1 text-[10px] font-mono text-amber-300/90">
+                        Demo password for all users: <span className="font-bold">WealthWise123!</span>
+                    </p>
                     <div className="mt-3 grid grid-cols-1 gap-2">
                         {QUICK_LOGIN_USERS.map((u) => (
                             <button
                                 key={u.email}
                                 type="button"
                                 onClick={() => handleQuickLogin(u.email)}
-                                className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2 text-left text-white transition-colors hover:bg-amber-500/20"
+                                className="flex flex-col rounded-lg bg-white/5 px-3 py-2 text-left text-white transition-colors hover:bg-amber-500/20"
                             >
                                 <span className="text-sm font-medium">Login as {u.label}</span>
+                                <span className="text-[10px] text-amber-200/70">{u.email}</span>
                                 <span className="text-[10px] text-amber-200/70">{u.role}</span>
                             </button>
                         ))}

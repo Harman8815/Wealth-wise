@@ -7,7 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
-from ..models import User
+from ..models import User, Project, ProjectMember
 from ..serializers import UserSerializer, UserCreateSerializer
 from ..base import StandardResultsSetPagination
 
@@ -51,8 +51,29 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     def perform_create(self, serializer):
-        """Create user and set password properly."""
+        """Create user and set password properly.
+        
+        Also creates a default 'Personal Finance' project for the new user
+        and makes them the owner of that project.
+        """
         user = serializer.save()
         user.set_password(serializer.validated_data['password'])
         user.save()
+
+        project = Project.objects.create(
+            name="Personal Finance",
+            description="Your default personal finance workspace.",
+            currency=user.currency or "INR",
+            icon="wallet",
+            color="#3b82f6",
+            initial_budget=0,
+            created_by=user,
+        )
+        ProjectMember.objects.create(
+            project=project,
+            user=user,
+            role="owner",
+            invited_by=user,
+        )
+
         return user

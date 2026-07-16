@@ -1,10 +1,10 @@
 """
 Seed command: build a dummy development environment for testing the
-Account Management + Multi-Project system.
+Multi-Project system.
 
 Resets the development database and creates:
-  - 3 users (User 1/2/3) with a known password
-  - 2 projects (Personal Finance, Family Budget)
+  - 3 users (User 1/2/3) with known passwords
+  - 3 projects (Personal Finance, Family Budget, Vacation Fund)
   - Memberships with different roles per project
   - Sample budgets / transactions / goals / alerts for every member
 
@@ -23,12 +23,14 @@ from api.models import (
     ProjectInvitation,
     Account,
     Transaction,
+    TransactionHistory,
     BudgetCategory,
     Goal,
     Alert,
     AlertSetting,
     Expense,
     Category,
+    ScheduledReport,
 )
 
 DEMO_PASSWORD = "WealthWise123!"
@@ -49,7 +51,6 @@ PROJECTS = [
         "initial_budget": 50000,
         "members": [
             ("user1@wealthwise.test", "owner"),
-            ("user2@wealthwise.test", "editor"),
             ("user3@wealthwise.test", "viewer"),
         ],
     },
@@ -63,6 +64,17 @@ PROJECTS = [
         "members": [
             ("user2@wealthwise.test", "owner"),
             ("user1@wealthwise.test", "admin"),
+        ],
+    },
+    {
+        "name": "Vacation Fund",
+        "description": "Save and plan for your dream vacations.",
+        "currency": "INR",
+        "icon": "plane",
+        "color": "#f59e0b",
+        "initial_budget": 200000,
+        "members": [
+            ("user2@wealthwise.test", "editor"),
             ("user3@wealthwise.test", "editor"),
         ],
     },
@@ -86,26 +98,27 @@ def _reset_database():
     """Clear all application data for a clean slate."""
     ProjectInvitation.objects.all().delete()
     ProjectMember.objects.all().delete()
-    Project.objects.all().delete()
-    for model in (Transaction, BudgetCategory, Goal, Alert, AlertSetting, Expense, Account, Category):
+    for model in (TransactionHistory, Expense, Alert, AlertSetting, ScheduledReport, Transaction, Goal, BudgetCategory, Account, Category):
         model.objects.all().delete()
+    Project.objects.all().delete()
     User.objects.all().delete()
 
 
-def _seed_financials(user, offset=0):
-    """Create sample accounts, categories, budgets, goals, transactions, alerts for a user."""
+def _seed_financials(user, project, offset=0):
+    """Create sample accounts, categories, budgets, goals, transactions, alerts for a user in a project."""
     accounts = []
     for acc in [
         {"name": "HDFC Savings", "type": "bank", "balance": 120000 + offset * 1000, "bank_name": "HDFC Bank"},
         {"name": "SBI Salary", "type": "bank", "balance": 80000 + offset * 1000, "bank_name": "SBI"},
         {"name": "Paytm Wallet", "type": "wallet", "balance": 3000, "bank_name": "Paytm"},
     ]:
-        accounts.append(Account.objects.create(user=user, **acc))
+        accounts.append(Account.objects.create(user=user, project=project, **acc))
 
     cat_lookup = {}
     for c in INCOME_CATEGORIES + EXPENSE_CATEGORIES:
         cat, _ = Category.objects.get_or_create(
             user=user,
+            project=project,
             name=c["name"],
             type="income" if c in INCOME_CATEGORIES else "expense",
             defaults={"color": c.get("color", "#64748b"), "icon": c["symbol"], "symbol": c["symbol"]},
@@ -124,6 +137,7 @@ def _seed_financials(user, offset=0):
     for name, budgeted in budget_defs:
         BudgetCategory.objects.create(
             user=user,
+            project=project,
             category=cat_lookup.get(name),
             name=name,
             budgeted=budgeted,
@@ -140,7 +154,7 @@ def _seed_financials(user, offset=0):
          "category": "Travel", "priority": "medium", "status": "active",
          "target_date": timezone.now().date() + timedelta(days=180)},
     ]:
-        Goal.objects.create(user=user, **goal)
+        Goal.objects.create(user=user, project=project, **goal)
 
     end_date = timezone.now().date()
     start_date = end_date - timedelta(days=90)
@@ -149,7 +163,7 @@ def _seed_financials(user, offset=0):
     while day <= end_date:
         if day.day == 25:
             Transaction.objects.create(
-                user=user, account=accounts[1], date=day,
+                user=user, project=project, account=accounts[1], date=day,
                 description=f"Salary - {day.strftime('%B %Y')}",
                 category=income_cat, amount=85000 + offset * 2000 + random.randint(-3000, 3000),
                 type="income", status="completed", account_name=accounts[1].name,
@@ -158,7 +172,7 @@ def _seed_financials(user, offset=0):
         if random.random() < 0.4:
             name = random.choice(EXPENSE_CATEGORIES)["name"]
             Transaction.objects.create(
-                user=user, account=random.choice(accounts), date=day,
+                user=user, project=project, account=random.choice(accounts), date=day,
                 description=f"{name} expense", category=cat_lookup[name],
                 amount=random.randint(200, 2500), type="expense", status="completed",
             )
@@ -171,13 +185,13 @@ def _seed_financials(user, offset=0):
         {"type": "success", "title": "Goal Milestone", "message": "You reached 95% of your Emergency Fund",
          "category": "Goals", "read": True},
     ]:
-        Alert.objects.create(user=user, **alert)
+        Alert.objects.create(user=user, project=project, **alert)
 
     return tx_count
 
 
 class Command(BaseCommand):
-    help = "Reset and seed a dummy environment for testing Account Management / Multi-Project."
+    help = "Reset and seed a dummy environment for testing Multi-Project system."
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.WARNING("Resetting database..."))
@@ -194,7 +208,6 @@ class Command(BaseCommand):
 
         total_tx = 0
         self.stdout.write("Creating projects and memberships...")
-        unique_members = set()
         for idx, p in enumerate(PROJECTS):
             project = Project.objects.create(
                 name=p["name"], description=p["description"], currency=p["currency"],
@@ -206,13 +219,9 @@ class Command(BaseCommand):
                     project=project, user=user_map[email], role=role,
                     invited_by=user_map[p["members"][0][0]],
                 )
-                unique_members.add(email)
-
-        # Seed sample financials once per unique user (financial data is user-scoped).
-        for offset, email in enumerate(sorted(unique_members)):
-            total_tx += _seed_financials(user_map[email], offset=offset)
+                total_tx += _seed_financials(user_map[email], project, offset=idx)
 
         self.stdout.write(self.style.SUCCESS(
-            f"Done. 3 users, 2 projects, and {total_tx} transactions seeded.\n"
+            f"Done. 3 users, 3 projects, and {total_tx} transactions seeded.\n"
             f"Demo password for all users: {DEMO_PASSWORD}"
         ))

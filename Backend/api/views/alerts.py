@@ -12,6 +12,7 @@ from django.utils import timezone
 from ..models import Alert
 from ..serializers import AlertSerializer
 from ..base import StandardResultsSetPagination, IsOwner, project_scope_filter
+from ..services.alert_engine import generate_user_alerts
 
 
 class AlertViewSet(viewsets.ModelViewSet):
@@ -147,5 +148,5 @@ class AlertViewSet(viewsets.ModelViewSet):
         Returns:
             generated: Number of alerts created.
         """
-        generated = generate_user_alerts(request.user)
+        generated = generate_user_alerts(request.user, project=getattr(request, 'active_project', None))
         return Response({'generated': generated})

@@ -26,9 +26,9 @@ export interface RegisterInput {
 
 // Seeded dummy users for the development "Quick Login" feature.
 export const QUICK_LOGIN_USERS = [
-  { label: "User 1", email: "user1@wealthwise.test", role: "Owner @ Personal Finance" },
-  { label: "User 2", email: "user2@wealthwise.test", role: "Owner @ Family Budget" },
-  { label: "User 3", email: "user3@wealthwise.test", role: "Editor / Viewer" },
+  { label: "User 1", email: "user1@wealthwise.test", role: "Owner @ Personal Finance, Admin @ Family Budget" },
+  { label: "User 2", email: "user2@wealthwise.test", role: "Owner @ Family Budget, Editor @ Vacation Fund" },
+  { label: "User 3", email: "user3@wealthwise.test", role: "Viewer @ Personal Finance, Editor @ Vacation Fund" },
 ];
 
 export const authApi = {
