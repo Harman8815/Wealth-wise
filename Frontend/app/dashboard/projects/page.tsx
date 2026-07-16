@@ -1,12 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Plus, Users, Wallet, ArrowRight, Settings2, FolderKanban } from "lucide-react";
+import { Plus, Users, Wallet, ArrowRight, Settings2, FolderKanban, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { useProjects } from "@/hooks/use-projects";
 import { useActiveProject } from "@/components/project/project-context";
+import { useDashboardSidebar } from "@/components/dashboard/sidebar-context";
 import { CreateProjectDialog } from "@/components/dashboard/create-project-dialog";
 import { ProjectIcon } from "@/components/project/project-icon";
 import { cn } from "@/lib/utils";
@@ -28,19 +28,24 @@ function formatCurrency(amount: number, currency: string) {
 
 export default function ProjectsPage() {
   const router = useRouter();
-  const { data: projects = [], isLoading } = useProjects();
-  const { activeProject, setActiveProject } = useActiveProject();
+  const { openSidebar } = useDashboardSidebar();
+  const { projects = [], activeProject, setActiveProject, isLoading } = useActiveProject();
 
   return (
     <div className="flex-1 min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       {/* Header */}
       <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/80 border-b border-border/50 px-4 md:px-6 py-4">
         <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Projects</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Collaborative finance workspaces. Each project keeps its own budgets, transactions, and members.
-            </p>
+          <div className="flex items-center space-x-4">
+            <Button variant="ghost" size="icon" className="lg:hidden" onClick={openSidebar}>
+              <Menu className="w-5 h-5" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Projects</h1>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Collaborative finance workspaces. Each project keeps its own budgets, transactions, and members.
+              </p>
+            </div>
           </div>
           <CreateProjectDialog
             trigger={

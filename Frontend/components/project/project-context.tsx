@@ -12,7 +12,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { projectApi, type Project, type ProjectRole } from "@/api/services";
 import { queryKeys } from "@/api/query-client";
-import { useSeedHistoricalData } from "@/hooks/use-auth";
+import { useMe, useSeedHistoricalData } from "@/hooks/use-auth";
 import { bumpProjectVersion } from "@/lib/project-version";
 
 const STORAGE_KEY = "wealthwise_active_project";
@@ -53,14 +53,18 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [isSwitchingProject, setIsSwitchingProject] = useState(false);
   const switchIdRef = useRef(0);
 
+  const { data: user } = useMe();
+
   const projectsQuery = useQuery({
     queryKey: queryKeys.projects.all,
     queryFn: () => projectApi.getAll().then((d) => d.results ?? []),
+    enabled: !!user,
   });
 
   const contextQuery = useQuery({
     queryKey: queryKeys.projects.context,
     queryFn: projectApi.getContext,
+    enabled: !!user,
   });
 
   const seedMutation = useSeedHistoricalData();
