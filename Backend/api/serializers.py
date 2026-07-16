@@ -98,8 +98,8 @@ class GoalSerializer(serializers.ModelSerializer):
 class AlertSerializer(serializers.ModelSerializer):
     class Meta:
         model = Alert
-        fields = ['id', 'type', 'title', 'message', 'category', 'timestamp', 'read', 'read_at', 'action_url', 'created_at']
-        read_only_fields = ['id', 'created_at', 'read_at']
+        fields = ['id', 'type', 'title', 'message', 'category', 'priority', 'dismissed', 'timestamp', 'read', 'read_at', 'action_url', 'created_at']
+        read_only_fields = ['id', 'created_at', 'read_at', 'dedup_key']
 
 
 class AlertSettingSerializer(serializers.ModelSerializer):

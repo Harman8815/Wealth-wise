@@ -32,14 +32,33 @@ class AlertViewSet(viewsets.ModelViewSet):
     serializer_class = AlertSerializer
     permission_classes = [IsAuthenticated, IsOwner]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['type', 'category', 'read']
+    filterset_fields = ['type', 'category', 'priority', 'read', 'dismissed']
     pagination_class = StandardResultsSetPagination
 
+    _PRIORITY_ORDER = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3}
+
     def get_queryset(self):
-        """Return alerts for current user (and active project), ordered by timestamp."""
-        return Alert.objects.filter(
+        """Return alerts for current user (and active project).
+
+        Critical/high priority alerts are pinned to the top so persistent
+        alerts remain visible until acknowledged, then everything is ordered
+        by recency.
+        """
+        from django.db.models import Case, When, Value, IntegerField
+        queryset = Alert.objects.filter(
             user=self.request.user, **project_scope_filter(self.request)
-        ).order_by('-timestamp')
+        )
+        queryset = queryset.annotate(
+            _priority_rank=Case(
+                *[
+                    When(priority=p, then=Value(rank))
+                    for p, rank in self._PRIORITY_ORDER.items()
+                ],
+                default=Value(4),
+                output_field=IntegerField(),
+            )
+        )
+        return queryset.order_by('-_priority_rank', '-timestamp')
 
     def perform_create(self, serializer):
         """Create alert with current user as owner."""
@@ -71,6 +90,27 @@ class AlertViewSet(viewsets.ModelViewSet):
         alert.save(update_fields=['read', 'read_at'])
         return Response({'status': 'alert marked as unread', 'read': False})
 
+    @action(detail=True, methods=['post'])
+    def mark_dismissed(self, request, pk=None):
+        """
+        Dismiss a persistent alert so it no longer appears in the active feed.
+
+        Persistent (critical/high) alerts remain visible until dismissed.
+        """
+        alert = self.get_object()
+        alert.dismiss()
+        return Response({'status': 'alert dismissed', 'dismissed': True})
+
+    @action(detail=False, methods=['post'])
+    def dismiss_all(self, request):
+        """Dismiss all currently-active persistent alerts for the user."""
+        updated = Alert.objects.filter(
+            user=request.user,
+            project=getattr(request, 'active_project', None),
+            dismissed=False,
+        ).filter(priority__in=['critical', 'high']).update(dismissed=True)
+        return Response({'status': 'persistent alerts dismissed', 'dismissed_count': updated})
+
     @action(detail=False, methods=['post'])
     def mark_all_read(self, request):
         """
@@ -93,14 +133,17 @@ class AlertViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def unread_count(self, request):
         """
-        Get count of unread alerts.
-        
+        Get count of unread, non-dismissed alerts.
+
+        Persistent (critical/high) alerts that have not been dismissed are
+        still counted even when read, because they must be acknowledged.
+
         Returns:
-            unread_count: Number of unread alerts
+            unread_count: Number of active notifications requiring attention
             total_count: Total number of alerts
         """
         queryset = self.get_queryset()
-        unread = queryset.filter(read=False).count()
+        unread = queryset.filter(read=False, dismissed=False).count()
         total = queryset.count()
         
         return Response({

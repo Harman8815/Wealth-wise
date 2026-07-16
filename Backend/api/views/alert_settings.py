@@ -81,7 +81,7 @@ class AlertSettingViewSet(viewsets.ModelViewSet):
             {
                 'setting_id': 'budget_warning',
                 'title': 'Budget Warnings',
-                'description': 'Get notified when approaching budget limits',
+                'description': 'Get notified at 50%, 80%, 90% and when budgets are exceeded',
                 'category': 'Budget',
                 'enabled': True,
                 'threshold': 80,
@@ -90,14 +90,14 @@ class AlertSettingViewSet(viewsets.ModelViewSet):
             {
                 'setting_id': 'bill_reminders',
                 'title': 'Bill Reminders',
-                'description': 'Receive reminders for upcoming bills',
+                'description': 'Receive reminders for upcoming and missed bills',
                 'category': 'Bills',
                 'enabled': True
             },
             {
                 'setting_id': 'goal_milestones',
                 'title': 'Goal Milestones',
-                'description': 'Celebrate savings achievements',
+                'description': 'Celebrate savings achievements at 50%, 75% and completion',
                 'category': 'Goals',
                 'enabled': True
             },
@@ -118,6 +118,20 @@ class AlertSettingViewSet(viewsets.ModelViewSet):
                 'enabled': False,
                 'threshold': 5000,
                 'threshold_unit': '₹'
+            },
+            {
+                'setting_id': 'ai_insights',
+                'title': 'AI Insights',
+                'description': 'Spending anomalies, forecasts and recommendations',
+                'category': 'AI',
+                'enabled': True
+            },
+            {
+                'setting_id': 'system_updates',
+                'title': 'System & Activity',
+                'description': 'Welcome messages, sync, imports and activity log',
+                'category': 'System',
+                'enabled': True
             },
         ]
         
