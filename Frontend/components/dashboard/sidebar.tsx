@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FolderKanban,
+  ArrowDownUp,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { usePathname, useRouter } from "next/navigation"
@@ -33,6 +34,7 @@ const navigationItems = [
   { icon: PiggyBank, label: "Budget Planner", href: "/dashboard/budget" },
   { icon: CreditCard, label: "Transactions", href: "/dashboard/transactions" },
   { icon: BarChart3, label: "Reports & Insights", href: "/dashboard/reports" },
+  { icon: ArrowDownUp, label: "Import & Export", href: "/dashboard/import-export" },
   { icon: Target, label: "Goals", href: "/dashboard/goals" },
   { icon: Bell, label: "Alerts", href: "/dashboard/alerts", badge: "alerts" },
 ]
