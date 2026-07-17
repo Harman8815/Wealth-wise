@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense, Category, ScheduledReport, Project, ProjectMember, ProjectInvitation, RecurringRule, RecurringExecution
+from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense, Category, ScheduledReport, Project, ProjectMember, ProjectInvitation, RecurringRule, RecurringExecution, RecurringBudget, RecurringBudgetExecution
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -273,6 +273,63 @@ class RecurringExecutionSerializer(serializers.ModelSerializer):
         model = RecurringExecution
         fields = [
             'id', 'rule', 'rule_name', 'transaction', 'scheduled_date',
+            'executed_at', 'status', 'error', 'created_at',
+        ]
+        read_only_fields = fields
+
+
+# ---------------------------------------------------------------------------
+# Recurring Budgets (reusable budget generation platform)
+# ---------------------------------------------------------------------------
+
+class RecurringBudgetSerializer(serializers.ModelSerializer):
+    anchor_budget_name = serializers.CharField(source='anchor_budget.name', read_only=True)
+
+    class Meta:
+        model = RecurringBudget
+        fields = [
+            'id', 'name', 'description', 'total_budget', 'categories',
+            'strategy', 'adjustment_percent', 'auto_carry_forward',
+            'auto_adjust_previous', 'status',
+            'frequency', 'interval', 'weekdays', 'day_of_month', 'last_day_of_month',
+            'start_date', 'end_date', 'never_ends',
+            'next_generation_date', 'last_generation_date',
+            'generation_count', 'anchor_budget', 'anchor_budget_name',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'next_generation_date', 'last_generation_date',
+            'generation_count', 'anchor_budget_name', 'created_at', 'updated_at',
+        ]
+
+    def validate_categories(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError('Categories must be a list.')
+        for item in value:
+            if not isinstance(item, dict) or 'name' not in item or 'budgeted' not in item:
+                raise serializers.ValidationError(
+                    'Each category must include a name and a budgeted amount.'
+                )
+        return value
+
+    def validate_interval(self, value):
+        if value is not None and value < 1:
+            raise serializers.ValidationError('Interval must be at least 1.')
+        return value
+
+    def validate_adjustment_percent(self, value):
+        if value is not None and (value < -100 or value > 1000):
+            raise serializers.ValidationError('Adjustment percentage is out of range.')
+        return value
+
+
+class RecurringBudgetExecutionSerializer(serializers.ModelSerializer):
+    rule_name = serializers.CharField(source='rule.name', read_only=True)
+
+    class Meta:
+        model = RecurringBudgetExecution
+        fields = [
+            'id', 'rule', 'rule_name', 'generated_budgets', 'scheduled_date',
             'executed_at', 'status', 'error', 'created_at',
         ]
         read_only_fields = fields

@@ -17,6 +17,7 @@ from .views import (
     ExpenseViewSet,
     CategoryViewSet,
     RecurringRuleViewSet,
+    RecurringBudgetViewSet,
     ProjectViewSet,
     accept_invitation,
     health_check,
@@ -49,6 +50,7 @@ router.register(r'alert-settings', AlertSettingViewSet, basename='alertsetting')
 router.register(r'expenses', ExpenseViewSet, basename='expense')
 router.register(r'categories', CategoryViewSet, basename='category')
 router.register(r'recurring', RecurringRuleViewSet, basename='recurringrule')
+router.register(r'recurring-budgets', RecurringBudgetViewSet, basename='recurringbudget')
 router.register(r'projects', ProjectViewSet, basename='project')
 
 # URL patterns

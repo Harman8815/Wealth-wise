@@ -13,6 +13,7 @@ from django.utils import timezone
 
 from ..models import Alert
 from ..models import RecurringRule, Transaction
+from ..models import RecurringBudget
 
 
 _DUPLICATE_WINDOW = timedelta(hours=24)
@@ -110,4 +111,76 @@ def notify_recurring_completed(rule: RecurringRule) -> Optional[Alert]:
         message=f"{rule.name} has reached its end date and will no longer run.",
         category='Bills',
         priority='low',
+    )
+
+
+# ---------------------------------------------------------------------------
+# Recurring Budgets (budget generation lifecycle events)
+# ---------------------------------------------------------------------------
+
+def notify_recurring_budget_generated(rule: RecurringBudget) -> Optional[Alert]:
+    return _create(
+        rule.user, rule.project, f"recurringbudget:generated:{rule.id}:{rule.last_generation_date}",
+        type='success',
+        title=f"Budget generated: {rule.name}",
+        message=f"A new budget of ₹{rule.total_budget} was automatically created for {rule.name}.",
+        category='Budget',
+        priority='low',
+        action_url='/dashboard/budget',
+    )
+
+
+def notify_recurring_budget_failed(rule: RecurringBudget, error: str) -> Optional[Alert]:
+    return _create(
+        rule.user, rule.project, f"recurringbudget:failed:{rule.id}",
+        type='error',
+        title=f"Budget generation failed: {rule.name}",
+        message=f"Could not generate the budget for {rule.name}: {error}",
+        category='System',
+        priority='high',
+    )
+
+
+def notify_recurring_budget_paused(rule: RecurringBudget) -> Optional[Alert]:
+    return _create(
+        rule.user, rule.project, f"recurringbudget:paused:{rule.id}",
+        type='info',
+        title=f"Recurring budget paused: {rule.name}",
+        message=f"{rule.name} is paused and will not generate new budgets.",
+        category='Budget',
+        priority='low',
+    )
+
+
+def notify_recurring_budget_resumed(rule: RecurringBudget) -> Optional[Alert]:
+    return _create(
+        rule.user, rule.project, f"recurringbudget:resumed:{rule.id}",
+        type='info',
+        title=f"Recurring budget resumed: {rule.name}",
+        message=f"{rule.name} is active again and will resume scheduled budgets.",
+        category='Budget',
+        priority='low',
+    )
+
+
+def notify_recurring_budget_completed(rule: RecurringBudget) -> Optional[Alert]:
+    return _create(
+        rule.user, rule.project, f"recurringbudget:completed:{rule.id}",
+        type='info',
+        title=f"Recurring budget completed: {rule.name}",
+        message=f"{rule.name} has reached its end date and will no longer generate budgets.",
+        category='Budget',
+        priority='low',
+    )
+
+
+def notify_recurring_budget_upcoming(rule: RecurringBudget, due_date) -> Optional[Alert]:
+    return _create(
+        rule.user, rule.project, f"recurringbudget:upcoming:{rule.id}:{due_date}",
+        type='info',
+        title=f"Upcoming budget renewal: {rule.name}",
+        message=f"Your {rule.name} budget renews on {due_date}.",
+        category='Budget',
+        priority='medium',
+        action_url='/dashboard/recurring-budgets',
     )
