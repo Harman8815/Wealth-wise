@@ -11,6 +11,7 @@ from .alerts import AlertViewSet
 from .alert_settings import AlertSettingViewSet
 from .expenses import ExpenseViewSet
 from .categories import CategoryViewSet
+from .recurring import RecurringRuleViewSet
 from .projects import ProjectViewSet, accept_invitation
 from .system import health_check, seed_historical_data, default_user_info, quick_login
 from .reports import export_reports_pdf, filter_reports, scheduled_reports, scheduled_report_detail, trigger_scheduled_report, generate_pdf_report
@@ -32,6 +33,8 @@ __all__ = [
     'AlertViewSet',
     'AlertSettingViewSet',
     'ExpenseViewSet',
+    'CategoryViewSet',
+    'RecurringRuleViewSet',
     'ProjectViewSet',
     'accept_invitation',
     'health_check',

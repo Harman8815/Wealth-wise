@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense, Category, ScheduledReport, Project, ProjectMember, ProjectInvitation
+from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense, Category, ScheduledReport, Project, ProjectMember, ProjectInvitation, RecurringRule, RecurringExecution
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -212,3 +212,67 @@ class CreateProjectInvitationSerializer(serializers.Serializer):
 
     def validate_email(self, value):
         return value.strip().lower()
+
+
+# ---------------------------------------------------------------------------
+# Recurring Transactions (reusable scheduling platform)
+# ---------------------------------------------------------------------------
+
+class RecurringRuleSerializer(serializers.ModelSerializer):
+    category = CategorySerializer(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(), source='category',
+        write_only=True, required=False, allow_null=True,
+    )
+    category_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    account = serializers.PrimaryKeyRelatedField(
+        queryset=Account.objects.all(), write_only=True, required=False, allow_null=True,
+    )
+    account_name = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = RecurringRule
+        fields = [
+            'id', 'name', 'description', 'amount', 'type', 'category', 'category_id',
+            'category_name', 'account', 'account_name', 'status',
+            'frequency', 'interval', 'weekdays', 'day_of_month', 'last_day_of_month',
+            'start_date', 'end_date', 'never_ends',
+            'next_execution_date', 'last_execution_date', 'execution_count',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'account_name', 'next_execution_date',
+            'last_execution_date', 'execution_count', 'created_at', 'updated_at',
+        ]
+
+    def validate(self, attrs):
+        if not attrs.get('category') and not attrs.get('category_name'):
+            raise serializers.ValidationError(
+                {'category': 'Either category_id or category_name is required.'}
+            )
+        if attrs.get('category_name') and attrs.get('category'):
+            raise serializers.ValidationError(
+                {'category': 'Provide either category_id or category_name, not both.'}
+            )
+        weekdays = attrs.get('weekdays')
+        if weekdays is not None and not isinstance(weekdays, list):
+            raise serializers.ValidationError({'weekdays': 'Must be a list of integers.'})
+        return attrs
+
+    def validate_interval(self, value):
+        if value is not None and value < 1:
+            raise serializers.ValidationError('Interval must be at least 1.')
+        return value
+
+
+class RecurringExecutionSerializer(serializers.ModelSerializer):
+    rule_name = serializers.CharField(source='rule.name', read_only=True)
+    transaction = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = RecurringExecution
+        fields = [
+            'id', 'rule', 'rule_name', 'transaction', 'scheduled_date',
+            'executed_at', 'status', 'error', 'created_at',
+        ]
+        read_only_fields = fields
