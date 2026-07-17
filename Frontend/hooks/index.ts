@@ -101,11 +101,11 @@ export {
 } from './use-alert-settings';
 
 export {
-  useExpenses,
-  useExpense,
-  useExpenseSummary,
-  useRecentExpenses,
-  useCreateExpense,
-  useUpdateExpense,
-  useDeleteExpense,
-} from './use-expenses';
+  useImportHistory,
+  useExportHistory,
+  useMappingTemplates,
+  useUploadImport,
+  useCommitImport,
+  useExportData,
+  useSaveMappingTemplate,
+} from './use-io';

@@ -84,4 +84,9 @@ export const queryKeys = {
     members: (id: string) => ['projects', id, 'members'] as const,
     invitations: (id: string) => ['projects', id, 'invitations'] as const,
   },
+  io: {
+    imports: ['io', 'imports'] as const,
+    exports: ['io', 'exports'] as const,
+    templates: ['io', 'templates'] as const,
+  },
 } as const;
