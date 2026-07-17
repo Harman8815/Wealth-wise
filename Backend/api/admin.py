@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, Account, Transaction, BudgetCategory, Goal, Alert, AlertSetting, Expense
+from .models import User, Account, Transaction, BudgetCategory, Goal, Alert, AlertSetting, Expense, RecurringRule, RecurringExecution
 
 
 @admin.register(User)
@@ -89,3 +89,22 @@ class ExpenseAdmin(admin.ModelAdmin):
     ordering = ('-date',)
     readonly_fields = ('created_at', 'updated_at')
     date_hierarchy = 'date'
+
+
+@admin.register(RecurringRule)
+class RecurringRuleAdmin(admin.ModelAdmin):
+    list_display = ('name', 'user', 'type', 'frequency', 'amount', 'status', 'next_execution_date', 'execution_count')
+    list_filter = ('type', 'frequency', 'status')
+    search_fields = ('name', 'user__email')
+    ordering = ('-created_at',)
+    readonly_fields = ('created_at', 'updated_at', 'next_execution_date', 'last_execution_date', 'execution_count')
+    date_hierarchy = 'start_date'
+
+
+@admin.register(RecurringExecution)
+class RecurringExecutionAdmin(admin.ModelAdmin):
+    list_display = ('rule', 'user', 'scheduled_date', 'status', 'executed_at')
+    list_filter = ('status', 'scheduled_date')
+    search_fields = ('rule__name', 'user__email')
+    ordering = ('-scheduled_date',)
+    readonly_fields = ('created_at', 'executed_at')

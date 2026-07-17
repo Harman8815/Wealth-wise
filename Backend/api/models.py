@@ -516,6 +516,126 @@ class ScheduledReport(models.Model):
         return f"{self.name} - {self.user.email}"
 
 
+class RecurringRule(models.Model):
+    """A reusable scheduling rule that automatically generates transactions.
+
+    The rule is intentionally generic (it stores a ``schedule`` JSON blob and a
+    ``schedule_type``) so the same engine can later power recurring budgets,
+    subscriptions, bill reminders, EMIs and other scheduled events.
+    """
+
+    FREQUENCY_CHOICES = [
+        ('daily', 'Daily'),
+        ('weekly', 'Weekly'),
+        ('monthly', 'Monthly'),
+        ('quarterly', 'Quarterly'),
+        ('yearly', 'Yearly'),
+        ('custom', 'Custom'),
+    ]
+
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('paused', 'Paused'),
+        ('completed', 'Completed'),
+    ]
+
+    TRANSACTION_TYPES = [
+        ('income', 'Income'),
+        ('expense', 'Expense'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recurring_rules')
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, null=True, blank=True, related_name='project_recurring_rules')
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    type = models.CharField(max_length=20, choices=TRANSACTION_TYPES, default='expense')
+    category = models.ForeignKey('Category', on_delete=models.PROTECT, null=True, blank=True, related_name='recurring_rules')
+    category_name = models.CharField(max_length=100, blank=True)
+    account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True, blank=True, related_name='recurring_rules')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+
+    # Scheduling
+    frequency = models.CharField(max_length=20, choices=FREQUENCY_CHOICES, default='monthly')
+    interval = models.PositiveIntegerField(default=1, help_text='Repeat every N frequency units.')
+    weekdays = models.JSONField(default=list, blank=True, help_text='0=Mon .. 6=Sun for weekly schedules.')
+    day_of_month = models.IntegerField(null=True, blank=True, help_text='Day of month for monthly/yearly schedules.')
+    last_day_of_month = models.BooleanField(default=False)
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    never_ends = models.BooleanField(default=True)
+
+    # Computed scheduling state
+    next_execution_date = models.DateField(null=True, blank=True)
+    last_execution_date = models.DateField(null=True, blank=True)
+    execution_count = models.PositiveIntegerField(default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'recurring_rules'
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['status']),
+            models.Index(fields=['next_execution_date']),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.user.email})"
+
+    def save(self, *args, **kwargs):
+        if self.account and not self.account_name_cached:
+            pass
+        super().save(*args, **kwargs)
+
+    @property
+    def account_name(self):
+        return self.account.name if self.account else ''
+
+    @property
+    def account_name_cached(self):
+        return bool(self.account)
+
+
+class RecurringExecution(models.Model):
+    """A single generated transaction instance for a RecurringRule."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    rule = models.ForeignKey(RecurringRule, on_delete=models.CASCADE, related_name='executions')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recurring_executions')
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, null=True, blank=True, related_name='project_recurring_executions')
+    transaction = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True, blank=True, related_name='recutions')
+    scheduled_date = models.DateField()
+    executed_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('pending', 'Pending'),
+            ('executed', 'Executed'),
+            ('failed', 'Failed'),
+            ('skipped', 'Skipped'),
+        ],
+        default='pending',
+    )
+    error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'recurring_executions'
+        ordering = ['-scheduled_date']
+        indexes = [
+            models.Index(fields=['rule']),
+            models.Index(fields=['user']),
+            models.Index(fields=['scheduled_date']),
+            models.Index(fields=['status']),
+        ]
+
+    def __str__(self):
+        return f"Execution of {self.rule.name} on {self.scheduled_date}"
+
+
 class Project(models.Model):
     """A collaborative finance workspace. Every financial entity belongs to a project.
 
