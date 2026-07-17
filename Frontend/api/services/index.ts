@@ -40,6 +40,16 @@ export {
   type RunDueSummary,
 } from './recurring';
 export {
+  recurringBudgetApi,
+  type RecurringBudget,
+  type RecurringBudgetExecution,
+  type CreateRecurringBudgetInput,
+  type UpdateRecurringBudgetInput,
+  type BudgetAllocation,
+  type BudgetStrategy,
+  type RunDueBudgetSummary,
+} from './recurring-budgets';
+export {
   projectApi,
   type Project,
   type ProjectRole,

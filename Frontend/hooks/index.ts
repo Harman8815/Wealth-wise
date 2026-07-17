@@ -123,3 +123,17 @@ export {
   useGenerateRecurringNow,
   useRunDueRecurring,
 } from './use-recurring';
+
+export {
+  useRecurringBudgets,
+  useRecurringBudget,
+  useRecurringBudgetExecutions,
+  useRecurringBudgetUpcoming,
+  useCreateRecurringBudget,
+  useUpdateRecurringBudget,
+  useDeleteRecurringBudget,
+  usePauseRecurringBudget,
+  useResumeRecurringBudget,
+  useGenerateRecurringBudgetNow,
+  useRunDueRecurringBudgets,
+} from './use-recurring-budgets';

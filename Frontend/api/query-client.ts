@@ -95,4 +95,10 @@ export const queryKeys = {
     executions: (id: string) => ['recurring', id, 'executions'] as const,
     upcoming: (id: string) => ['recurring', id, 'upcoming'] as const,
   },
+  recurringBudgets: {
+    all: ['recurring-budgets'] as const,
+    detail: (id: string) => ['recurring-budgets', id] as const,
+    executions: (id: string) => ['recurring-budgets', id, 'executions'] as const,
+    upcoming: (id: string) => ['recurring-budgets', id, 'upcoming'] as const,
+  },
 } as const;
