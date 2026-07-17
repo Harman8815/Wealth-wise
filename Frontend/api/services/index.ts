@@ -29,6 +29,17 @@ export { alertApi, type Alert, type AlertPriority, type AlertCategory, type Aler
 export { alertSettingApi, type AlertSetting, type CreateAlertSettingInput, type UpdateAlertSettingInput, type AlertSettingSummary } from './alert-settings';
 export { expenseApi, type Expense, type CreateExpenseInput, type UpdateExpenseInput, type ExpenseSummary } from './expenses';
 export {
+  recurringApi,
+  type RecurringRule,
+  type RecurringExecution,
+  type CreateRecurringInput,
+  type UpdateRecurringInput,
+  type RecurringFrequency,
+  type RecurringStatus,
+  type RecurringType,
+  type RunDueSummary,
+} from './recurring';
+export {
   projectApi,
   type Project,
   type ProjectRole,

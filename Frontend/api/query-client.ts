@@ -89,4 +89,10 @@ export const queryKeys = {
     exports: ['io', 'exports'] as const,
     templates: ['io', 'templates'] as const,
   },
+  recurring: {
+    all: ['recurring'] as const,
+    detail: (id: string) => ['recurring', id] as const,
+    executions: (id: string) => ['recurring', id, 'executions'] as const,
+    upcoming: (id: string) => ['recurring', id, 'upcoming'] as const,
+  },
 } as const;

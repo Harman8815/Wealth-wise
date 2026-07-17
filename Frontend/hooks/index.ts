@@ -109,3 +109,17 @@ export {
   useExportData,
   useSaveMappingTemplate,
 } from './use-io';
+
+export {
+  useRecurringRules,
+  useRecurringRule,
+  useRecurringExecutions,
+  useRecurringUpcoming,
+  useCreateRecurring,
+  useUpdateRecurring,
+  useDeleteRecurring,
+  usePauseRecurring,
+  useResumeRecurring,
+  useGenerateRecurringNow,
+  useRunDueRecurring,
+} from './use-recurring';
