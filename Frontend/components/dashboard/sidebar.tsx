@@ -38,6 +38,7 @@ const navigationItems = [
   { icon: ArrowDownUp, label: "Import & Export", href: "/dashboard/import-export" },
   { icon: Target, label: "Goals", href: "/dashboard/goals" },
   { icon: Repeat, label: "Recurring", href: "/dashboard/recurring" },
+  { icon: Repeat, label: "Recurring Budgets", href: "/dashboard/recurring-budgets" },
   { icon: Bell, label: "Alerts", href: "/dashboard/alerts", badge: "alerts" },
 ]
 

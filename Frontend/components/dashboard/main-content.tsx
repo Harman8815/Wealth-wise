@@ -13,6 +13,7 @@ import { AddTransactionDialog } from "./add-transaction-dialog";
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context";
 import { SeedDataDialog } from "./seed-data-dialog";
 import { RecurringSummaryWidget } from "@/components/scheduling/recurring-summary-widget";
+import { RecurringBudgetSummaryWidget } from "@/components/scheduling/recurring-budget-summary-widget";
 
 // Sample AI insights data - would come from API in production
 const sampleInsights = [
@@ -159,6 +160,7 @@ export function MainContent() {
                 </GlassCard>
 
                 <RecurringSummaryWidget />
+                <RecurringBudgetSummaryWidget />
               </div>
             </div>
           </div>

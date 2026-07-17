@@ -460,6 +460,21 @@ django-filter>=23.5
 | GET | `/api/recurring/{id}/upcoming/` | Preview upcoming dates |
 | POST | `/api/recurring/run_due/` | Process all due rules |
 
+### Recurring Budgets
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/recurring-budgets/` | List recurring budget rules (filterable) |
+| POST | `/api/recurring-budgets/` | Create recurring budget rule |
+| GET | `/api/recurring-budgets/{id}/` | Get recurring budget rule |
+| PATCH | `/api/recurring-budgets/{id}/` | Update recurring budget rule |
+| DELETE | `/api/recurring-budgets/{id}/` | Delete recurring budget rule |
+| POST | `/api/recurring-budgets/{id}/pause/` | Pause rule |
+| POST | `/api/recurring-budgets/{id}/resume/` | Resume rule |
+| POST | `/api/recurring-budgets/{id}/generate_now/` | Immediately generate a budget |
+| GET | `/api/recurring-budgets/{id}/executions/` | List generation history |
+| GET | `/api/recurring-budgets/{id}/upcoming/` | Preview upcoming dates |
+| POST | `/api/recurring-budgets/run_due/` | Process all due budget rules |
+
 ### Expenses
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -615,6 +630,50 @@ django-filter>=23.5
 - updated_at: DateTime
 ```
 
+### RecurringBudget
+```python
+- id: UUID (primary key)
+- user: ForeignKey(User)
+- project: ForeignKey(Project, nullable)
+- name: String
+- description: Text
+- total_budget: Decimal (12, 2)
+- categories: JSON (template of {name, budgeted, color, symbol, spent?})
+- strategy: Enum ['copy_exact', 'copy_structure', 'reset_spent', 'carry_forward', 'increase_percent', 'decrease_percent', 'auto_adjust']
+- adjustment_percent: Decimal (for increase/decrease strategies)
+- auto_carry_forward: Boolean
+- auto_adjust_previous: Boolean
+- status: Enum ['active', 'paused', 'completed']
+- frequency: Enum ['daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'custom']
+- interval: PositiveInteger
+- weekdays: JSON (0=Mon .. 6=Sun)
+- day_of_month: Integer (nullable)
+- last_day_of_month: Boolean
+- start_date: Date
+- end_date: Date (nullable)
+- never_ends: Boolean (default: True)
+- next_generation_date: Date (nullable)
+- last_generation_date: Date (nullable)
+- generation_count: PositiveInteger
+- anchor_budget: ForeignKey(BudgetCategory, nullable)
+- created_at: DateTime
+- updated_at: DateTime
+```
+
+### RecurringBudgetExecution
+```python
+- id: UUID (primary key)
+- rule: ForeignKey(RecurringBudget)
+- user: ForeignKey(User)
+- project: ForeignKey(Project, nullable)
+- generated_budgets: JSON (snapshot of BudgetCategory IDs created)
+- scheduled_date: Date
+- executed_at: DateTime (nullable)
+- status: Enum ['pending', 'generated', 'failed', 'skipped']
+- error: Text
+- created_at: DateTime
+```
+
 ### Expense
 ```python
 - id: UUID (primary key)
@@ -695,6 +754,22 @@ django-filter>=23.5
    - Live schedule preview components reusable by future scheduling features
    - Dashboard "Recurring Activity" widget
 
+8. **Recurring Budgets**
+   - Reusable budget-generation platform (`RecurringBudget` + `RecurringBudgetExecution` models)
+   - Reuses the same generic schedule engine (`api/services/scheduling.py`) as recurring transactions
+   - Category-allocation template (name, budgeted, color, symbol) per rule
+   - Generation strategies: copy previous exactly, copy structure only, reset spent, carry forward, increase/decrease by percentage, auto-adjust for future AI
+   - Frequencies: daily, weekly, monthly, quarterly, yearly, custom
+   - CRUD for recurring budgets with project scoping
+   - Pause / resume / duplicate rules without deletion
+   - Automatic budget generation when a period begins (`api/services/recurring_budgets.py`)
+   - Generated budgets behave exactly like manually created `BudgetCategory` rows
+   - Duplicate-generation prevention + overdue catch-up via `run_due`
+   - Notifications: generated, failed, paused, resumed, completed, upcoming
+   - Dedicated page `/dashboard/recurring-budgets` with search/filter, upcoming preview, and generation history
+   - Reusable UI components: create/edit modal, category allocation editor, strategy selector, schedule preview, status badge, confirmation dialogs, empty/loading states
+   - Dashboard "Recurring Budgets" summary widget
+
 8. **Quick Expenses**
    - Fast expense entry
    - Receipt support
@@ -740,10 +815,9 @@ django-filter>=23.5
    - Push notification infrastructure
    - Email notification integration
 
-2. **Recurring Transactions**
-   - Model for recurring transactions
-   - Cron job to auto-create recurring entries
-   - Support for weekly/monthly/yearly recurrence
+2. **Cron / Background Processing**
+   - Scheduled job to invoke `recurring/run_due/` and `recurring-budgets/run_due/` automatically (currently triggered on demand)
+   - Email notification delivery for alerts
 
 3. **Import/Export**
     - Standalone, reusable Import & Export Wizard (decoupled from finance domain)
