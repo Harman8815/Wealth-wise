@@ -445,6 +445,21 @@ django-filter>=23.5
 | DELETE | `/api/reports/schedules/{id}/` | Scheduled report detail |
 | POST | `/api/reports/schedules/{id}/trigger/` | Generate scheduled report PDF |
 
+### Recurring Transactions
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/recurring/` | List recurring rules (filterable) |
+| POST | `/api/recurring/` | Create recurring rule |
+| GET | `/api/recurring/{id}/` | Get recurring rule |
+| PATCH | `/api/recurring/{id}/` | Update recurring rule |
+| DELETE | `/api/recurring/{id}/` | Delete recurring rule |
+| POST | `/api/recurring/{id}/pause/` | Pause rule |
+| POST | `/api/recurring/{id}/resume/` | Resume rule |
+| POST | `/api/recurring/{id}/generate_now/` | Immediately generate a transaction |
+| GET | `/api/recurring/{id}/executions/` | List execution history |
+| GET | `/api/recurring/{id}/upcoming/` | Preview upcoming dates |
+| POST | `/api/recurring/run_due/` | Process all due rules |
+
 ### Expenses
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -666,7 +681,21 @@ django-filter>=23.5
    - Notification settings page (`/dashboard/notifications`) with per-category toggles
    - Dashboard load-time toasts
 
-7. **Quick Expenses**
+7. **Recurring Transactions**
+   - Reusable scheduling platform (`RecurringRule` + `RecurringExecution` models)
+   - Generic schedule engine (`api/services/scheduling.py`) independent of the UI
+   - Frequencies: daily, weekly, monthly, quarterly, yearly, custom
+   - Advanced rules: every N units, selected weekdays, day-of-month, last-day-of-month
+   - CRUD for recurring rules with project scoping
+   - Pause / resume rules without deletion
+   - Automatic transaction generation when a schedule is due (`api/services/recurring.py`)
+   - Duplicate-execution prevention + overdue catch-up via `run_due`
+   - Notifications: executed, failed, paused, resumed, upcoming, completed
+   - Dedicated page `/dashboard/recurring` with search/filter and upcoming preview
+   - Live schedule preview components reusable by future scheduling features
+   - Dashboard "Recurring Activity" widget
+
+8. **Quick Expenses**
    - Fast expense entry
    - Receipt support
    - Recent expenses view

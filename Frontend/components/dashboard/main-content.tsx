@@ -12,6 +12,7 @@ import { useState } from "react";
 import { AddTransactionDialog } from "./add-transaction-dialog";
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context";
 import { SeedDataDialog } from "./seed-data-dialog";
+import { RecurringSummaryWidget } from "@/components/scheduling/recurring-summary-widget";
 
 // Sample AI insights data - would come from API in production
 const sampleInsights = [
@@ -120,7 +121,7 @@ export function MainContent() {
           <div className="lg:col-span-2 animate-slide-up stagger-1">
             <div className="h-full w-full flex justify-normal items-start flex-col gap-6 p-0">
               <MonthlyChart />
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-slide-up stagger-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up stagger-4">
                 <GlassCard hover className="flex items-center gap-4">
                   <div className="p-3 rounded-xl bg-blue-500/10 text-blue-500">
                     <Calendar className="h-5 w-5" />
@@ -156,6 +157,8 @@ export function MainContent() {
                     <p className="text-lg font-semibold">In 5 days</p>
                   </div>
                 </GlassCard>
+
+                <RecurringSummaryWidget />
               </div>
             </div>
           </div>
