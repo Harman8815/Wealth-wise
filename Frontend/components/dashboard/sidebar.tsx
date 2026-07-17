@@ -14,6 +14,7 @@ import {
   ChevronRight,
   FolderKanban,
   ArrowDownUp,
+  Repeat,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { usePathname, useRouter } from "next/navigation"
@@ -36,6 +37,7 @@ const navigationItems = [
   { icon: BarChart3, label: "Reports & Insights", href: "/dashboard/reports" },
   { icon: ArrowDownUp, label: "Import & Export", href: "/dashboard/import-export" },
   { icon: Target, label: "Goals", href: "/dashboard/goals" },
+  { icon: Repeat, label: "Recurring", href: "/dashboard/recurring" },
   { icon: Bell, label: "Alerts", href: "/dashboard/alerts", badge: "alerts" },
 ]
 
