@@ -636,6 +636,144 @@ class RecurringExecution(models.Model):
         return f"Execution of {self.rule.name} on {self.scheduled_date}"
 
 
+class RecurringBudget(models.Model):
+    """A reusable rule that automatically generates planned budgets.
+
+    A ``RecurringBudget`` stores a schedule (reusing the same generic recurrence
+    fields as ``RecurringRule``) plus a template of category allocations. When a
+    scheduled period begins the rule engine materialises a set of concrete
+    ``BudgetCategory`` rows (a "generated budget") so the user never has to
+    recreate monthly/periodic budgets by hand.
+
+    Generation strategies are kept flexible: ``copy_exact`` reproduces the
+    previous allocations including spent, ``copy_structure`` only copies the
+    category skeleton (spent reset to zero), ``carry_forward`` seeds spent with
+    the previous period's remaining balance, and ``adjust_percent`` scales every
+    allocation by a percentage. More strategies can be added without touching the
+    data model.
+    """
+
+    FREQUENCY_CHOICES = [
+        ('daily', 'Daily'),
+        ('weekly', 'Weekly'),
+        ('monthly', 'Monthly'),
+        ('quarterly', 'Quarterly'),
+        ('yearly', 'Yearly'),
+        ('custom', 'Custom'),
+    ]
+
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('paused', 'Paused'),
+        ('completed', 'Completed'),
+    ]
+
+    # Generation strategies (extensible).
+    STRATEGY_CHOICES = [
+        ('copy_exact', 'Copy Previous Budget Exactly'),
+        ('copy_structure', 'Copy Category Structure Only'),
+        ('reset_spent', 'Reset Spent to Zero'),
+        ('carry_forward', 'Carry Forward Remaining Budget'),
+        ('increase_percent', 'Increase Budget by Percentage'),
+        ('decrease_percent', 'Decrease Budget by Percentage'),
+        ('auto_adjust', 'Auto-Adjust from Previous Period'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recurring_budgets')
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, null=True, blank=True, related_name='project_recurring_budgets')
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+
+    # Category allocations template (snapshot of the planned budget).
+    # Each item: {name, budgeted, color?, symbol?, category?}
+    total_budget = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    categories = models.JSONField(default=list, blank=True)
+
+    # Generation configuration.
+    strategy = models.CharField(max_length=30, choices=STRATEGY_CHOICES, default='copy_structure')
+    adjustment_percent = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    auto_carry_forward = models.BooleanField(default=False)
+    auto_adjust_previous = models.BooleanField(default=False)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+
+    # Scheduling (mirrors RecurringRule so the same engine drives both).
+    frequency = models.CharField(max_length=20, choices=FREQUENCY_CHOICES, default='monthly')
+    interval = models.PositiveIntegerField(default=1, help_text='Repeat every N frequency units.')
+    weekdays = models.JSONField(default=list, blank=True, help_text='0=Mon .. 6=Sun for weekly schedules.')
+    day_of_month = models.IntegerField(null=True, blank=True, help_text='Day of month for monthly/yearly schedules.')
+    last_day_of_month = models.BooleanField(default=False)
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    never_ends = models.BooleanField(default=True)
+
+    # Computed scheduling state.
+    next_generation_date = models.DateField(null=True, blank=True)
+    last_generation_date = models.DateField(null=True, blank=True)
+    last_generated_budget = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+', help_text='FK placeholder; actual budget links live on executions.',
+    )
+    generation_count = models.PositiveIntegerField(default=0)
+    anchor_budget = models.ForeignKey(
+        BudgetCategory, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='recurring_anchor', help_text='Budget used as the template source for copy strategies.',
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'recurring_budgets'
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['status']),
+            models.Index(fields=['next_generation_date']),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.user.email})"
+
+
+class RecurringBudgetExecution(models.Model):
+    """A single generated budget instance for a RecurringBudget rule."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    rule = models.ForeignKey(RecurringBudget, on_delete=models.CASCADE, related_name='executions')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recurring_budget_executions')
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, null=True, blank=True, related_name='project_recurring_budget_executions')
+    # Generated budget categories produced by this execution.
+    generated_budgets = models.JSONField(default=list, blank=True, help_text='IDs of BudgetCategory rows created.')
+    scheduled_date = models.DateField()
+    executed_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('pending', 'Pending'),
+            ('generated', 'Generated'),
+            ('failed', 'Failed'),
+            ('skipped', 'Skipped'),
+        ],
+        default='pending',
+    )
+    error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'recurring_budget_executions'
+        ordering = ['-scheduled_date']
+        indexes = [
+            models.Index(fields=['rule']),
+            models.Index(fields=['user']),
+            models.Index(fields=['scheduled_date']),
+            models.Index(fields=['status']),
+        ]
+
+    def __str__(self):
+        return f"Budget generation of {self.rule.name} on {self.scheduled_date}"
+
+
 class Project(models.Model):
     """A collaborative finance workspace. Every financial entity belongs to a project.
 
