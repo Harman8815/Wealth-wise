@@ -65,14 +65,6 @@ export const reportsApi = {
     return response.data;
   },
 
-  exportCsv: async (filters?: { start_date?: string; end_date?: string; category?: string; type?: string }) => {
-    const response = await apiClient.get('/transactions/export_csv/', {
-      params: filters,
-      responseType: 'blob',
-    });
-    return response.data;
-  },
-
   exportPdf: async (filters?: { start_date?: string; end_date?: string; type?: ReportType }) => {
     const response = await apiClient.get('/reports/generate_pdf/', {
       params: filters,

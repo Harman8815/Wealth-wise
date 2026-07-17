@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
-from ..models import Transaction, ScheduledReport
+from ..models import ScheduledReport
 from ..serializers import ScheduledReportSerializer
 from ..base import project_scope_filter
 from django.db.models import Sum, Count, Q
@@ -15,57 +15,12 @@ from django.db.models.functions import TruncMonth
 from django.utils import timezone
 from django.http import HttpResponse
 from datetime import datetime, timedelta
-import csv
-import io
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.graphics.shapes import Drawing
 from reportlab.graphics.charts.barcharts import VerticalBarChart
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def export_transactions_csv(request):
-    """Export transactions as CSV."""
-    user = request.user
-    start_date = request.query_params.get('start_date')
-    end_date = request.query_params.get('end_date')
-    category = request.query_params.get('category')
-    trans_type = request.query_params.get('type')
-
-    queryset = Transaction.objects.filter(user=user, **project_scope_filter(request))
-
-    if start_date:
-        queryset = queryset.filter(date__gte=start_date)
-    if end_date:
-        queryset = queryset.filter(date__lte=end_date)
-    if category:
-        queryset = queryset.filter(category__name=category)
-    if trans_type:
-        queryset = queryset.filter(type=trans_type)
-
-    queryset = queryset.order_by('-date', '-created_at')
-
-    buffer = io.StringIO()
-    writer = csv.writer(buffer)
-    writer.writerow(['Date', 'Description', 'Category', 'Type', 'Amount', 'Status'])
-
-    for t in queryset:
-        writer.writerow([
-            t.date,
-            t.description,
-            t.category.name if t.category else 'Uncategorized',
-            t.type,
-            float(t.amount),
-            t.status,
-        ])
-
-    buffer.seek(0)
-    response = HttpResponse(buffer.getvalue(), content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="transactions.csv"'
-    return response
 
 
 @api_view(['GET'])

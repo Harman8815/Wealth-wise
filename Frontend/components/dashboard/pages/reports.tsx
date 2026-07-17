@@ -229,92 +229,39 @@ export function ReportsPage() {
     }
   }
 
-  const exportAsExcel = (fileName = "reports.xls") => {
-    setIsExporting(true)
-    setExportingFormat("excel")
-    try {
-      const rows = [
-        ['Month', 'Income', 'Expense', 'Net'],
-        ...(monthlyData || []).map((m) => [m.month || '', m.income || 0, m.expenses || 0, m.savings || 0]),
-        [],
-        ['Category', 'Amount', 'Percentage'],
-        ...(categoryChartData || []).map((c) => [c.name, c.value, ((c.value / (totalCategoryAmount || 1)) * 100).toFixed(1) + '%']),
-      ]
-
-      const htmlTable = `
-        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-        <head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Report</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>
-        <body>
-        <table border="1">
-          ${rows
-            .map(
-              (row) =>
-                `<tr>${row
-                  .map(
-                    (cell) =>
-                      `<td style="font-size:12px;padding:4px">${cell === '' ? '&nbsp;' : cell}</td>`
-                  )
-                  .join('')}</tr>`
-            )
-            .join('')}
-        </table>
-        </body>
-        </html>`
-
-      const blob = new Blob([htmlTable], { type: 'application/vnd.ms-excel' })
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', fileName)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      window.URL.revokeObjectURL(url)
-      toast.success("Excel report downloaded")
-    } catch (e) {
-      toast.error("Failed to export Excel")
-    } finally {
-      setIsExporting(false)
-      setExportingFormat(null)
-    }
+  const downloadBlob = (data: BlobPart, fileName: string, mime: string) => {
+    const blob = new Blob([data], { type: mime })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.setAttribute("download", fileName)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
   }
 
-  const handleExportPreset = async (reportType: string, format: 'pdf' | 'csv' | 'xls') => {
+  const handleExportPreset = async (reportType: string, format: "pdf" | "csv" | "xls") => {
     if (isExporting) return
     setIsExporting(true)
     setExportingFormat(format)
 
     try {
-      if (format === 'pdf') {
-        const response = await apiClient.get('/reports/generate_pdf/', {
+      if (format === "pdf") {
+        const response = await apiClient.get("/reports/generate_pdf/", {
           params: { type: reportType },
-          responseType: 'blob',
+          responseType: "blob",
         })
-        const url = window.URL.createObjectURL(new Blob([response.data]))
-        const link = document.createElement('a')
-        link.href = url
-        link.setAttribute('download', `report_${reportType}.pdf`)
-        document.body.appendChild(link)
-        link.click()
-        link.remove()
-        window.URL.revokeObjectURL(url)
+        downloadBlob(response.data, `report_${reportType}.pdf`, "application/pdf")
         toast.success("PDF report generated and downloaded")
-      } else if (format === 'csv') {
-        const response = await apiClient.get('/transactions/export_csv/', {
-          responseType: 'blob',
-          params: { type: reportType },
-        })
-        const url = window.URL.createObjectURL(new Blob([response.data]))
-        const link = document.createElement('a')
-        link.href = url
-        link.setAttribute('download', `report_${reportType}.csv`)
-        document.body.appendChild(link)
-        link.click()
-        link.remove()
-        window.URL.revokeObjectURL(url)
-        toast.success("CSV report downloaded")
-      } else if (format === 'xls') {
-        await exportAsExcel(`report_${reportType}.xls`)
+      } else {
+        const response = await apiClient.post(
+          "/exports/",
+          { format: format === "xls" ? "xlsx" : "csv", dataset: "transactions", title: `report_${reportType}` },
+          { responseType: "blob" }
+        )
+        downloadBlob(response.data, `report_${reportType}.${format === "xls" ? "xlsx" : "csv"}`, format === "xls" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv")
+        toast.success(`${format.toUpperCase()} report downloaded`)
       }
     } catch (e) {
       console.error("Export failed", e)
@@ -330,17 +277,8 @@ export function ReportsPage() {
     setIsExporting(true)
     setExportingFormat("csv")
     try {
-      const response = await apiClient.get("/transactions/export_csv/", {
-        responseType: "blob",
-      })
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement("a")
-      link.href = url
-      link.setAttribute("download", "transactions.csv")
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      window.URL.revokeObjectURL(url)
+      const response = await apiClient.post("/exports/", { format: "csv", dataset: "transactions" }, { responseType: "blob" })
+      downloadBlob(response.data, "transactions.csv", "text/csv")
       toast.success("CSV report downloaded")
     } catch (error) {
       console.error("Failed to download CSV", error)
@@ -356,17 +294,8 @@ export function ReportsPage() {
     setIsExporting(true)
     setExportingFormat("pdf")
     try {
-      const response = await apiClient.get("/reports/export_pdf/", {
-        responseType: "blob",
-      })
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement("a")
-      link.href = url
-      link.setAttribute("download", "reports.pdf")
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      window.URL.revokeObjectURL(url)
+      const response = await apiClient.post("/exports/", { format: "pdf", dataset: "transactions" }, { responseType: "blob" })
+      downloadBlob(response.data, "transactions.pdf", "application/pdf")
       toast.success("PDF report downloaded")
     } catch (error) {
       console.error("Failed to download PDF", error)
