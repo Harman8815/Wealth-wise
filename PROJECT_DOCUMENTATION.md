@@ -376,7 +376,12 @@ django-filter>=23.5
 | GET | `/api/transactions/{id}/` | Get transaction |
 | PATCH | `/api/transactions/{id}/` | Update transaction |
 | DELETE | `/api/transactions/{id}/` | Delete transaction |
-| GET | `/api/transactions/export_csv/` | Export transactions as CSV |
+| POST | `/api/imports/upload/` | Parse an uploaded CSV/Excel/PDF file (returns rows + auto-detected mapping) |
+| POST | `/api/imports/{job_id}/commit/` | Validate mapping and bulk-import valid rows |
+| GET | `/api/imports/history/` | List import jobs |
+| GET/POST/DELETE | `/api/imports/mapping-templates/` | CRUD column-mapping templates |
+| POST | `/api/exports/` | Export transactions as CSV/Excel/PDF/JSON |
+| GET | `/api/exports/history/` | List export jobs |
 
 ### Budget Categories
 | Method | Endpoint | Description |
@@ -712,8 +717,12 @@ django-filter>=23.5
    - Support for weekly/monthly/yearly recurrence
 
 3. **Import/Export**
-   - CSV import for transactions
-   - Bank statement import (CSV/OFX)
+    - Standalone, reusable Import & Export Wizard (decoupled from finance domain)
+    - CSV, Excel (.xls/.xlsx), and PDF bank-statement import
+    - Multi-format export (CSV, Excel, PDF, JSON)
+    - Auto column-mapping + reusable mapping templates
+    - Preview/validation, duplicate detection, skip-invalid
+    - Import/export job history
 
 4. **Advanced Analytics**
    - Spending prediction using ML
