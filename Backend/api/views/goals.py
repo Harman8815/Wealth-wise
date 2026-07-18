@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
+from decimal import Decimal
 
 from ..models import Goal
 from ..serializers import GoalSerializer
@@ -70,7 +71,7 @@ class GoalViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        goal.current_amount += amount
+        goal.current_amount += Decimal(str(amount))
         
         # Auto-complete if target reached
         if goal.current_amount >= goal.target_amount and goal.status != 'completed':

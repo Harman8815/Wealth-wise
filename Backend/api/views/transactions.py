@@ -63,29 +63,28 @@ class TransactionViewSet(viewsets.ModelViewSet):
                         'is_default': False,
                     }
                 )
-        serializer.save(user=self.request.user, project=self.request.active_project)
+        serializer.save(user=self.request.user, project=self.request.active_project, category=category)
 
     def perform_update(self, serializer):
         """Update transaction and track changes in history."""
         transaction = serializer.instance
         user = self.request.user
-        
+
         # Track changes before saving
         old_values = {}
         for field in ['date', 'description', 'category', 'amount', 'type', 'status']:
             old_values[field] = getattr(transaction, field)
-        
+
         super().perform_update(serializer)
-        
+
         # Create history records for changed fields
-        changed_fields = serializer.changed_data
-        for field in changed_fields:
-            if field in old_values:
-                old_value = old_values[field]
-                new_value = serializer.validated_data.get(field)
-                if field == 'category':
-                    old_value = str(old_value.id) if old_value else None
-                    new_value = str(new_value.id) if new_value else None
+        for field in old_values:
+            new_value = getattr(transaction, field)
+            old_value = old_values[field]
+            if field == 'category':
+                old_value = str(old_value.id) if old_value else None
+                new_value = str(new_value.id) if new_value else None
+            if str(old_value) != str(new_value):
                 TransactionHistory.objects.create(
                     transaction=transaction,
                     user=user,

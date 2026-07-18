@@ -56,7 +56,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                         'is_default': False,
                     }
                 )
-        serializer.save(user=self.request.user, project=self.request.active_project)
+        serializer.save(user=self.request.user, project=self.request.active_project, category=category)
 
     @action(detail=False, methods=['get'])
     def summary(self, request):

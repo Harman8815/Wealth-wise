@@ -7,13 +7,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
-from ..models import ScheduledReport
+from ..models import ScheduledReport, Transaction
 from ..serializers import ScheduledReportSerializer
 from ..base import project_scope_filter
 from django.db.models import Sum, Count, Q
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
 from django.http import HttpResponse
+import io
 from datetime import datetime, timedelta
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
@@ -39,8 +40,9 @@ def export_reports_pdf(request):
         queryset = queryset.filter(date__lte=end_date)
 
     monthly_data = queryset.annotate(
+        month=TruncMonth('date'),
         income=Sum('amount', filter=Q(type='income')),
-        expense=Sum('amount', filter=Q(type='expense'))
+        expense=Sum('amount', filter=Q(type='expense')),
     ).order_by('month')
 
     buffer = io.BytesIO()

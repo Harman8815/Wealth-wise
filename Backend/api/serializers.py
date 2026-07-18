@@ -45,7 +45,7 @@ class AccountSerializer(serializers.ModelSerializer):
 
 class TransactionSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
-    category_id = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), source='category', write_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), source='category', write_only=True, required=False, allow_null=True)
     category_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
@@ -54,11 +54,20 @@ class TransactionSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'account_name', 'created_at', 'updated_at']
 
     def validate(self, attrs):
-        if not attrs.get('category') and not attrs.get('category_name'):
-            raise serializers.ValidationError({'category': 'Either category_id or category_name is required.'})
-        if attrs.get('category_name') and attrs.get('category'):
-            raise serializers.ValidationError({'category': 'Provide either category_id or category_name, not both.'})
+        if self.instance is None:
+            if not attrs.get('category') and not attrs.get('category_name'):
+                raise serializers.ValidationError({'category': 'Either category_id or category_name is required.'})
+            if attrs.get('category_name') and attrs.get('category'):
+                raise serializers.ValidationError({'category': 'Provide either category_id or category_name, not both.'})
         return attrs
+
+    def create(self, validated_data):
+        validated_data.pop('category_name', None)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        validated_data.pop('category_name', None)
+        return super().update(instance, validated_data)
 
 
 class TransactionHistorySerializer(serializers.ModelSerializer):
@@ -81,9 +90,17 @@ class BudgetCategorySerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'spent', 'created_at', 'updated_at']
 
     def validate(self, attrs):
-        if not attrs.get('category') and not attrs.get('category_name') and self.instance is None:
-            raise serializers.ValidationError({'category': 'Either category_id or category_name is required.'})
+        if not attrs.get('category') and not attrs.get('category_name') and not attrs.get('name') and self.instance is None:
+            raise serializers.ValidationError({'category': 'Either category_id, category_name, or name is required.'})
         return attrs
+
+    def create(self, validated_data):
+        validated_data.pop('category_name', None)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        validated_data.pop('category_name', None)
+        return super().update(instance, validated_data)
 
 
 class GoalSerializer(serializers.ModelSerializer):
@@ -111,7 +128,7 @@ class AlertSettingSerializer(serializers.ModelSerializer):
 
 class ExpenseSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
-    category_id = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), source='category', write_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), source='category', write_only=True, required=False, allow_null=True)
     category_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
@@ -120,11 +137,20 @@ class ExpenseSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
     def validate(self, attrs):
-        if not attrs.get('category') and not attrs.get('category_name'):
-            raise serializers.ValidationError({'category': 'Either category_id or category_name is required.'})
-        if attrs.get('category_name') and attrs.get('category'):
-            raise serializers.ValidationError({'category': 'Provide either category_id or category_name, not both.'})
+        if self.instance is None:
+            if not attrs.get('category') and not attrs.get('category_name'):
+                raise serializers.ValidationError({'category': 'Either category_id or category_name is required.'})
+            if attrs.get('category_name') and attrs.get('category'):
+                raise serializers.ValidationError({'category': 'Provide either category_id or category_name, not both.'})
         return attrs
+
+    def create(self, validated_data):
+        validated_data.pop('category_name', None)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        validated_data.pop('category_name', None)
+        return super().update(instance, validated_data)
 
 
 class ScheduledReportSerializer(serializers.ModelSerializer):
@@ -258,6 +284,14 @@ class RecurringRuleSerializer(serializers.ModelSerializer):
         if weekdays is not None and not isinstance(weekdays, list):
             raise serializers.ValidationError({'weekdays': 'Must be a list of integers.'})
         return attrs
+
+    def create(self, validated_data):
+        validated_data.pop('category_name', None)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        validated_data.pop('category_name', None)
+        return super().update(instance, validated_data)
 
     def validate_interval(self, value):
         if value is not None and value < 1:
