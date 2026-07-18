@@ -887,6 +887,12 @@ def recompute_after_change(user, project=None, months: int = 6) -> Optional[Fina
         generate_after_change(user, project, months=months)
     except Exception:  # pragma: no cover - defensive
         pass
+    # Refresh mined subscriptions (pattern detection) the same defensive way.
+    try:
+        from .subscriptions import detect_after_change
+        detect_after_change(user, project)
+    except Exception:  # pragma: no cover - defensive
+        pass
     return snapshot
 
 

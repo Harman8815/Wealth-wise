@@ -303,3 +303,37 @@ def notify_duplicates_found(user, project, group_count: int, source: str = 'scan
         priority='medium',
         action_url='/dashboard/import-export',
     )
+
+
+# ---------------------------------------------------------------------------
+# Subscription Detection events
+# ---------------------------------------------------------------------------
+
+def notify_subscriptions_found(user, project, count: int, sample_name: Optional[str] = None) -> Optional[Alert]:
+    """Notify the user that new subscriptions were detected from their history.
+
+    Uses a stable per-day per-project dedup_key so repeated scans do not spam the
+    user with Alerts.
+    """
+    date_key = timezone.localdate().isoformat()
+    dedup_key = f"subscriptions:detected:{date_key}"
+    title = f"{count} subscription{'s' if count != 1 else ''} detected"
+    if sample_name:
+        message = (
+            f"We found {count} recurring subscription{'s' if count != 1 else ''} "
+            f"in your transactions, including \"{sample_name}\". Review and confirm them."
+        )
+    else:
+        message = (
+            f"We found {count} recurring subscription{'s' if count != 1 else ''} "
+            f"in your transaction history."
+        )
+    return _create(
+        user, project, dedup_key,
+        type='info',
+        title=title,
+        message=message,
+        category='Bills',
+        priority='low',
+        action_url='/dashboard/recurring',
+    )
