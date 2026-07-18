@@ -16,6 +16,7 @@ from ..models import (
     ImportJob, ExportJob, MappingTemplate,
     FinancialHealthScore, ScoreDimensionConfig, HealthRecommendation,
     DuplicateGroup, DuplicateMatch, DuplicateFeedback,
+    Insight,
 )
 
 
@@ -458,6 +459,24 @@ class HealthRecommendationFactory(DjangoModelFactory):
     priority = 'medium'
     resolved = False
     created_at = factory.LazyFunction(datetime.now)
+
+
+class InsightFactory(DjangoModelFactory):
+    class Meta:
+        model = Insight
+
+    id = factory.LazyFunction(uuid.uuid4)
+    user = factory.SubFactory(UserFactory)
+    project = factory.SubFactory(ProjectFactory)
+    kind = 'spending'
+    title = factory.Faker('sentence')
+    description = factory.Faker('text')
+    severity = 'neutral'
+    dedup_key = factory.Faker('word')
+    metadata = factory.Dict({})
+    action_url = ''
+    dismissed = False
+    generated_at = factory.LazyFunction(datetime.now)
 
 
 class DuplicateGroupFactory(DjangoModelFactory):

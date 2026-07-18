@@ -909,6 +909,9 @@ from .models_duplicates import (  # noqa: E402,F401
     default_duplicate_config,
 )
 
+# Dynamic AI Insights models.
+from .models_insights import Insight  # noqa: E402,F401
+
 
 def create_schedule(user, name, report_type, frequency, next_run=None, project=None):
     """Create a new scheduled report configuration."""
