@@ -8,8 +8,8 @@ from datetime import date
 
 from django.test import TestCase
 
-from .models import User, RecurringBudget, BudgetCategory, RecurringBudgetExecution
-from .services.recurring_budgets import (
+from ..models import User, RecurringBudget, BudgetCategory, RecurringBudgetExecution
+from ..services.recurring_budgets import (
     execute_rule,
     recompute_next_generation,
     run_due_rules,
@@ -64,7 +64,6 @@ class RecurringBudgetEngineTests(TestCase):
 
     def test_copy_exact_strategy_keeps_spent(self):
         rule = self._make_rule(strategy="copy_exact")
-        # Prime a previous generation whose snapshot records spent values.
         first = execute_rule(rule, date(2024, 1, 1))
         first.generated_budgets = [
             {"id": "x", "name": "Food", "budgeted": 2000, "spent": 500},
@@ -73,14 +72,12 @@ class RecurringBudgetEngineTests(TestCase):
         first.save()
         rule.refresh_from_db()
         execution = execute_rule(rule, date(2024, 2, 1))
-        # The copy_exact strategy should reproduce the prior snapshot's spent.
         food = next(c for c in execution.generated_budgets if c["name"] == "Food")
         self.assertEqual(food["spent"], 500)
 
     def test_duplicate_prevention(self):
         rule = self._make_rule()
         execute_rule(rule, date(2024, 1, 1))
-        # Running again for the same date must not create duplicate budgets.
         execution = execute_rule(rule, date(2024, 1, 1))
         self.assertEqual(execution.status, "generated")
         self.assertEqual(BudgetCategory.objects.filter(user=self.user).count(), 2)
@@ -97,7 +94,6 @@ class RecurringBudgetEngineTests(TestCase):
             day_of_month=1,
             never_ends=True,
         )
-        # Force the next due date into the past.
         rule.next_generation_date = date(2024, 1, 1)
         rule.save()
         summary = run_due_rules(as_of=date(2024, 3, 1))
