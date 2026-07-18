@@ -912,6 +912,12 @@ from .models_duplicates import (  # noqa: E402,F401
 # Dynamic AI Insights models.
 from .models_insights import Insight  # noqa: E402,F401
 
+# Subscription Detection models (mined from transaction history).
+from .models_subscriptions import (  # noqa: E402,F401
+    Subscription,
+    SubscriptionFeedback,
+)
+
 
 def create_schedule(user, name, report_type, frequency, next_run=None, project=None):
     """Create a new scheduled report configuration."""
