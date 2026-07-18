@@ -137,3 +137,12 @@ export {
   useGenerateRecurringBudgetNow,
   useRunDueRecurringBudgets,
 } from './use-recurring-budgets';
+
+export {
+  useFinancialHealth,
+  useFinancialHealthHistory,
+  useFinancialHealthReport,
+  useFinancialHealthConfig,
+  useRecomputeHealth,
+  useUpdateHealthConfig,
+} from './use-financial-health';

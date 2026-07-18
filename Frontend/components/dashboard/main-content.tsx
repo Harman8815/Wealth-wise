@@ -14,6 +14,7 @@ import { useDashboardSidebar } from "@/components/dashboard/sidebar-context";
 import { SeedDataDialog } from "./seed-data-dialog";
 import { RecurringSummaryWidget } from "@/components/scheduling/recurring-summary-widget";
 import { RecurringBudgetSummaryWidget } from "@/components/scheduling/recurring-budget-summary-widget";
+import { FinancialHealthCard } from "./financial-health-card";
 
 // Sample AI insights data - would come from API in production
 const sampleInsights = [
@@ -170,6 +171,11 @@ export function MainContent() {
             <AIInsightsCard insights={sampleInsights} className="h-full w-full" />
           </div>
         </div>
+
+        {/* Financial Health */}
+        <section className="animate-slide-up stagger-3">
+          <FinancialHealthCard />
+        </section>
 
         {/* Recent Transactions */}
         <section className="animate-slide-up stagger-3">

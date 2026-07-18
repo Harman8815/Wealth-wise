@@ -101,4 +101,11 @@ export const queryKeys = {
     executions: (id: string) => ['recurring-budgets', id, 'executions'] as const,
     upcoming: (id: string) => ['recurring-budgets', id, 'upcoming'] as const,
   },
+  financialHealth: {
+    all: ['financial-health'] as const,
+    current: ['financial-health', 'current'] as const,
+    history: ['financial-health', 'history'] as const,
+    report: ['financial-health', 'report'] as const,
+    config: ['financial-health', 'config'] as const,
+  },
 } as const;

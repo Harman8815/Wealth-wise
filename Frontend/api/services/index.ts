@@ -74,3 +74,12 @@ export {
   type UploadResponse,
   type CommitResponse,
 } from './io';
+export {
+  financialHealthApi,
+  type FinancialHealthSnapshot,
+  type HealthDimension,
+  type HealthRecommendation,
+  type HealthReport,
+  type HealthConfig,
+  type DimensionConfig,
+} from './financial-health';

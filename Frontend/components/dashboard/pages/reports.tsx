@@ -71,6 +71,9 @@ import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import { useMonthlyStats, useTransactionsByCategory, useTransactionSummary } from "@/hooks"
 import { apiClient } from "@/api/client"
 import { toast } from "sonner"
+import { FinancialHealthReport } from "@/components/dashboard/financial-health-report"
+import { FinancialHealthCard } from "@/components/dashboard/financial-health-card"
+import { useSearchParams } from "next/navigation"
 
 const COLORS = ["#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ec4899", "#06b6d4", "#f97316"]
 
@@ -91,6 +94,9 @@ type RadarView = "monthly" | "yearly"
 
 export function ReportsPage() {
   const { openSidebar } = useDashboardSidebar()
+  const searchParams = useSearchParams()
+  const initialTab = searchParams.get("tab") === "health" ? "health" : "analytics"
+  const [tab, setTab] = useState<"analytics" | "health">(initialTab)
   const [timeView, setTimeView] = useState<TimeView>("monthly")
   const [trendChartType, setTrendChartType] = useState<TrendChartType>("line")
   const [isFilterOpen, setIsFilterOpen] = useState(false)
@@ -362,6 +368,22 @@ export function ReportsPage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Reports & Insights</h1>
               <p className="text-gray-600 dark:text-gray-400">Analyze your financial patterns and trends</p>
+              <div className="flex rounded-lg border border-border p-1 mt-3 w-fit">
+                <button
+                  type="button"
+                  onClick={() => setTab("analytics")}
+                  className={`px-3 py-1 text-xs rounded-md ${tab === "analytics" ? "bg-secondary" : ""}`}
+                >
+                  Analytics
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTab("health")}
+                  className={`px-3 py-1 text-xs rounded-md ${tab === "health" ? "bg-secondary" : ""}`}
+                >
+                  Financial Health
+                </button>
+              </div>
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -946,38 +968,9 @@ export function ReportsPage() {
             </CardContent>
           </Card>
 
-          <Card className="lg:col-span-7">
-            <CardHeader>
-              <CardTitle>Financial Health Score</CardTitle>
-              <CardDescription>Based on your spending and saving patterns</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="text-center">
-                  <div className="text-6xl font-bold text-green-600 mb-2">8.5</div>
-                  <div className="text-lg text-muted-foreground">Excellent</div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Savings Rate</span>
-                    <span className="text-sm font-medium text-green-600">9/10</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Budget Adherence</span>
-                    <span className="text-sm font-medium text-green-600">8/10</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Expense Control</span>
-                    <span className="text-sm font-medium text-yellow-600">7/10</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Goal Progress</span>
-                    <span className="text-sm font-medium text-green-600">9/10</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="lg:col-span-7">
+            <FinancialHealthCard />
+          </div>
         </div>
 
         <Card>
@@ -1008,6 +1001,12 @@ export function ReportsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {tab === "health" && (
+          <div className="space-y-6">
+            <FinancialHealthReport />
+          </div>
+        )}
       </main>
     </div>
   )
