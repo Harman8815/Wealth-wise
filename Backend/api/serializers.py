@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense, Category, ScheduledReport, Project, ProjectMember, ProjectInvitation, RecurringRule, RecurringExecution, RecurringBudget, RecurringBudgetExecution, ScoreDimensionConfig, FinancialHealthScore, HealthRecommendation, DuplicateGroup, DuplicateMatch, DuplicateFeedback, Insight
+from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense, Category, ScheduledReport, Project, ProjectMember, ProjectInvitation, RecurringRule, RecurringExecution, RecurringBudget, RecurringBudgetExecution, ScoreDimensionConfig, FinancialHealthScore, HealthRecommendation, DuplicateGroup, DuplicateMatch, DuplicateFeedback, Insight, Subscription, SubscriptionFeedback
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -478,3 +478,33 @@ class InsightSerializer(serializers.ModelSerializer):
             'metadata', 'action_url', 'dismissed', 'generated_at',
         ]
         read_only_fields = fields
+
+
+# ---------------------------------------------------------------------------
+# Subscription Detection (mined from transaction history)
+# ---------------------------------------------------------------------------
+
+class SubscriptionSerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    converted_rule_id = serializers.UUIDField(read_only=True)
+
+    class Meta:
+        model = Subscription
+        fields = [
+            'id', 'merchant', 'display_name', 'status', 'cadence', 'confidence',
+            'avg_amount', 'monthly_cost', 'occurrences', 'last_seen',
+            'category', 'category_name', 'dedup_key', 'converted_rule_id',
+            'metadata', 'detected_at', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'merchant', 'display_name', 'status', 'cadence', 'confidence',
+            'avg_amount', 'monthly_cost', 'occurrences', 'last_seen',
+            'dedup_key', 'converted_rule_id', 'metadata', 'detected_at', 'updated_at',
+        ]
+
+
+class SubscriptionFeedbackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SubscriptionFeedback
+        fields = ['id', 'merchant', 'label', 'subscription', 'created_at']
+        read_only_fields = ['id', 'created_at']
