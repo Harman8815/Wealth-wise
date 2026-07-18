@@ -14,6 +14,7 @@ from ..models import (
     RecurringRule, RecurringExecution,
     RecurringBudget, RecurringBudgetExecution,
     ImportJob, ExportJob, MappingTemplate,
+    FinancialHealthScore, ScoreDimensionConfig, HealthRecommendation,
 )
 
 
@@ -404,3 +405,55 @@ class MappingTemplateFactory(DjangoModelFactory):
     mapping = factory.Dict({})
     created_at = factory.LazyFunction(datetime.now)
     updated_at = factory.LazyFunction(datetime.now)
+
+
+class FinancialHealthScoreFactory(DjangoModelFactory):
+    class Meta:
+        model = FinancialHealthScore
+
+    id = factory.LazyFunction(uuid.uuid4)
+    user = factory.SubFactory(UserFactory)
+    project = factory.SubFactory(ProjectFactory)
+    score = Decimal('75.00')
+    grade = 'B'
+    grade_label = 'Good'
+    previous_score = None
+    trend = 'flat'
+    dimensions = factory.List([])
+    strengths = factory.List([])
+    risks = factory.List([])
+    period_start = None
+    period_end = None
+    computed_at = factory.LazyFunction(datetime.now)
+
+
+class ScoreDimensionConfigFactory(DjangoModelFactory):
+    class Meta:
+        model = ScoreDimensionConfig
+        django_get_or_create = ('user', 'project', 'dimension')
+
+    id = factory.LazyFunction(uuid.uuid4)
+    user = factory.SubFactory(UserFactory)
+    project = factory.SubFactory(ProjectFactory)
+    dimension = 'savings_ratio'
+    weight = Decimal('0.150')
+    enabled = True
+    created_at = factory.LazyFunction(datetime.now)
+    updated_at = factory.LazyFunction(datetime.now)
+
+
+class HealthRecommendationFactory(DjangoModelFactory):
+    class Meta:
+        model = HealthRecommendation
+
+    id = factory.LazyFunction(uuid.uuid4)
+    user = factory.SubFactory(UserFactory)
+    project = factory.SubFactory(ProjectFactory)
+    score_snapshot = factory.SubFactory(FinancialHealthScoreFactory)
+    dimension = 'savings_ratio'
+    title = factory.Faker('sentence')
+    detail = factory.Faker('text')
+    estimated_improvement = Decimal('5.00')
+    priority = 'medium'
+    resolved = False
+    created_at = factory.LazyFunction(datetime.now)
