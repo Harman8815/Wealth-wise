@@ -1,0 +1,43 @@
+{% extends 'studio/base.html' %}
+{% load studio_tags %}
+{% load static %}
+
+{% block title %}{{ entry.label }} · WealthWise Studio{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-6xl">
+  <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <a href="{% url 'studio:dashboard' %}" class="text-sm text-wealth-600 hover:underline">← Dashboard</a>
+      <h1 class="text-2xl font-bold">{{ entry.label }}</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400">
+        {% if active_project %}Project: <span class="font-medium">{{ active_project.name }}</span>{% else %}All projects{% endif %}
+      </p>
+    </div>
+    <button onclick="Studio.openModal('{% url 'studio:create' slug %}')"
+            class="rounded-lg bg-wealth-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-wealth-700">
+      + Add {{ entry.label|singularize }}
+    </button>
+  </div>
+
+  <!-- Filter + search bar -->
+  <form id="filter-form" class="mb-4 flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+        hx-get="{% url 'studio:table' slug %}" hx-target="#table" hx-swap="innerHTML" hx-trigger="submit, change delay:300ms, keyup delay:300ms from:input[name=q]">
+    <input type="text" name="q" value="{{ search }}" placeholder="Search…"
+           class="min-w-[180px] flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800">
+    {% for fname, choices in filter_choices.items %}
+      <select name="{{ fname }}"
+              class="rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm dark:border-slate-600 dark:bg-slate-800">
+        {% for value, label in choices %}
+          <option value="{{ value }}" {% if active_filters|get_item:fname == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    {% endfor %}
+    <a href="{% url 'studio:table' slug %}" class="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800">Reset</a>
+  </form>
+
+  <div id="table">
+    {% include 'studio/partials/_table.html' %}
+  </div>
+</div>
+{% endblock %}

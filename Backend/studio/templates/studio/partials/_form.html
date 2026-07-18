@@ -1,0 +1,37 @@
+{% load studio_tags %}
+<form id="studio-form"
+      method="post"
+      hx-post="{{ request.get_full_path }}"
+      hx-target="#table"
+      hx-swap="innerHTML"
+      hx-on::after-request="if(event.detail.successful){ Studio.closeModal(); }">
+  {% csrf_token %}
+  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    {% for field in form %}
+      {% if field.field.widget.input_type == 'checkbox' %}
+        <div class="sm:col-span-2 flex items-center gap-2">
+          {{ field }}
+          <label for="{{ field.id_for_label }}" class="text-sm font-medium text-slate-600 dark:text-slate-300">
+            {{ field.label }}{% if field.field.required %} <span class="text-rose-500">*</span>{% endif %}
+          </label>
+          {% for error in field.errors %}<p class="text-[11px] text-rose-500">{{ error }}</p>{% endfor %}
+        </div>
+      {% else %}
+        <div>
+          <label for="{{ field.id_for_label }}" class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">
+            {{ field.label }}{% if field.field.required %} <span class="text-rose-500">*</span>{% endif %}
+          </label>
+          {{ field }}
+          {% if field.help_text %}<p class="text-[11px] text-slate-400">{{ field.help_text }}</p>{% endif %}
+          {% for error in field.errors %}<p class="text-[11px] text-rose-500">{{ error }}</p>{% endfor %}
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+  <div class="mt-5 flex justify-end gap-2">
+    <button type="button" onclick="Studio.closeModal()"
+            class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800">Cancel</button>
+    <button type="submit"
+            class="rounded-lg bg-wealth-600 px-4 py-2 text-sm font-semibold text-white hover:bg-wealth-700">Save</button>
+  </div>
+</form>

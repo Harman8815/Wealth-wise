@@ -1,0 +1,89 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}WealthWise Studio{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            wealth: {
+              50: '#eef5ff', 100: '#d9e8ff', 200: '#bcd6ff', 300: '#8ebcff',
+              400: '#599aff', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8',
+              800: '#1e40af', 900: '#1e3a8a'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <script src="{% static 'studio/htmx.min.js' %}" defer></script>
+  <script src="{% static 'studio/app.js' %}" defer></script>
+  <script>
+    if (localStorage.getItem('studio-dark') === 'true' ||
+        (!localStorage.getItem('studio-dark') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
+</head>
+<body class="h-full bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+  <div class="flex h-full">
+    <!-- Sidebar -->
+    <aside id="sidebar"
+           class="fixed inset-y-0 left-0 z-40 w-64 -translate-x-full transform border-r border-slate-200 bg-white transition-transform duration-200 dark:border-slate-800 dark:bg-slate-900 md:static md:translate-x-0">
+      <div class="flex h-14 items-center gap-2 border-b border-slate-200 px-4 dark:border-slate-800">
+        <span class="grid h-8 w-8 place-items-center rounded-lg bg-wealth-600 font-bold text-white">W</span>
+        <span class="font-semibold">WealthWise Studio</span>
+      </div>
+      <nav class="h-[calc(100%-3.5rem)] overflow-y-auto px-2 py-3 text-sm">
+        <a href="{% url 'studio:dashboard' %}"
+           class="mb-1 flex items-center gap-2 rounded-lg px-3 py-2 font-medium hover:bg-slate-100 dark:hover:bg-slate-800">
+          <span>📊</span> Dashboard
+        </a>
+        {% for group, items in groups.items %}
+          <p class="px-3 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{{ group }}</p>
+          {% for slug, entry in items %}
+            <a href="{% url 'studio:table' slug %}"
+               class="flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800">
+              <span class="text-slate-400">•</span> {{ entry.label }}
+            </a>
+          {% endfor %}
+        {% endfor %}
+      </nav>
+    </aside>
+
+    <!-- Main -->
+    <div class="flex min-w-0 flex-1 flex-col">
+      <header class="flex h-14 items-center gap-3 border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900">
+        <button onclick="Studio.toggleSidebar()" class="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800 md:hidden">☰</button>
+        <form method="post" action="{% url 'studio:set_scope' %}" class="ml-auto flex items-center gap-2" id="scope-form">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <label class="text-sm text-slate-500 dark:text-slate-400">Project</label>
+          <select name="project" onchange="this.form.requestSubmit()"
+                  class="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800">
+            <option value="">All projects</option>
+            {% for p in projects %}
+              <option value="{{ p.id }}" {% if active_project and active_project.id == p.id %}selected{% endif %}>{{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </form>
+        <button onclick="Studio.toggleDark()" class="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800" title="Toggle dark mode">🌓</button>
+        <span class="text-sm font-medium">{{ request.user.email }}</span>
+      </header>
+
+      <main id="content" class="flex-1 overflow-y-auto p-4 md:p-6">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <div id="modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4"></div>
+  <div id="toast" class="fixed bottom-4 right-4 z-[60] flex flex-col gap-2"></div>
+</body>
+</html>

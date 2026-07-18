@@ -1,0 +1,14 @@
+{% extends 'studio/base.html' %}
+{% load studio_tags %}
+{% block title %}Quick Add Transaction · WealthWise Studio{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-2xl">
+  <div class="mb-4">
+    <a href="{% url 'studio:dashboard' %}" class="text-sm text-wealth-600 hover:underline">← Dashboard</a>
+    <h1 class="text-2xl font-bold">Quick Add Transaction</h1>
+  </div>
+  <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    {% include 'studio/partials/_quick_add.html' %}
+  </div>
+</div>
+{% endblock %}
