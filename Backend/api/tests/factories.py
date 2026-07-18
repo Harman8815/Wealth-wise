@@ -15,6 +15,7 @@ from ..models import (
     RecurringBudget, RecurringBudgetExecution,
     ImportJob, ExportJob, MappingTemplate,
     FinancialHealthScore, ScoreDimensionConfig, HealthRecommendation,
+    DuplicateGroup, DuplicateMatch, DuplicateFeedback,
 )
 
 
@@ -456,4 +457,47 @@ class HealthRecommendationFactory(DjangoModelFactory):
     estimated_improvement = Decimal('5.00')
     priority = 'medium'
     resolved = False
+    created_at = factory.LazyFunction(datetime.now)
+
+
+class DuplicateGroupFactory(DjangoModelFactory):
+    class Meta:
+        model = DuplicateGroup
+
+    id = factory.LazyFunction(uuid.uuid4)
+    user = factory.SubFactory(UserFactory)
+    project = factory.SubFactory(ProjectFactory)
+    status = 'open'
+    detected_at = factory.LazyFunction(datetime.now)
+    created_at = factory.LazyFunction(datetime.now)
+
+
+class DuplicateMatchFactory(DjangoModelFactory):
+    class Meta:
+        model = DuplicateMatch
+
+    id = factory.LazyFunction(uuid.uuid4)
+    group = factory.SubFactory(DuplicateGroupFactory)
+    user = factory.SubFactory(UserFactory)
+    project = factory.SubFactory(ProjectFactory)
+    transaction = factory.SubFactory(TransactionFactory, user=factory.SelfAttribute('..user'), project=factory.SelfAttribute('..project'))
+    duplicate_of = factory.SubFactory(TransactionFactory, user=factory.SelfAttribute('..user'), project=factory.SelfAttribute('..project'))
+    score = Decimal('0.9000')
+    confidence = 'high'
+    features = factory.Dict({'description_sim': 0.9, 'amount_sim': 1.0, 'date_sim': 0.75})
+    explanation = 'Same amount, 1 day apart.'
+    resolution = 'pending'
+    created_at = factory.LazyFunction(datetime.now)
+
+
+class DuplicateFeedbackFactory(DjangoModelFactory):
+    class Meta:
+        model = DuplicateFeedback
+
+    id = factory.LazyFunction(uuid.uuid4)
+    user = factory.SubFactory(UserFactory)
+    project = factory.SubFactory(ProjectFactory)
+    transaction_a = factory.SubFactory(TransactionFactory, user=factory.SelfAttribute('..user'), project=factory.SelfAttribute('..project'))
+    transaction_b = factory.SubFactory(TransactionFactory, user=factory.SelfAttribute('..user'), project=factory.SelfAttribute('..project'))
+    label = 'not_duplicate'
     created_at = factory.LazyFunction(datetime.now)

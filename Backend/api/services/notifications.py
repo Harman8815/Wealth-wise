@@ -236,3 +236,39 @@ def notify_financial_health(user, project, event: str, snapshot, delta=None) -> 
         category=category, priority=priority,
         action_url='/dashboard/reports',
     )
+
+
+# ---------------------------------------------------------------------------
+# Duplicate Transaction Detection events
+# ---------------------------------------------------------------------------
+
+def notify_duplicates_found(user, project, group_count: int, source: str = 'scan') -> Optional[Alert]:
+    """Notify the user that potential duplicate transactions were found.
+
+    ``source`` is either ``scan`` (standing scan) or ``import`` (import-time
+    dedup). Uses a stable dedup_key so repeated scans do not spam the user.
+    """
+    date_key = timezone.localdate().isoformat()
+    if source == 'import':
+        dedup_key = f"duplicates:import:{date_key}"
+        title = "Duplicates skipped during import"
+        message = (
+            f"Potential duplicate transactions were detected and skipped while "
+            f"importing. Review them in Import / Export."
+        )
+    else:
+        dedup_key = f"duplicates:found:{date_key}:{group_count}"
+        title = f"{group_count} potential duplicate group{'s' if group_count != 1 else ''} found"
+        message = (
+            f"We found {group_count} group{'s' if group_count != 1 else ''} of "
+            f"likely duplicate transactions. Review them to keep your data clean."
+        )
+    return _create(
+        user, project, dedup_key,
+        type='warning',
+        title=title,
+        message=message,
+        category='Activity',
+        priority='medium',
+        action_url='/dashboard/import-export',
+    )

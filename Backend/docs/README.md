@@ -21,6 +21,7 @@ WealthWise is a comprehensive personal finance management application. This API 
 9. [Reports API](./reports.md)
 10. [Expenses API](./expenses.md)
 11. [Utility Endpoints](./utilities.md)
+12. [Duplicate Transaction Detection](./duplicates.md)
 
 ## Quick Start
 

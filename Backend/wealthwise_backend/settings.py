@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -171,3 +172,8 @@ CORS_ALLOW_HEADERS = [
 
 # Custom User Model
 AUTH_USER_MODEL = 'api.User'
+
+# Duplicate Transaction Detection ML microservice. Django calls this stateless
+# scoring service internally; it is never exposed to the browser. Defaults to a
+# localhost FastAPI instance (see ML-Backend/README.md).
+ML_SERVICE_URL = os.environ.get('ML_SERVICE_URL', 'http://localhost:8100')

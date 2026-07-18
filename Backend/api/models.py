@@ -901,6 +901,15 @@ from .models_financial_health import (  # noqa: E402,F401
 )
 
 
+# Duplicate Transaction Detection models.
+from .models_duplicates import (  # noqa: E402,F401
+    DuplicateGroup,
+    DuplicateMatch,
+    DuplicateFeedback,
+    default_duplicate_config,
+)
+
+
 def create_schedule(user, name, report_type, frequency, next_run=None, project=None):
     """Create a new scheduled report configuration."""
     return ScheduledReport.objects.create(

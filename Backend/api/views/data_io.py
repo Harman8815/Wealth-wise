@@ -98,7 +98,7 @@ def _transaction_sink(user, project):
             category = _resolve_category(
                 user, project, rec.get("category") or rec.get("merchant"), txn_type
             )
-            Transaction.objects.create(
+            txn = Transaction.objects.create(
                 user=user,
                 project=project,
                 account=account,
@@ -110,6 +110,29 @@ def _transaction_sink(user, project):
                 status="completed",
                 account_name=account.name if account else "",
             )
+            # If this row was flagged as a probable duplicate, record a pending
+            # DuplicateMatch so it surfaces in the review UI later.
+            flagged = rec.get("_duplicate_matches")
+            if flagged:
+                from ..models import DuplicateMatch, DuplicateGroup
+                for mt in flagged:
+                    existing_id = mt.get("b_id") or mt.get("existing_id")
+                    if not existing_id:
+                        continue
+                    dup = DuplicateMatch.objects.filter(
+                        transaction=txn, duplicate_of_id=existing_id, user=user,
+                    ).first()
+                    if dup is None:
+                        DuplicateMatch.objects.create(
+                            user=user, project=project,
+                            transaction=txn,
+                            duplicate_of_id=existing_id,
+                            score=mt.get("score", 0),
+                            confidence=mt.get("confidence", "medium"),
+                            features=mt.get("features", {}),
+                            explanation=mt.get("explanation", ""),
+                            resolution="pending",
+                        )
             created += 1
         return created
 
@@ -194,6 +217,7 @@ def import_commit(request, job_id):
     mapping = request.data.get("mapping") or job.mapping or {}
     skip_invalid = request.data.get("skip_invalid", True)
     account_id = request.data.get("account_id")
+    skip_duplicates = request.data.get("skip_duplicates", True)
 
     # Re-apply the supplied mapping to the persisted snapshot.
     from ..services.data_io import ValidationService, ParsedRow
@@ -217,6 +241,38 @@ def import_commit(request, job_id):
 
     ValidationService().validate(rows, mapping)
 
+    # ---- Import-time duplicate detection (cross-existing-data) ----
+    duplicates_skipped = 0
+    duplicates_flagged = 0
+    dedup_warning = None
+    valid_rows = [r for r in rows if r.valid and not r.skipped]
+    if valid_rows:
+        normalized_for_dedup = []
+        for i, r in enumerate(valid_rows):
+            r.normalized.setdefault('row_id', f"import-{i}")
+            normalized_for_dedup.append(r.normalized)
+        try:
+            from ..services.duplicates import detect_for_import
+            dedup_results = detect_for_import(
+                request.user, _project(request), normalized_for_dedup,
+            )
+            for r, res in zip(valid_rows, dedup_results):
+                confidence = res.get('confidence')
+                if confidence == 'high' and skip_duplicates:
+                    # Skip high-confidence duplicates by default.
+                    r.skipped = True
+                    r.valid = False
+                    duplicates_skipped += 1
+                elif confidence in ('high', 'medium'):
+                    # Keep but record for later review.
+                    r.normalized['_duplicate_matches'] = res.get('matches', [])
+                    duplicates_flagged += 1
+        except Exception:  # pragma: no cover - defensive: never block import
+            dedup_warning = (
+                "Cross-data duplicate detection is temporarily unavailable; "
+                "import proceeded without it."
+            )
+
     service = ImportService()
     summary = service.commit(
         type("R", (), {"rows": rows, "valid_rows": [x for x in rows if x.valid and not x.skipped], "total": len(rows)})(),
@@ -232,6 +288,17 @@ def import_commit(request, job_id):
         from ..services.financial_health import recompute_after_change
         recompute_after_change(request.user, _project(request))
 
+    # Notify when duplicates were skipped/flagged at import time.
+    if (duplicates_skipped or duplicates_flagged):
+        try:
+            from ..services.notifications import notify_duplicates_found
+            notify_duplicates_found(
+                request.user, _project(request),
+                duplicates_skipped + duplicates_flagged, source='import',
+            )
+        except Exception:  # pragma: no cover - defensive
+            pass
+
     # Optionally persist the mapping as a reusable template.
     template_name = request.data.get("save_template_as")
     if template_name:
@@ -242,13 +309,16 @@ def import_commit(request, job_id):
             defaults={"mapping": mapping},
         )
 
-    return Response(
-        {
-            "imported": summary["imported"],
-            "skipped": summary["skipped"],
-            "total": summary["total"],
-        }
-    )
+    payload = {
+        "imported": summary["imported"],
+        "skipped": summary["skipped"],
+        "total": summary["total"],
+        "duplicates_skipped": duplicates_skipped,
+        "duplicates_flagged": duplicates_flagged,
+    }
+    if dedup_warning:
+        payload["warning"] = dedup_warning
+    return Response(payload)
 
 
 @api_view(["GET"])

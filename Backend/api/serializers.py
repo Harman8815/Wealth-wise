@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense, Category, ScheduledReport, Project, ProjectMember, ProjectInvitation, RecurringRule, RecurringExecution, RecurringBudget, RecurringBudgetExecution, ScoreDimensionConfig, FinancialHealthScore, HealthRecommendation
+from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense, Category, ScheduledReport, Project, ProjectMember, ProjectInvitation, RecurringRule, RecurringExecution, RecurringBudget, RecurringBudgetExecution, ScoreDimensionConfig, FinancialHealthScore, HealthRecommendation, DuplicateGroup, DuplicateMatch, DuplicateFeedback
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -406,3 +406,61 @@ class FinancialHealthScoreSerializer(serializers.ModelSerializer):
             'period_start', 'period_end', 'computed_at', 'created_at',
         ]
         read_only_fields = fields
+
+
+# ---------------------------------------------------------------------------
+# Duplicate Transaction Detection
+# ---------------------------------------------------------------------------
+
+class DuplicateMatchSerializer(serializers.ModelSerializer):
+    transaction_id = serializers.UUIDField(source='transaction.id', read_only=True)
+    transaction_description = serializers.CharField(source='transaction.description', read_only=True)
+    transaction_date = serializers.DateField(source='transaction.date', read_only=True)
+    transaction_amount = serializers.DecimalField(
+        source='transaction.amount', max_digits=12, decimal_places=2, read_only=True,
+    )
+    duplicate_of_id = serializers.UUIDField(source='duplicate_of.id', read_only=True)
+    duplicate_of_description = serializers.CharField(source='duplicate_of.description', read_only=True)
+    duplicate_of_date = serializers.DateField(source='duplicate_of.date', read_only=True)
+    duplicate_of_amount = serializers.DecimalField(
+        source='duplicate_of.amount', max_digits=12, decimal_places=2, read_only=True,
+    )
+
+    class Meta:
+        model = DuplicateMatch
+        fields = [
+            'id', 'transaction_id', 'transaction_description', 'transaction_date',
+            'transaction_amount', 'duplicate_of_id', 'duplicate_of_description',
+            'duplicate_of_date', 'duplicate_of_amount', 'score', 'confidence',
+            'features', 'explanation', 'resolution', 'created_at',
+        ]
+        read_only_fields = fields
+
+
+class DuplicateGroupSerializer(serializers.ModelSerializer):
+    matches = DuplicateMatchSerializer(many=True, read_only=True)
+    member_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DuplicateGroup
+        fields = [
+            'id', 'status', 'detected_at', 'member_count', 'matches',
+        ]
+        read_only_fields = fields
+
+    def get_member_count(self, obj):
+        ids = set()
+        for m in obj.matches.all():
+            ids.add(str(m.transaction_id))
+            if m.duplicate_of_id:
+                ids.add(str(m.duplicate_of_id))
+        return len(ids)
+
+
+class DuplicateFeedbackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DuplicateFeedback
+        fields = [
+            'id', 'transaction_a', 'transaction_b', 'label', 'created_at',
+        ]
+        read_only_fields = ['id', 'created_at']
