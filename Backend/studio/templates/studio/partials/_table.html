@@ -1,0 +1,62 @@
+{% load studio_tags %}
+<div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+  <div class="overflow-x-auto">
+    <table class="w-full text-left text-sm">
+      <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-800/50">
+        <tr>
+          {% for f in entry.list_fields %}
+            <th class="px-4 py-3 font-semibold">{{ f|title }}</th>
+          {% endfor %}
+          <th class="px-4 py-3 text-right font-semibold">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+        {% for obj in page_obj %}
+          <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+            {% for f in entry.list_fields %}
+              <td class="px-4 py-2.5">{{ obj|display_value:f }}</td>
+            {% endfor %}
+            <td class="px-4 py-2.5 text-right">
+              <div class="inline-flex gap-1">
+                <button onclick="Studio.openModal('{% url 'studio:edit' slug obj.pk %}')"
+                        class="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700">Edit</button>
+                <button onclick="Studio.openConfirm('{% url 'studio:confirm_delete' slug obj.pk %}')"
+                        class="rounded-md bg-rose-100 px-2 py-1 text-xs font-medium text-rose-700 hover:bg-rose-200 dark:bg-rose-900/40 dark:hover:bg-rose-900/70">Delete</button>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="{{ entry.list_fields|length|add:1 }}" class="px-4 py-12 text-center">
+              <div class="text-slate-400">
+                <div class="mb-1 text-4xl">🗂️</div>
+                No records yet — add one.
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if page_obj.paginator.num_pages > 1 %}
+    <div class="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm dark:border-slate-800">
+      <span class="text-slate-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      <div class="flex gap-1">
+        {% if page_obj.has_previous %}
+          <a href="?page={{ page_obj.previous_page_number }}{% if search %}&q={{ search }}{% endif %}"
+             hx-get="{% url 'studio:table' slug %}?page={{ page_obj.previous_page_number }}{% if search %}&q={{ search }}{% endif %}"
+             hx-target="#table" hx-swap="innerHTML"
+             class="rounded-md border border-slate-300 px-3 py-1 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800">Prev</a>
+        {% endif %}
+        {% if page_obj.has_next %}
+          <a href="?page={{ page_obj.next_page_number }}{% if search %}&q={{ search }}{% endif %}"
+             hx-get="{% url 'studio:table' slug %}?page={{ page_obj.next_page_number }}{% if search %}&q={{ search }}{% endif %}"
+             hx-target="#table" hx-swap="innerHTML"
+             class="rounded-md border border-slate-300 px-3 py-1 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800">Next</a>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+</div>

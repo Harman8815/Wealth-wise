@@ -1,0 +1,18 @@
+{% load studio_tags %}
+<div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+  <h3 class="mb-1 font-semibold text-rose-600">Delete {{ entry.label|singularize }}?</h3>
+  <p class="mb-4 text-sm text-slate-500 dark:text-slate-400">
+    Are you sure you want to delete <span class="font-medium">{{ object }}</span>? This cannot be undone.
+  </p>
+  <form method="post" action="{% url 'studio:delete' slug object.pk %}"
+        hx-post="{% url 'studio:delete' slug object.pk %}" hx-target="#table" hx-swap="innerHTML"
+        hx-on::after-request="if(event.detail.successful){ Studio.closeModal(); }">
+    {% csrf_token %}
+    <div class="flex justify-end gap-2">
+      <button type="button" onclick="Studio.closeModal()"
+              class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800">Cancel</button>
+      <button type="submit"
+              class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700">Delete</button>
+    </div>
+  </form>
+</div>
