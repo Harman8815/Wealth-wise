@@ -873,12 +873,21 @@ def recompute_after_change(user, project=None, months: int = 6) -> Optional[Fina
 
     Recomputes the score synchronously for the affected project. Returns the
     new snapshot, or ``None`` if the engine raised (defensive: a scoring failure
-    must never block the underlying write operation).
+    must never block the underlying write operation). Also refreshes the dynamic
+    AI insights feed via the same defensive pattern.
     """
     try:
-        return recompute_for_project(user, project, months=months, notify=True)
+        snapshot = recompute_for_project(user, project, months=months, notify=True)
     except Exception:  # pragma: no cover - defensive
-        return None
+        snapshot = None
+    # Refresh insights independently so a health-score failure never blocks it
+    # (and vice versa). Imported lazily to avoid a circular import.
+    try:
+        from .insights import generate_after_change
+        generate_after_change(user, project, months=months)
+    except Exception:  # pragma: no cover - defensive
+        pass
+    return snapshot
 
 
 def _maybe_notify(user, project, snapshot, result: ScoreResult, previous_score):

@@ -239,6 +239,37 @@ def notify_financial_health(user, project, event: str, snapshot, delta=None) -> 
 
 
 # ---------------------------------------------------------------------------
+# Dynamic AI Insights events
+# ---------------------------------------------------------------------------
+
+def notify_insight_found(user, project, count: int, sample_title: Optional[str] = None) -> Optional[Alert]:
+    """Notify the user that new financial insights are available.
+
+    Uses a stable per-day per-project dedup_key so repeated regenerations do not
+    spam the user with Alerts.
+    """
+    date_key = timezone.localdate().isoformat()
+    dedup_key = f"insights:generated:{date_key}"
+    title = "New financial insights available"
+    if sample_title:
+        message = (
+            f"{count} new insight{'s' if count != 1 else ''} generated, "
+            f"including \"{sample_title}\"."
+        )
+    else:
+        message = f"{count} new financial insight{'s' if count != 1 else ''} available to review."
+    return _create(
+        user, project, dedup_key,
+        type='info',
+        title=title,
+        message=message,
+        category='AI',
+        priority='low',
+        action_url='/dashboard',
+    )
+
+
+# ---------------------------------------------------------------------------
 # Duplicate Transaction Detection events
 # ---------------------------------------------------------------------------
 
