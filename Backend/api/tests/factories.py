@@ -17,6 +17,7 @@ from ..models import (
     FinancialHealthScore, ScoreDimensionConfig, HealthRecommendation,
     DuplicateGroup, DuplicateMatch, DuplicateFeedback,
     Insight,
+    Subscription, SubscriptionFeedback,
 )
 
 
@@ -519,4 +520,38 @@ class DuplicateFeedbackFactory(DjangoModelFactory):
     transaction_a = factory.SubFactory(TransactionFactory, user=factory.SelfAttribute('..user'), project=factory.SelfAttribute('..project'))
     transaction_b = factory.SubFactory(TransactionFactory, user=factory.SelfAttribute('..user'), project=factory.SelfAttribute('..project'))
     label = 'not_duplicate'
+    created_at = factory.LazyFunction(datetime.now)
+
+
+class SubscriptionFactory(DjangoModelFactory):
+    class Meta:
+        model = Subscription
+
+    id = factory.LazyFunction(uuid.uuid4)
+    user = factory.SubFactory(UserFactory)
+    project = factory.SubFactory(ProjectFactory)
+    merchant = factory.Faker('word')
+    display_name = factory.Faker('sentence')
+    status = 'detected'
+    cadence = 'monthly'
+    confidence = 'medium'
+    avg_amount = Decimal('499.00')
+    monthly_cost = Decimal('499.00')
+    occurrences = 4
+    last_seen = date(2024, 3, 1)
+    dedup_key = factory.LazyAttribute(lambda o: f"sub:{o.merchant}:{o.project_id}")
+    metadata = factory.Dict({})
+    detected_at = factory.LazyFunction(datetime.now)
+
+
+class SubscriptionFeedbackFactory(DjangoModelFactory):
+    class Meta:
+        model = SubscriptionFeedback
+
+    id = factory.LazyFunction(uuid.uuid4)
+    user = factory.SubFactory(UserFactory)
+    project = factory.SubFactory(ProjectFactory)
+    merchant = factory.Faker('word')
+    label = 'ignored'
+    subscription = None
     created_at = factory.LazyFunction(datetime.now)
