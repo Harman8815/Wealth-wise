@@ -100,6 +100,15 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
                 category=category_instance
             )
 
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(self.request.user, self.request.active_project)
+
+    def perform_destroy(self, instance):
+        user, project = instance.user, instance.project
+        super().perform_destroy(instance)
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(user, project)
+
     @action(detail=True, methods=['post'])
     def update_spent(self, request, pk=None):
         """
@@ -131,7 +140,10 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
         
         category.spent = Decimal('0') if total_spent == 0 else Decimal(str(total_spent))
         category.save(update_fields=['spent'])
-        
+
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(request.user, request.active_project)
+
         serializer = self.get_serializer(category)
         return Response(serializer.data)
 

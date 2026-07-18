@@ -72,6 +72,8 @@ class RecurringRuleViewSet(viewsets.ModelViewSet):
                 serializer.validated_data['category'] = category
         rule = serializer.save(user=self.request.user, project=self.request.active_project)
         recompute_next_execution(rule)
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(rule.user, rule.project)
 
     def perform_update(self, serializer):
         category = serializer.validated_data.get('category')
@@ -93,6 +95,14 @@ class RecurringRuleViewSet(viewsets.ModelViewSet):
             serializer.validated_data['category'] = category
         rule = serializer.save()
         recompute_next_execution(rule)
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(rule.user, rule.project)
+
+    def perform_destroy(self, instance):
+        user, project = instance.user, instance.project
+        super().perform_destroy(instance)
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(user, project)
 
     @action(detail=True, methods=['post'])
     def pause(self, request, pk=None):
@@ -106,6 +116,8 @@ class RecurringRuleViewSet(viewsets.ModelViewSet):
         rule.status = 'paused'
         rule.save(update_fields=['status', 'updated_at'])
         notify_recurring_paused(rule)
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(rule.user, rule.project)
         return Response(self.get_serializer(rule).data)
 
     @action(detail=True, methods=['post'])
@@ -116,6 +128,8 @@ class RecurringRuleViewSet(viewsets.ModelViewSet):
         rule.save(update_fields=['status', 'updated_at'])
         recompute_next_execution(rule)
         notify_recurring_resumed(rule)
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(rule.user, rule.project)
         return Response(self.get_serializer(rule).data)
 
     @action(detail=True, methods=['post'])
@@ -158,4 +172,6 @@ class RecurringRuleViewSet(viewsets.ModelViewSet):
     def run_due(self, request):
         """Process all due recurring rules (idempotent, prevents duplicates)."""
         summary = run_due_rules()
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(request.user, getattr(request, 'active_project', None))
         return Response(summary)

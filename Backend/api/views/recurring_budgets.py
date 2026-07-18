@@ -56,10 +56,20 @@ class RecurringBudgetViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         rule = serializer.save(user=self.request.user, project=self.request.active_project)
         recompute_next_generation(rule)
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(rule.user, rule.project)
 
     def perform_update(self, serializer):
         rule = serializer.save()
         recompute_next_generation(rule)
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(rule.user, rule.project)
+
+    def perform_destroy(self, instance):
+        user, project = instance.user, instance.project
+        super().perform_destroy(instance)
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(user, project)
 
     @action(detail=True, methods=['post'])
     def pause(self, request, pk=None):
@@ -73,6 +83,8 @@ class RecurringBudgetViewSet(viewsets.ModelViewSet):
         rule.status = 'paused'
         rule.save(update_fields=['status', 'updated_at'])
         notify_recurring_budget_paused(rule)
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(rule.user, rule.project)
         return Response(self.get_serializer(rule).data)
 
     @action(detail=True, methods=['post'])
@@ -83,6 +95,8 @@ class RecurringBudgetViewSet(viewsets.ModelViewSet):
         rule.save(update_fields=['status', 'updated_at'])
         recompute_next_generation(rule)
         notify_recurring_budget_resumed(rule)
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(rule.user, rule.project)
         return Response(self.get_serializer(rule).data)
 
     @action(detail=True, methods=['post'])
@@ -96,6 +110,8 @@ class RecurringBudgetViewSet(viewsets.ModelViewSet):
             )
         as_of = timezone.localdate()
         execution = execute_rule(rule, as_of)
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(rule.user, rule.project)
         return Response(
             {
                 'execution': RecurringBudgetExecutionSerializer(execution).data,
@@ -125,4 +141,6 @@ class RecurringBudgetViewSet(viewsets.ModelViewSet):
     def run_due(self, request):
         """Process all due recurring-budget rules (idempotent, prevents duplicates)."""
         summary = run_due_rules()
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(request.user, getattr(request, 'active_project', None))
         return Response(summary)

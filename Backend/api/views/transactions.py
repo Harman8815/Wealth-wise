@@ -63,7 +63,16 @@ class TransactionViewSet(viewsets.ModelViewSet):
                         'is_default': False,
                     }
                 )
-        serializer.save(user=self.request.user, project=self.request.active_project, category=category)
+        instance = serializer.save(user=self.request.user, project=self.request.active_project, category=category)
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(instance.user, instance.project)
+
+    def perform_destroy(self, instance):
+        project = instance.project
+        user = instance.user
+        super().perform_destroy(instance)
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(user, project)
 
     def perform_update(self, serializer):
         """Update transaction and track changes in history."""
@@ -76,6 +85,9 @@ class TransactionViewSet(viewsets.ModelViewSet):
             old_values[field] = getattr(transaction, field)
 
         super().perform_update(serializer)
+
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(transaction.user, transaction.project)
 
         # Create history records for changed fields
         for field in old_values:

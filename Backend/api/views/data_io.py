@@ -228,6 +228,10 @@ def import_commit(request, job_id):
     job.imported_rows = summary["imported"]
     job.save(update_fields=["status", "imported_rows"])
 
+    if summary["imported"] > 0:
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(request.user, _project(request))
+
     # Optionally persist the mapping as a reusable template.
     template_name = request.data.get("save_template_as")
     if template_name:

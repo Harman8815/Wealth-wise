@@ -48,6 +48,19 @@ class GoalViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Create goal with current user as owner."""
         serializer.save(user=self.request.user, project=self.request.active_project)
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(self.request.user, self.request.active_project)
+
+    def perform_update(self, serializer):
+        serializer.save()
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(self.request.user, self.request.active_project)
+
+    def perform_destroy(self, instance):
+        user, project = instance.user, instance.project
+        super().perform_destroy(instance)
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(user, project)
 
     @action(detail=True, methods=['post'])
     def contribute(self, request, pk=None):
@@ -81,6 +94,8 @@ class GoalViewSet(viewsets.ModelViewSet):
         goal.save()
         
         serializer = self.get_serializer(goal)
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(goal.user, goal.project)
         return Response(serializer.data)
 
     @action(detail=True, methods=['post'])
@@ -106,6 +121,8 @@ class GoalViewSet(viewsets.ModelViewSet):
         goal.save(update_fields=['status'])
         
         serializer = self.get_serializer(goal)
+        from ..services.financial_health import recompute_after_change
+        recompute_after_change(goal.user, goal.project)
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'])
