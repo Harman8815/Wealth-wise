@@ -184,3 +184,55 @@ def notify_recurring_budget_upcoming(rule: RecurringBudget, due_date) -> Optiona
         priority='medium',
         action_url='/dashboard/recurring-budgets',
     )
+
+
+# ---------------------------------------------------------------------------
+# Financial Health Score events
+# ---------------------------------------------------------------------------
+
+def notify_financial_health(user, project, event: str, snapshot, delta=None) -> Optional[Alert]:
+    """Notify about a meaningful financial-health-score change.
+
+    ``event`` is one of: improved, dropped, risk, budget, recommendations.
+    """
+    configs = {
+        'improved': (
+            f"financial_health:improved:{snapshot.id}",
+            'success', 'Financial health improved',
+            f"Your financial health score rose to {snapshot.score:.0f} ({snapshot.grade_label}).",
+            'Goals', 'medium',
+        ),
+        'dropped': (
+            f"financial_health:dropped:{snapshot.id}",
+            'warning', 'Financial health dropped',
+            f"Your financial health score fell to {snapshot.score:.0f} ({snapshot.grade_label}).",
+            'Goals', 'high',
+        ),
+        'risk': (
+            f"financial_health:risk:{snapshot.id}",
+            'error', 'Financial risk increased',
+            f"Risk indicators are up; your health score is {snapshot.score:.0f} ({snapshot.grade_label}).",
+            'Goals', 'high',
+        ),
+        'budget': (
+            f"financial_health:budget:{snapshot.id}",
+            'warning', 'Budget health deteriorating',
+            f"Budget overruns detected; health score is {snapshot.score:.0f} ({snapshot.grade_label}).",
+            'Budget', 'high',
+        ),
+        'recommendations': (
+            f"financial_health:recommendations:{snapshot.id}",
+            'info', 'New financial recommendations',
+            'New ways to improve your financial health score are available.',
+            'Goals', 'low',
+        ),
+    }
+    key, ntype, title, message, category, priority = configs.get(
+        event, configs['recommendations']
+    )
+    return _create(
+        user, project, key,
+        type=ntype, title=title, message=message,
+        category=category, priority=priority,
+        action_url='/dashboard/reports',
+    )
