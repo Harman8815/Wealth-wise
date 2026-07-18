@@ -35,10 +35,17 @@
 | Feature | Description |
 |---------|-------------|
 | 🔐 **JWT Authentication** | Secure token-based authentication with refresh tokens |
+| 👥 **Projects & RBAC** | Collaborative finance workspaces with owner/admin/editor/viewer roles |
 | 💳 **Account Management** | Manage bank accounts, credit cards, wallets, and cash |
-| 💰 **Transaction Tracking** | Record income and expenses with category filtering |
+| 💰 **Transaction Tracking** | Record income and expenses with category filtering + import/export |
 | 📊 **Budget Planning** | Set budgets and track spending by category |
+| 🔁 **Recurring Transactions** | Reusable scheduling engine generates transactions automatically |
+| 🔁 **Recurring Budgets** | Auto-generate periodic budget templates |
 | 🎯 **Goal Setting** | Create savings goals with progress tracking |
+| 🧮 **Financial Health Score** | Explainable 0–100 score from weighted dimensions |
+| 🔍 **Duplicate Detection** | ML-powered near-duplicate transaction detection (import + scan) |
+| 💡 **Dynamic AI Insights** | Dismissible, narrative insight feed on the dashboard |
+| 🔎 **Subscription Detection** | Pattern-mining that discovers subscriptions from history |
 | 🔔 **Smart Alerts** | Configurable alerts + backend alert engine (budget exceeded / approaching) |
 | 📊 **Scheduled Reports** | Automate PDF report generation (daily/weekly/monthly) and export CSV/PDF |
 | 📈 **Financial Summary** | Get income, expense, and net balance summaries |
@@ -142,6 +149,12 @@ Comprehensive API documentation is available in the [`docs/`](./docs/) directory
 | [🔔 Alerts](./docs/alerts.md) | Notifications & alerts |
 | [⚙️ Alert Settings](./docs/alert-settings.md) | Alert configuration |
 | [📝 Expenses](./docs/expenses.md) | Quick expense logging |
+| [🤝 Projects](./docs/projects.md) | Workspaces & role-based access |
+| [🔁 Recurring & Budgets](./docs/recurring-budgets.md) | Recurring rules & budget generation |
+| [🧮 Financial Health](./docs/financial-health.md) | Score engine overview |
+| [🔍 Duplicates](./docs/duplicates.md) | ML duplicate detection |
+| [💡 Insights](./docs/insights.md) | Dynamic AI insights feed |
+| [🔎 Subscriptions](./docs/subscriptions.md) | Subscription pattern mining |
 | [🛠 Utilities](./docs/utilities.md) | Health check & data seeding |
 
 ---
@@ -271,7 +284,18 @@ POST /api/auth/refresh/
 | `/api/reports/schedules/{id}/` | GET, PATCH, DELETE | Scheduled report detail |
 | `/api/reports/schedules/{id}/trigger/` | POST | Generate scheduled report PDF |
 | `/api/transactions/export_csv/` | GET | Export transactions as CSV |
+| `/api/categories/` | GET, POST, PUT, PATCH, DELETE | Shared category system |
 | `/api/expenses/` | GET, POST, PUT, PATCH, DELETE | Quick expense tracking |
+| `/api/projects/` | GET, POST, PUT, PATCH, DELETE | Workspaces + RBAC |
+| `/api/recurring/` | GET, POST, PUT, PATCH, DELETE | Recurring transaction rules |
+| `/api/recurring-budgets/` | GET, POST, PUT, PATCH, DELETE | Recurring budget rules |
+| `/api/financial-health/` | GET | Financial Health Score |
+| `/api/duplicates/` | GET, POST | Duplicate detection (scan/resolve) |
+| `/api/insights/` | GET, POST | Dynamic AI insights feed |
+| `/api/subscriptions/` | GET, POST | Subscription detection (scan/confirm/ignore/convert) |
+| `/api/imports/upload/` | POST | Upload bank statement for import |
+| `/api/imports/{id}/commit/` | POST | Commit parsed import rows |
+| `/api/exports/` | GET, POST | Export jobs (CSV/JSON) |
 | `/api/seed-data/` | POST | Generate demo data |
 
 ---

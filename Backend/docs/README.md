@@ -14,14 +14,20 @@ WealthWise is a comprehensive personal finance management application. This API 
 2. [Users API](./users.md)
 3. [Accounts API](./accounts.md)
 4. [Transactions API](./transactions.md)
-5. [Budget Categories API](./budget-categories.md)
-6. [Goals API](./goals.md)
-7. [Alerts API](./alerts.md)
-8. [Alert Settings API](./alert-settings.md)
-9. [Reports API](./reports.md)
+5. [Categories API](./users.md) *(shared category system)*
+6. [Budget Categories API](./budget-categories.md)
+7. [Goals API](./goals.md)
+8. [Alerts API](./alerts.md)
+9. [Alert Settings API](./alert-settings.md)
 10. [Expenses API](./expenses.md)
-11. [Utility Endpoints](./utilities.md)
-12. [Duplicate Transaction Detection](./duplicates.md)
+11. [Projects & RBAC](./projects.md)
+12. [Recurring Transactions & Budgets](./projects.md) *(scheduling engine)*
+13. [Financial Health Score](../FinancialHealthScore_ENGINE.md) *(engine overview)*
+14. [Duplicate Transaction Detection](./duplicates.md)
+15. [Dynamic AI Insights](./insights.md)
+16. [Subscription Detection](./subscriptions.md)
+17. [Reports API](./reports.md)
+18. [Utility Endpoints](./utilities.md)
 
 ## Quick Start
 
@@ -50,10 +56,19 @@ Authorization: Bearer <your_access_token>
 | `/api/users/` | User management |
 | `/api/accounts/` | Bank accounts, cards, wallets |
 | `/api/transactions/` | Income and expense transactions |
+| `/api/categories/` | Shared category system (expense/income/goal/budget) |
 | `/api/budget-categories/` | Budget planning categories |
 | `/api/goals/` | Savings goals |
 | `/api/alerts/` | Notifications and alerts |
 | `/api/alert-settings/` | Alert configuration |
+| `/api/expenses/` | Quick expense tracking |
+| `/api/projects/` | Collaborative finance workspaces + RBAC |
+| `/api/recurring/` | Recurring transaction rules (CRUD + lifecycle) |
+| `/api/recurring-budgets/` | Recurring budget generation rules |
+| `/api/financial-health/` | Financial Health Score (weighted, explainable) |
+| `/api/duplicates/` | Duplicate transaction detection (ML) |
+| `/api/insights/` | Dynamic AI insights feed |
+| `/api/subscriptions/` | Subscription detection (pattern mining) |
 | `/api/reports/filter/` | Filtered report data (monthly stats, categories, summary) |
 | `/api/reports/export_pdf/` | PDF report summary |
 | `/api/reports/generate_pdf/` | Generate PDF report by type |
@@ -61,7 +76,8 @@ Authorization: Bearer <your_access_token>
 | `/api/reports/schedules/{id}/` | Scheduled report detail (get/update/delete) |
 | `/api/reports/schedules/{id}/trigger/` | Generate a scheduled report PDF |
 | `/api/transactions/export_csv/` | Export transactions as CSV |
-| `/api/expenses/` | Expense tracking |
+| `/api/imports/upload/` · `/api/imports/{id}/commit/` | Bank-statement import (CSV/Excel/PDF) |
+| `/api/exports/` | Export jobs (CSV/JSON) |
 | `/api/health/` | API health check |
 | `/api/seed-data/` | Generate sample data |
 
