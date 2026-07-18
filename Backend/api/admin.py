@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, Account, Transaction, BudgetCategory, Goal, Alert, AlertSetting, Expense, RecurringRule, RecurringExecution
+from .models import User, Account, Transaction, BudgetCategory, Goal, Alert, AlertSetting, Expense, RecurringRule, RecurringExecution, FinancialHealthScore, ScoreDimensionConfig, HealthRecommendation
 
 
 @admin.register(User)
@@ -108,3 +108,28 @@ class RecurringExecutionAdmin(admin.ModelAdmin):
     search_fields = ('rule__name', 'user__email')
     ordering = ('-scheduled_date',)
     readonly_fields = ('created_at', 'executed_at')
+
+
+@admin.register(FinancialHealthScore)
+class FinancialHealthScoreAdmin(admin.ModelAdmin):
+    list_display = ('score', 'grade', 'grade_label', 'trend', 'user', 'project', 'computed_at')
+    list_filter = ('grade', 'trend')
+    search_fields = ('user__email',)
+    ordering = ('-computed_at',)
+    readonly_fields = ('created_at', 'computed_at')
+
+
+@admin.register(ScoreDimensionConfig)
+class ScoreDimensionConfigAdmin(admin.ModelAdmin):
+    list_display = ('dimension', 'user', 'project', 'weight', 'enabled')
+    list_filter = ('dimension', 'enabled')
+    search_fields = ('user__email',)
+    ordering = ('user', 'dimension')
+
+
+@admin.register(HealthRecommendation)
+class HealthRecommendationAdmin(admin.ModelAdmin):
+    list_display = ('title', 'dimension', 'user', 'project', 'estimated_improvement', 'priority', 'resolved')
+    list_filter = ('dimension', 'priority', 'resolved')
+    search_fields = ('user__email', 'title')
+    ordering = ('-estimated_improvement',)

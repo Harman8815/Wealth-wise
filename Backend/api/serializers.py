@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense, Category, ScheduledReport, Project, ProjectMember, ProjectInvitation, RecurringRule, RecurringExecution, RecurringBudget, RecurringBudgetExecution
+from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense, Category, ScheduledReport, Project, ProjectMember, ProjectInvitation, RecurringRule, RecurringExecution, RecurringBudget, RecurringBudgetExecution, ScoreDimensionConfig, FinancialHealthScore, HealthRecommendation
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -365,5 +365,44 @@ class RecurringBudgetExecutionSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'rule', 'rule_name', 'generated_budgets', 'scheduled_date',
             'executed_at', 'status', 'error', 'created_at',
+        ]
+        read_only_fields = fields
+
+
+# ---------------------------------------------------------------------------
+# Financial Health Score Engine
+# ---------------------------------------------------------------------------
+
+class ScoreDimensionConfigSerializer(serializers.ModelSerializer):
+    label = serializers.CharField(source='get_dimension_display', read_only=True)
+
+    class Meta:
+        model = ScoreDimensionConfig
+        fields = [
+            'id', 'dimension', 'label', 'weight', 'enabled',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class HealthRecommendationSerializer(serializers.ModelSerializer):
+    label = serializers.CharField(source='get_dimension_display', read_only=True)
+
+    class Meta:
+        model = HealthRecommendation
+        fields = [
+            'id', 'dimension', 'label', 'title', 'detail',
+            'estimated_improvement', 'priority', 'resolved', 'created_at',
+        ]
+        read_only_fields = ['id', 'created_at']
+
+
+class FinancialHealthScoreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FinancialHealthScore
+        fields = [
+            'id', 'score', 'grade', 'grade_label', 'previous_score', 'trend',
+            'dimensions', 'strengths', 'risks',
+            'period_start', 'period_end', 'computed_at', 'created_at',
         ]
         read_only_fields = fields
