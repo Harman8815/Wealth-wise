@@ -54,11 +54,14 @@ media/
 coverage/
 .coverage
 htmlcov/
+coverage.xml
 
-# Testing
+# Testing reports
 .pytest_cache/
 .tox/
 .nox/
+report.html
+allure-results/
 
 # Celery
 celerybeat-schedule
