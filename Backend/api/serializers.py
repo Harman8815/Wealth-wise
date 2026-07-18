@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense, Category, ScheduledReport, Project, ProjectMember, ProjectInvitation, RecurringRule, RecurringExecution, RecurringBudget, RecurringBudgetExecution, ScoreDimensionConfig, FinancialHealthScore, HealthRecommendation, DuplicateGroup, DuplicateMatch, DuplicateFeedback
+from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense, Category, ScheduledReport, Project, ProjectMember, ProjectInvitation, RecurringRule, RecurringExecution, RecurringBudget, RecurringBudgetExecution, ScoreDimensionConfig, FinancialHealthScore, HealthRecommendation, DuplicateGroup, DuplicateMatch, DuplicateFeedback, Insight
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -464,3 +464,17 @@ class DuplicateFeedbackSerializer(serializers.ModelSerializer):
             'id', 'transaction_a', 'transaction_b', 'label', 'created_at',
         ]
         read_only_fields = ['id', 'created_at']
+
+
+# ---------------------------------------------------------------------------
+# Dynamic AI Insights
+# ---------------------------------------------------------------------------
+
+class InsightSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Insight
+        fields = [
+            'id', 'kind', 'title', 'description', 'severity',
+            'metadata', 'action_url', 'dismissed', 'generated_at',
+        ]
+        read_only_fields = fields
