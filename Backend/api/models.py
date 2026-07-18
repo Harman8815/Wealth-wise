@@ -888,6 +888,19 @@ class ProjectInvitation(models.Model):
         return timezone.now() > self.expires_at
 
 
+# Financial Health Score engine models (kept in a dedicated module for clarity).
+from .models_financial_health import (  # noqa: E402,F401
+    ScoreDimensionConfig,
+    FinancialHealthScore,
+    HealthRecommendation,
+    DIMENSION_KEYS,
+    DIMENSION_LABELS,
+    DEFAULT_DIMENSION_WEIGHTS,
+    GRADE_BANDS,
+    grade_for_score,
+)
+
+
 def create_schedule(user, name, report_type, frequency, next_run=None, project=None):
     """Create a new scheduled report configuration."""
     return ScheduledReport.objects.create(
