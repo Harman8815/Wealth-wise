@@ -83,3 +83,8 @@ export {
   type HealthConfig,
   type DimensionConfig,
 } from './financial-health';
+export {
+  insightsApi,
+  type AIInsight,
+  type InsightsListResponse,
+} from './insights';

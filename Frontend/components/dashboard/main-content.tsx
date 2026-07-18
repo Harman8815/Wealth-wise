@@ -8,52 +8,65 @@ import { RecentTransactions } from "./recent-transactions";
 import { MonthlyChart } from "./monthly-chart";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { AddTransactionDialog } from "./add-transaction-dialog";
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context";
 import { SeedDataDialog } from "./seed-data-dialog";
 import { RecurringSummaryWidget } from "@/components/scheduling/recurring-summary-widget";
 import { RecurringBudgetSummaryWidget } from "@/components/scheduling/recurring-budget-summary-widget";
 import { FinancialHealthCard } from "./financial-health-card";
-
-// Sample AI insights data - would come from API in production
-const sampleInsights = [
-  {
-    id: "1",
-    type: "spending" as const,
-    title: "Spending Alert",
-    description:
-      "You've spent 15% more on dining out this month compared to last month. Consider setting a dining budget.",
-    impact: "negative" as const,
-    metadata: { percentage: 15, category: "Dining" },
-    action: { label: "Set Budget", onClick: () => {} },
-  },
-  {
-    id: "2",
-    type: "saving" as const,
-    title: "Savings Opportunity",
-    description:
-      "You could save ₹2,500 monthly by switching to a different subscription plan for your streaming services.",
-    impact: "positive" as const,
-    metadata: { amount: 2500 },
-    action: { label: "View Details", onClick: () => {} },
-  },
-  {
-    id: "3",
-    type: "investment" as const,
-    title: "Investment Tip",
-    description:
-      "Based on your savings pattern, consider investing ₹5,000 monthly in SIP for better returns.",
-    impact: "positive" as const,
-    metadata: { amount: 5000 },
-    action: { label: "Learn More", onClick: () => {} },
-  },
-];
+import { insightsApi, type AIInsight } from "@/api/services/insights";
 
 export function MainContent() {
   const { openSidebar } = useDashboardSidebar();
+  const router = useRouter();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isSeedOpen, setIsSeedOpen] = useState(false);
+  const [insights, setInsights] = useState<AIInsight[]>([]);
+  const [insightsLoading, setInsightsLoading] = useState(true);
+
+  const loadInsights = useCallback(async () => {
+    try {
+      const data = await insightsApi.list();
+      const results = data.results ?? [];
+      if (results.length === 0) {
+        const generated = await insightsApi.generate();
+        setInsights(generated.results ?? []);
+      } else {
+        setInsights(results);
+      }
+    } catch {
+      setInsights([]);
+    } finally {
+      setInsightsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadInsights();
+  }, [loadInsights]);
+
+  const uiInsights = insights.map((insight) => ({
+    id: insight.id,
+    type: (insight.kind === 'recurring' ? 'alert' : insight.kind) as
+      'spending' | 'saving' | 'investment' | 'alert' | 'goal',
+    title: insight.title,
+    description: insight.description,
+    impact: insight.severity,
+    metadata: insight.metadata,
+    action: insight.action_url
+      ? {
+          label: "View",
+          onClick: () => {
+            const url = insight.action_url!.startsWith("/")
+              ? `/dashboard${insight.action_url}`
+              : insight.action_url!;
+            router.push(url);
+          },
+        }
+      : undefined,
+  }));
 
   return (
     <div className="flex-1 min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -168,7 +181,7 @@ export function MainContent() {
 
           {/* AI Insights - Takes up 1/3 */}
           <div className="xl:col-span-1 w-full flex animate-slide-up stagger-2 h-full ">
-            <AIInsightsCard insights={sampleInsights} className="h-full w-full" />
+            <AIInsightsCard insights={uiInsights} loading={insightsLoading} className="h-full w-full" />
           </div>
         </div>
 
