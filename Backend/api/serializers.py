@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense, Category, ScheduledReport, Project, ProjectMember, ProjectInvitation, RecurringRule, RecurringExecution, RecurringBudget, RecurringBudgetExecution, ScoreDimensionConfig, FinancialHealthScore, HealthRecommendation, DuplicateGroup, DuplicateMatch, DuplicateFeedback, Insight, Subscription, SubscriptionFeedback
+from .models import User, Account, Transaction, TransactionHistory, BudgetCategory, Goal, Alert, AlertSetting, Expense, Category, ScheduledReport, Project, ProjectMember, ProjectInvitation, RecurringRule, RecurringExecution, RecurringBudget, RecurringBudgetExecution, ScoreDimensionConfig, FinancialHealthScore, HealthRecommendation, DuplicateGroup, DuplicateMatch, DuplicateFeedback, Insight, Subscription, SubscriptionFeedback, CategoryFeedback, MLTrainingSample, MLModelVersion
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -47,10 +47,13 @@ class TransactionSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
     category_id = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), source='category', write_only=True, required=False, allow_null=True)
     category_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    predicted_category = CategorySerializer(read_only=True)
+    predicted_category_id = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), source='predicted_category', write_only=True, required=False, allow_null=True)
+    prediction_confidence = serializers.FloatField(write_only=True, required=False, allow_null=True, min_value=0, max_value=1)
 
     class Meta:
         model = Transaction
-        fields = ['id', 'date', 'description', 'category', 'category_id', 'category_name', 'amount', 'type', 'status', 'account', 'account_name', 'created_at', 'updated_at']
+        fields = ['id', 'date', 'description', 'category', 'category_id', 'category_name', 'predicted_category', 'predicted_category_id', 'prediction_confidence', 'merchant', 'amount', 'type', 'status', 'account', 'account_name', 'created_at', 'updated_at']
         read_only_fields = ['id', 'account_name', 'created_at', 'updated_at']
 
     def validate(self, attrs):
@@ -507,4 +510,46 @@ class SubscriptionFeedbackSerializer(serializers.ModelSerializer):
     class Meta:
         model = SubscriptionFeedback
         fields = ['id', 'merchant', 'label', 'subscription', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+# ---------------------------------------------------------------------------
+# Transaction Categorization ML Pipeline
+# ---------------------------------------------------------------------------
+
+class CategoryFeedbackSerializer(serializers.ModelSerializer):
+    predicted_category_name = serializers.CharField(source='predicted_category.name', read_only=True)
+    actual_category_name = serializers.CharField(source='actual_category.name', read_only=True)
+
+    class Meta:
+        model = CategoryFeedback
+        fields = [
+            'id', 'transaction', 'merchant', 'description',
+            'predicted_category', 'predicted_category_name',
+            'actual_category', 'actual_category_name',
+            'confidence', 'timestamp', 'created_at',
+        ]
+        read_only_fields = ['id', 'created_at']
+
+
+class MLTrainingSampleSerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source='category.name', read_only=True)
+
+    class Meta:
+        model = MLTrainingSample
+        fields = [
+            'id', 'merchant', 'description', 'amount', 'transaction_type',
+            'category', 'category_name', 'source', 'created_at',
+            'model_version', 'is_verified', 'created_at_db',
+        ]
+        read_only_fields = ['id', 'created_at_db']
+
+
+class MLModelVersionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MLModelVersion
+        fields = [
+            'id', 'version', 'status', 'accuracy', 'f1_score',
+            'training_samples', 'model_path', 'metadata', 'created_at', 'promoted_at',
+        ]
         read_only_fields = ['id', 'created_at']

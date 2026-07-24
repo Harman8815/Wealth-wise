@@ -18,6 +18,7 @@ from ..models import (
     DuplicateGroup, DuplicateMatch, DuplicateFeedback,
     Insight,
     Subscription, SubscriptionFeedback,
+    CategoryFeedback, MLTrainingSample, MLModelVersion,
 )
 
 
@@ -555,3 +556,49 @@ class SubscriptionFeedbackFactory(DjangoModelFactory):
     label = 'ignored'
     subscription = None
     created_at = factory.LazyFunction(datetime.now)
+
+
+class CategoryFeedbackFactory(DjangoModelFactory):
+    class Meta:
+        model = CategoryFeedback
+
+    id = factory.LazyFunction(uuid.uuid4)
+    user = factory.SubFactory(UserFactory)
+    project = factory.SubFactory(ProjectFactory)
+    transaction = factory.SubFactory(TransactionFactory, user=factory.SelfAttribute('..user'), project=factory.SelfAttribute('..project'))
+    merchant = factory.Faker('word')
+    description = factory.Faker('sentence')
+    predicted_category = factory.SubFactory(CategoryFactory, user=factory.SelfAttribute('..user'), project=factory.SelfAttribute('..project'))
+    actual_category = factory.SubFactory(CategoryFactory, user=factory.SelfAttribute('..user'), project=factory.SelfAttribute('..project'))
+    confidence = 0.95
+    timestamp = factory.LazyFunction(datetime.now)
+
+
+class MLTrainingSampleFactory(DjangoModelFactory):
+    class Meta:
+        model = MLTrainingSample
+
+    id = factory.LazyFunction(uuid.uuid4)
+    merchant = factory.Faker('word')
+    description = factory.Faker('sentence')
+    amount = Decimal('100.00')
+    transaction_type = 'expense'
+    category = factory.SubFactory(CategoryFactory, user=factory.SelfAttribute('..user'), project=factory.SelfAttribute('..project'))
+    source = 'MANUAL'
+    created_at = factory.LazyFunction(datetime.now)
+    model_version = ''
+    is_verified = True
+
+
+class MLModelVersionFactory(DjangoModelFactory):
+    class Meta:
+        model = MLModelVersion
+
+    id = factory.LazyFunction(uuid.uuid4)
+    version = factory.Sequence(lambda n: f'v{n}.0')
+    status = 'candidate'
+    accuracy = None
+    f1_score = None
+    training_samples = None
+    model_path = ''
+    metadata = factory.Dict({})

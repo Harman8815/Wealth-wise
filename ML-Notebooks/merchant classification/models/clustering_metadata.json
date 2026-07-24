@@ -1,0 +1,32 @@
+{
+    "num_merchants": 108,
+    "num_clusters": 2,
+    "algorithm": "KMeans",
+    "silhouette_score": 0.7193502858971449,
+    "davies_bouldin_score": 0.3917392184736599,
+    "calinski_harabasz_score": 229.1462334029494,
+    "features_used": [
+        "transaction_count",
+        "total_amount",
+        "avg_amount",
+        "std_amount",
+        "min_amount",
+        "max_amount",
+        "median_amount",
+        "unique_categories",
+        "unique_payment_methods",
+        "unique_locations",
+        "amount_range",
+        "cv_amount",
+        "avg_amount_log",
+        "total_amount_log"
+    ],
+    "cluster_distribution": {
+        "0": 13,
+        "1": 95
+    },
+    "pca_explained_variance": [
+        0.7532128956660337,
+        0.13445592925151456
+    ]
+}

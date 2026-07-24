@@ -111,6 +111,13 @@ class Transaction(models.Model):
     account_name = models.CharField(max_length=100, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    merchant = models.CharField(max_length=255, blank=True, default='')
+    predicted_category = models.ForeignKey(
+        'Category', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='predicted_transactions',
+    )
+    prediction_confidence = models.FloatField(null=True, blank=True)
+    ml_model_version = models.CharField(max_length=50, blank=True)
 
     class Meta:
         db_table = 'transactions'
@@ -919,6 +926,14 @@ from .models_subscriptions import (  # noqa: E402,F401
 )
 
 
+# Transaction Categorization ML models.
+from .models_ml import (  # noqa: E402,F401
+    CategoryFeedback,
+    MLTrainingSample,
+    MLModelVersion,
+)
+
+
 def create_schedule(user, name, report_type, frequency, next_run=None, project=None):
     """Create a new scheduled report configuration."""
     return ScheduledReport.objects.create(
@@ -1009,7 +1024,159 @@ class MappingTemplate(models.Model):
         return f"Mapping {self.name}"
 
 
+from .models_ml import (  # noqa: E402,F401
+    CategoryFeedback,
+    MLTrainingSample,
+    MLModelVersion,
+)
+
+
 def generate_report_pdf(user, report_type='complete', project=None):
+    """Generate a professional PDF report for the given user and report type."""
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.graphics.shapes import Drawing, Rect, String
+    from reportlab.graphics.charts.barcharts import VerticalBarChart
+    from reportlab.graphics import renderPDF
+    from django.db.models import Sum, Count, Q
+    from django.db.models.functions import TruncMonth
+
+    transactions = Transaction.objects.filter(user=user, project=project)
+    monthly_data = list(
+        transactions.annotate(month=TruncMonth('date'))
+        .values('month')
+        .annotate(income=Sum('amount', filter=Q(type='income')), expense=Sum('amount', filter=Q(type='expense')))
+        .order_by('month')
+    )
+
+    by_category = list(
+        transactions.filter(type='expense')
+        .values('category__name')
+        .annotate(total=Sum('amount'), count=Count('id'))
+        .order_by('-total')[:8]
+    )
+
+    summary = transactions.aggregate(
+        total_income=Sum('amount', filter=Q(type='income')),
+        total_expense=Sum('amount', filter=Q(type='expense')),
+    )
+    total_income = float(summary['total_income'] or 0)
+    total_expense = float(summary['total_expense'] or 0)
+    net = total_income - total_expense
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=48, leftMargin=48, topMargin=48, bottomMargin=48)
+    elements = []
+    styles = getSampleStyleSheet()
+
+    elements.append(Paragraph("WealthWise Financial Report", styles['Title']))
+    elements.append(Paragraph(f"Generated on {timezone.now().strftime('%Y-%m-%d %H:%M')} | Period: {report_type.replace('_', ' ').title()}", styles['Normal']))
+    elements.append(Spacer(1, 18))
+
+    elements.append(Paragraph("Budget Summary", styles['Heading2']))
+    summary_data = [
+        ['Metric', 'Amount'],
+        ['Total Income', f"₹{total_income:,.2f}"],
+        ['Total Expenses', f"₹{total_expense:,.2f}"],
+        ['Net Savings', f"₹{net:,.2f}"],
+        ['Savings Rate', f"{(total_income and (net / total_income) * 100) or 0:.1f}%"],
+    ]
+    summary_table = Table(summary_data, hAlign='LEFT')
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e293b')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8fafc')),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f1f5f9')]),
+    ]))
+    elements.append(summary_table)
+    elements.append(Spacer(1, 18))
+
+    elements.append(Paragraph("Spending Overview (Monthly)", styles['Heading2']))
+    monthly_table_data = [['Month', 'Income', 'Expense', 'Net']]
+    for item in monthly_data[-12:]:
+        month_str = item['month'].strftime('%Y-%m') if item['month'] else 'N/A'
+        income = float(item['income'] or 0)
+        expense = float(item['expense'] or 0)
+        monthly_table_data.append([month_str, f"₹{income:,.2f}", f"₹{expense:,.2f}", f"₹{income - expense:,.2f}"])
+    if len(monthly_table_data) == 1:
+        monthly_table_data.append(['No data', '₹0.00', '₹0.00', '₹0.00'])
+
+    monthly_table = Table(monthly_table_data, hAlign='LEFT')
+    monthly_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e293b')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 11),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f1f5f9')]),
+    ]))
+    elements.append(monthly_table)
+    elements.append(Spacer(1, 18))
+
+    elements.append(Paragraph("Category Breakdown", styles['Heading2']))
+    if by_category:
+        cat_data = [['Category', 'Transactions', 'Total']]
+        for cat in by_category:
+            cat_data.append([cat['category__name'] or 'Uncategorized', str(cat['count']), f"₹{float(cat['total']):,.2f}"])
+        cat_table = Table(cat_data, hAlign='LEFT')
+        cat_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e293b')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f1f5f9')]),
+        ]))
+        elements.append(cat_table)
+    else:
+        elements.append(Paragraph("No category data available for the selected period.", styles['Normal']))
+    elements.append(Spacer(1, 18))
+
+    elements.append(Paragraph("Expense Distribution", styles['Heading2']))
+    if by_category:
+        drawing = Drawing(400, 200)
+        bc = VerticalBarChart()
+        bc.x = 50
+        bc.y = 50
+        bc.height = 125
+        bc.width = 300
+        bc.data = [[float(c['total']) for c in by_category]]
+        bc.categoryAxis.categoryNames = [c['category__name'][:10] for c in by_category]
+        bc.bars[0].fillColor = colors.HexColor('#3b82f6')
+        elements.append(drawing)
+    else:
+        elements.append(Paragraph("No chart data available.", styles['Normal']))
+
+    elements.append(Spacer(1, 18))
+    elements.append(Paragraph("Key Insights", styles['Heading2']))
+    insights = []
+    if total_income > 0:
+        if net > 0:
+            insights.append(f"Your savings rate is {(total_income / total_income) * 100:.1f}%. Keep maintaining this healthy financial habit.")
+        else:
+            insights.append("Your expenses exceeded income this period. Review discretionary spending to improve cash flow.")
+    if by_category:
+        top = by_category[0]
+        insights.append(f"Highest spending category: {top['category__name']} (₹{float(top['total']):,.2f}). Consider setting a targeted budget here.")
+    if not insights:
+        insights.append("Start adding transactions to unlock personalized insights.")
+    for i, text in enumerate(insights, 1):
+        elements.append(Paragraph(f"{i}. {text}", styles['Normal']))
+
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer.getvalue()
     """Generate a professional PDF report for the given user and report type."""
     from reportlab.lib.pagesizes import letter
     from reportlab.lib import colors
