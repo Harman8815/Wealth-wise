@@ -9,10 +9,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Sum, Count, Q
+from django.utils import timezone
 
-from ..models import Transaction, TransactionHistory, Category
+from ..models import Transaction, TransactionHistory, Category, CategoryFeedback
 from ..serializers import TransactionSerializer, TransactionHistorySerializer
 from ..base import StandardResultsSetPagination, IsOwner, project_scope_filter
+
 
 class TransactionViewSet(viewsets.ModelViewSet):
     """
@@ -75,14 +77,19 @@ class TransactionViewSet(viewsets.ModelViewSet):
         recompute_after_change(user, project)
 
     def perform_update(self, serializer):
-        """Update transaction and track changes in history."""
+        """Update transaction and track changes in history.
+        Capture ML category feedback when user changes from a predicted category.
+        """
         transaction = serializer.instance
         user = self.request.user
 
-        # Track changes before saving
         old_values = {}
         for field in ['date', 'description', 'category', 'amount', 'type', 'status']:
             old_values[field] = getattr(transaction, field)
+
+        old_predicted_category = transaction.predicted_category
+        old_prediction_confidence = transaction.prediction_confidence
+        old_ml_model_version = transaction.ml_model_version
 
         super().perform_update(serializer)
 
@@ -105,6 +112,26 @@ class TransactionViewSet(viewsets.ModelViewSet):
                     old_value=str(old_value),
                     new_value=str(new_value)
                 )
+
+        # Capture ML feedback if user changed category from a predicted one
+        old_category = old_values['category']
+        new_category = transaction.category
+        if old_predicted_category and old_category != new_category and new_category != old_predicted_category:
+            CategoryFeedback.objects.create(
+                user=transaction.user,
+                project=transaction.project,
+                transaction=transaction,
+                merchant=transaction.merchant or transaction.description.split()[0] if transaction.description else '',
+                description=transaction.description,
+                predicted_category=old_predicted_category,
+                actual_category=new_category,
+                confidence=old_prediction_confidence or 0.0,
+                timestamp=timezone.now(),
+            )
+            transaction.predicted_category = None
+            transaction.prediction_confidence = None
+            transaction.ml_model_version = ''
+            transaction.save(update_fields=['predicted_category', 'prediction_confidence', 'ml_model_version'])
 
     @action(detail=False, methods=['get'])
     def summary(self, request):
@@ -225,3 +252,27 @@ class TransactionViewSet(viewsets.ModelViewSet):
             }
             for h in history
         ])
+
+    @action(detail=False, methods=['post'])
+    def predict_category(self, request):
+        """
+        Predict a category for the given transaction text using the latest approved model.
+        
+        Request body:
+            merchant: str
+            description: str
+            amount: float
+            type: str (income|expense)
+            
+        Returns:
+            category: str or null
+            confidence: float
+        """
+        from ..services.ml_training.inference import CategoryPredictor
+        predictor = CategoryPredictor()
+        merchant = request.data.get('merchant', '')
+        description = request.data.get('description', '')
+        amount = float(request.data.get('amount') or 0)
+        txn_type = request.data.get('type', 'expense')
+        category, confidence = predictor.predict(merchant, description, amount, txn_type)
+        return Response({'category': category, 'confidence': confidence})
