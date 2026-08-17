@@ -1,0 +1,12 @@
+{
+  "trained_at": "2026-07-22 01:05:39.379239",
+  "model": "Ridge Classifier",
+  "n_samples": 27802,
+  "classes": [
+    "Books",
+    "Clothing & Accessories",
+    "Electronics",
+    "Household"
+  ],
+  "final_test_accuracy": 0.960201390553824
+}

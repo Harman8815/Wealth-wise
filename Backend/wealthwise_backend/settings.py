@@ -178,3 +178,7 @@ AUTH_USER_MODEL = 'api.User'
 # scoring service internally; it is never exposed to the browser. Defaults to a
 # localhost FastAPI instance (see ML-Backend/README.md).
 ML_SERVICE_URL = os.environ.get('ML_SERVICE_URL', 'http://localhost:8100')
+
+# Transaction Categorization ML Pipeline configuration
+ML_MODELS_DIR = BASE_DIR / 'models'
+ML_KAGGLE_DATA_PATH = os.environ.get('ML_KAGGLE_DATA_PATH', str(BASE_DIR / 'data' / 'kaggle_transactions.csv'))
