@@ -15,6 +15,7 @@ import {
   FolderKanban,
   ArrowDownUp,
   Repeat,
+  MessageSquare,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { usePathname, useRouter } from "next/navigation"
@@ -40,6 +41,7 @@ const navigationItems = [
   { icon: Repeat, label: "Recurring", href: "/dashboard/recurring" },
   { icon: Repeat, label: "Recurring Budgets", href: "/dashboard/recurring-budgets" },
   { icon: Bell, label: "Alerts", href: "/dashboard/alerts", badge: "alerts" },
+  { icon: MessageSquare, label: "AI Chat", href: "/dashboard/chat" },
 ]
 
 function SidebarContent({ 

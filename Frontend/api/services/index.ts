@@ -88,3 +88,9 @@ export {
   type AIInsight,
   type InsightsListResponse,
 } from './insights';
+export {
+  chatApi,
+  type ChatMessage,
+  type ChatRequest,
+  type ChatResponse,
+} from './chat';
