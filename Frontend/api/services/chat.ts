@@ -67,7 +67,11 @@ export async function sendChatMessageStream(
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
+      if (!buffer.endsWith("\n")) {
+        buffer = lines.pop() || "";
+      } else {
+        buffer = "";
+      }
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         if (line.startsWith("event: token") && lines[i + 1]?.startsWith("data: ")) {

@@ -7,10 +7,17 @@ Serves two surfaces today:
 """
 from __future__ import annotations
 
-from fastapi import FastAPI
+import logging
+from typing import Any
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 from .middleware import verify_jwt
+from .ollama import OllamaAdapterError
 from .routers import chat_router, duplicates_router
+
+logger = logging.getLogger("ml_backend")
 
 app = FastAPI(
     title="WealthWise ML-Backend",
@@ -27,3 +34,21 @@ app.middleware("http")(verify_jwt)
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.exception_handler(OllamaAdapterError)
+async def ollama_error_handler(request: Request, exc: OllamaAdapterError):
+    logger.error("Ollama error: %s", exc)
+    return JSONResponse(
+        status_code=502,
+        content={"detail": "The AI service is temporarily unavailable. Please try again."},
+    )
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled error")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An internal server error occurred."},
+    )

@@ -89,7 +89,8 @@ export {
   type InsightsListResponse,
 } from './insights';
 export {
-  chatApi,
+  sendChatMessage,
+  sendChatMessageStream,
   type ChatMessage,
   type ChatRequest,
   type ChatResponse,
