@@ -1,24 +1,27 @@
 """
-FastAPI application entry-point for the Duplicate Transaction Detection service.
+FastAPI application entry-point for ML-Backend.
 
-Stateless / compute-only: receives candidate transaction records in request
-bodies and returns duplicate groups / scores. It never touches a database or
-requires authentication — the Django backend is the only caller and owns auth,
-project scoping, and persistence.
+Serves two surfaces today:
+- Duplicate transaction detection (stateless, called by Django backend).
+- Chat + AI endpoints (auth-protected, Phase 1+).
 """
 from __future__ import annotations
 
 from fastapi import FastAPI
 
-from .routers import duplicates
+from .middleware import verify_jwt
+from .routers import chat_router, duplicates_router
 
 app = FastAPI(
-    title="WealthWise Duplicate Detection",
-    description="TF-IDF + cosine similarity duplicate-transaction detection microservice.",
-    version="1.0.0",
+    title="WealthWise ML-Backend",
+    description="FastAPI service for AI chat, Ollama orchestration, and duplicate detection.",
+    version="0.1.0",
 )
 
-app.include_router(duplicates.router)
+app.include_router(duplicates_router)
+app.include_router(chat_router)
+
+app.middleware("http")(verify_jwt)
 
 
 @app.get("/health")
