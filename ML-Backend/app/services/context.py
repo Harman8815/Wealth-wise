@@ -4,6 +4,7 @@ Context builder for ML-Backend chat.
 Builds the message list sent to Ollama by combining:
 - Fixed system prompt
 - Conversation summary (if any)
+- Retrieved long-term memories
 - Recent messages within token budget
 - Current user question
 
@@ -17,6 +18,7 @@ from app.context import ContextBudget, estimate_tokens, get_context_budget
 from app.models import Message, MessageRole
 from app.prompt import SYSTEM_PROMPT
 from app.services.conversations import get_conversation, get_messages
+from app.services.memory import retrieve_relevant
 
 
 def _to_dict(message: Message) -> dict:
@@ -37,13 +39,18 @@ async def build_context(
         raise ValueError("Conversation not found.")
 
     context_messages: List[dict] = []
-    system_prompt = SYSTEM_PROMPT
+    context_messages.insert(0, {"role": "system", "content": SYSTEM_PROMPT})
+
     if conv.summary:
         summary_text = conv.summary.strip()
         if estimate_tokens(summary_text) <= budget.summary:
             context_messages.append({"role": "system", "content": f"Conversation summary: {summary_text}"})
 
-    context_messages.insert(0, {"role": "system", "content": system_prompt})
+    memories = await retrieve_relevant(user_id, question, top_k=3)
+    if memories:
+        memory_text = "\n".join(f"- {m}" for m in memories)
+        if estimate_tokens(memory_text) <= budget.memory:
+            context_messages.append({"role": "system", "content": f"Relevant memories:\n{memory_text}"})
 
     if messages is None:
         messages = get_messages(user_id, conversation_id)
