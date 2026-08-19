@@ -8,7 +8,8 @@ Phase 5 adds financial tool calling.
 from __future__ import annotations
 
 import json
-from typing import Any, AsyncGenerator, Dict, List
+import time
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -25,6 +26,8 @@ from app.services.summarization import maybe_summarize
 from app.services.assistants import answer_budget_question, answer_goal_question
 from app.services.intent import classify_intent
 from app.services.router import route_intent
+from app.rate_limit import enforce_rate_limit
+from app.logging_utils import get_request_id, log_llm_call, log_tool_call
 from app.services.tools import (
     get_balance_tool,
     get_budget_tool,
@@ -163,10 +166,21 @@ async def _chat_with_tools(
     token: str,
     user_id: str,
     model: str = DEFAULT_CHAT_MODEL,
+    conversation_id: Optional[str] = None,
+    request: Optional[Request] = None,
 ) -> str:
     current_messages = messages[:]
     for _ in range(5):
+        start = time.perf_counter()
         result = await generate_with_tools(current_messages, FINANCIAL_TOOLS, model=model)
+        latency = (time.perf_counter() - start) * 1000
+        log_llm_call(
+            request_id=get_request_id(request),
+            user_id=user_id,
+            conversation_id=conversation_id,
+            model=model,
+            latency_ms=latency,
+        )
         message = result.get("message", {})
         content = message.get("content", "")
         tool_calls = message.get("tool_calls", [])
@@ -185,7 +199,17 @@ async def _chat_with_tools(
                     arguments = json.loads(arguments)
                 except json.JSONDecodeError:
                     arguments = {}
+            tool_start = time.perf_counter()
             tool_result = await _execute_tool_call(name, arguments, token, user_id)
+            tool_latency = (time.perf_counter() - tool_start) * 1000
+            log_tool_call(
+                request_id=get_request_id(request),
+                user_id=user_id,
+                conversation_id=conversation_id,
+                tool_name=name,
+                latency_ms=tool_latency,
+                arguments=arguments,
+            )
             current_messages.append({
                 "role": "tool",
                 "content": tool_result,
@@ -243,6 +267,7 @@ async def chat(
     body: ChatRequest,
     request: Request,
     user_id: str = Depends(get_user_id),
+    _: None = Depends(enforce_rate_limit),
 ) -> ChatResponse:
     conversation_id = body.conversation_id
     if conversation_id:
@@ -266,6 +291,8 @@ async def chat(
             token=token,
             user_id=user_id,
             model=body.model or DEFAULT_CHAT_MODEL,
+            conversation_id=conversation_id,
+            request=request,
         )
         add_message(
             user_id=user_id,
@@ -290,6 +317,7 @@ async def chat_stream(
     body: ChatRequest,
     request: Request,
     user_id: str = Depends(get_user_id),
+    _: None = Depends(enforce_rate_limit),
 ) -> StreamingResponse:
     conversation_id = body.conversation_id
     if conversation_id:
@@ -325,7 +353,7 @@ async def chat_stream(
 
 
 @router.post("/goal-planning")
-async def goal_planning(request: Request, user_id: str = Depends(get_user_id)):
+async def goal_planning(request: Request, user_id: str = Depends(get_user_id), _: None = Depends(enforce_rate_limit)):
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header.")
@@ -339,7 +367,7 @@ async def goal_planning(request: Request, user_id: str = Depends(get_user_id)):
 
 
 @router.post("/budget-planning")
-async def budget_planning(request: Request, user_id: str = Depends(get_user_id)):
+async def budget_planning(request: Request, user_id: str = Depends(get_user_id), _: None = Depends(enforce_rate_limit)):
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header.")
@@ -353,7 +381,7 @@ async def budget_planning(request: Request, user_id: str = Depends(get_user_id))
 
 
 @router.post("/agent")
-async def agent_chat(request: Request, user_id: str = Depends(get_user_id)):
+async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: None = Depends(enforce_rate_limit)):
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header.")

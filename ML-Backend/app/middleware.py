@@ -11,6 +11,7 @@ truth.
 from __future__ import annotations
 
 import os
+import uuid
 from typing import Optional
 
 from fastapi import Request, HTTPException
@@ -34,6 +35,7 @@ def _is_public(path: str) -> bool:
 
 
 async def verify_jwt(request: Request, call_next):
+    request.state.request_id = str(uuid.uuid4())
     if not JWT_SECRET:
         raise HTTPException(
             status_code=500,
@@ -41,7 +43,8 @@ async def verify_jwt(request: Request, call_next):
         )
 
     if _is_public(request.url.path):
-        return await call_next(request)
+        response = await call_next(request)
+        return response
 
     auth_header: Optional[str] = request.headers.get("authorization")
     if not auth_header or not auth_header.startswith("Bearer "):

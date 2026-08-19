@@ -8,11 +8,13 @@ Serves two surfaces today:
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from .logging_utils import get_request_id, log_error, log_request
 from .middleware import verify_jwt
 from .ollama import OllamaAdapterError
 from .routers import chat_router, conversations_router, duplicates_router, memory_router, reports_router
@@ -34,6 +36,22 @@ app.include_router(reports_router)
 app.middleware("http")(verify_jwt)
 
 
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.perf_counter()
+    response = await call_next(request)
+    latency = (time.perf_counter() - start) * 1000
+    log_request(
+        request_id=get_request_id(request),
+        user_id=getattr(request.state, "user_id", None),
+        path=request.url.path,
+        method=request.method,
+        status_code=response.status_code,
+        latency_ms=latency,
+    )
+    return response
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -41,7 +59,11 @@ def health():
 
 @app.exception_handler(OllamaAdapterError)
 async def ollama_error_handler(request: Request, exc: OllamaAdapterError):
-    logger.error("Ollama error: %s", exc)
+    log_error(
+        request_id=get_request_id(request),
+        user_id=getattr(request.state, "user_id", None),
+        error=str(exc),
+    )
     return JSONResponse(
         status_code=502,
         content={"detail": "The AI service is temporarily unavailable. Please try again."},
@@ -50,7 +72,11 @@ async def ollama_error_handler(request: Request, exc: OllamaAdapterError):
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
-    logger.exception("Unhandled error")
+    log_error(
+        request_id=get_request_id(request),
+        user_id=getattr(request.state, "user_id", None),
+        error=str(exc),
+    )
     return JSONResponse(
         status_code=500,
         content={"detail": "An internal server error occurred."},
