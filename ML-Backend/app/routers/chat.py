@@ -2,6 +2,7 @@
 Chat router — Phase 1 endpoints with persistence.
 
 Phase 2 adds conversation/message persistence.
+Phase 3 adds context windowing and summarization.
 """
 from __future__ import annotations
 
@@ -11,12 +12,15 @@ from typing import AsyncGenerator
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
+from app.context import ContextBudget, get_context_budget
 from app.deps import get_user_id
 from app.ollama import DEFAULT_CHAT_MODEL, OllamaAdapterError, stream
 from app.prompt import SYSTEM_PROMPT
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.ollama import generate
+from app.services.context import build_context
 from app.services.conversations import add_message, create_conversation, generate_title, get_conversation
+from app.services.summarization import maybe_summarize
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -74,12 +78,14 @@ async def chat(
         conv = create_conversation(user_id=user_id)
         conversation_id = str(conv.id)
 
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": body.message},
-    ]
+    context_messages = await build_context(
+        user_id=user_id,
+        conversation_id=conversation_id,
+        question=body.message,
+        budget=get_context_budget(),
+    )
     try:
-        result = await generate(messages, model=body.model or DEFAULT_CHAT_MODEL)
+        result = await generate(context_messages, model=body.model or DEFAULT_CHAT_MODEL)
         reply = result.get("message", {}).get("content", "")
         model = result.get("model", body.model or DEFAULT_CHAT_MODEL)
         add_message(
@@ -121,12 +127,14 @@ async def chat_stream(
         content=body.message,
     )
 
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": body.message},
-    ]
+    context_messages = await build_context(
+        user_id=user_id,
+        conversation_id=conversation_id,
+        question=body.message,
+        budget=get_context_budget(),
+    )
     return StreamingResponse(
-        _ollama_stream_to_sse(messages, model=body.model or DEFAULT_CHAT_MODEL, user_id=user_id, conversation_id=conversation_id),
+        _ollama_stream_to_sse(context_messages, model=body.model or DEFAULT_CHAT_MODEL, user_id=user_id, conversation_id=conversation_id),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
