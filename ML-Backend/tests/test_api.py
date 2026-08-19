@@ -80,9 +80,9 @@ def test_scan_too_large():
     assert resp.status_code == 413
 
 
-@patch("app.routers.chat.generate")
-def test_create_chat_creates_conversation(mock_generate):
-    mock_generate.return_value = {"message": {"content": "Hello!"}, "model": "test-model"}
+@patch("app.routers.chat.generate_with_tools")
+def test_create_chat_creates_conversation(mock_generate_with_tools):
+    mock_generate_with_tools.return_value = {"message": {"content": "Hello!"}, "model": "test-model"}
     _setup_db()
     resp = client.post("/chat", json={"message": "Hello"}, headers=_auth_header("u1"))
     assert resp.status_code == 200
@@ -91,9 +91,9 @@ def test_create_chat_creates_conversation(mock_generate):
     assert data["reply"] == "Hello!"
 
 
-@patch("app.routers.chat.generate")
-def test_list_chats_returns_only_own(mock_generate):
-    mock_generate.return_value = {"message": {"content": "Hi"}, "model": "test-model"}
+@patch("app.routers.chat.generate_with_tools")
+def test_list_chats_returns_only_own(mock_generate_with_tools):
+    mock_generate_with_tools.return_value = {"message": {"content": "Hi"}, "model": "test-model"}
     _setup_db()
     client.post("/chat", json={"message": "Hi A"}, headers=_auth_header("u1"))
     client.post("/chat", json={"message": "Hi B"}, headers=_auth_header("u2"))
@@ -104,9 +104,9 @@ def test_list_chats_returns_only_own(mock_generate):
     assert all((t is None) or ("u1" in t) for t in titles)
 
 
-@patch("app.routers.chat.generate")
-def test_delete_chat(mock_generate):
-    mock_generate.return_value = {"message": {"content": "Bye"}, "model": "test-model"}
+@patch("app.routers.chat.generate_with_tools")
+def test_delete_chat(mock_generate_with_tools):
+    mock_generate_with_tools.return_value = {"message": {"content": "Bye"}, "model": "test-model"}
     _setup_db()
     create_resp = client.post("/chat", json={"message": "Bye"}, headers=_auth_header("u1"))
     assert create_resp.status_code == 200
