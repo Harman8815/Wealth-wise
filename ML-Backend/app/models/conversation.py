@@ -1,5 +1,5 @@
 """
-SQLAlchemy models for ML-Backend conversations and messages.
+SQLAlchemy model for ML-Backend conversations.
 """
 from __future__ import annotations
 
@@ -15,7 +15,6 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.dialects.sqlite import UUID
 from sqlalchemy.orm import relationship
 
 from app.db import Base
@@ -29,7 +28,7 @@ class ConversationStatus(str, enum.Enum):
 class Conversation(Base):
     __tablename__ = "conversations"
 
-    id = Column(UUID(as_uuid=False), primary_key=True, default=uuid.uuid4)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(255), nullable=False, index=True)
     title = Column(String(255), nullable=True)
     summary = Column(Text, nullable=True)

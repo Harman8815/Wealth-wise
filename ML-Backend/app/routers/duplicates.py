@@ -14,7 +14,7 @@ import time
 
 from fastapi import APIRouter, HTTPException, Request, status
 
-from .schemas import (
+from ..schemas.duplicates import (
     ScanRequest, ScanResponse, ScoreBatchRequest, ScoreBatchResponse,
     MatchOut, GroupOut, FeatureBreakdown,
 )

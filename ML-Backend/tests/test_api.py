@@ -3,6 +3,7 @@ API contract tests for the duplicate-detection service and chat endpoints.
 """
 import sys
 import os
+from unittest.mock import patch
 
 os.environ.setdefault("JWT_SECRET", "test-secret")
 
@@ -79,29 +80,36 @@ def test_scan_too_large():
     assert resp.status_code == 413
 
 
-def test_create_chat_creates_conversation():
+@patch("app.routers.chat.generate")
+def test_create_chat_creates_conversation(mock_generate):
+    mock_generate.return_value = {"message": {"content": "Hello!"}, "model": "test-model"}
     _setup_db()
     resp = client.post("/chat", json={"message": "Hello"}, headers=_auth_header("u1"))
     assert resp.status_code == 200
     data = resp.json()
     assert "conversation_id" in data
-    assert data["reply"]
+    assert data["reply"] == "Hello!"
 
 
-def test_list_chats_returns_only_own():
+@patch("app.routers.chat.generate")
+def test_list_chats_returns_only_own(mock_generate):
+    mock_generate.return_value = {"message": {"content": "Hi"}, "model": "test-model"}
     _setup_db()
     client.post("/chat", json={"message": "Hi A"}, headers=_auth_header("u1"))
     client.post("/chat", json={"message": "Hi B"}, headers=_auth_header("u2"))
 
     resp = client.get("/chats", headers=_auth_header("u1"))
     assert resp.status_code == 200
-    titles = [c["title"] for c in resp.json()["results"]]
-    assert all("u1" in t or not t for t in titles)
+    titles = [c.get("title") for c in resp.json()["results"]]
+    assert all((t is None) or ("u1" in t) for t in titles)
 
 
-def test_delete_chat():
+@patch("app.routers.chat.generate")
+def test_delete_chat(mock_generate):
+    mock_generate.return_value = {"message": {"content": "Bye"}, "model": "test-model"}
     _setup_db()
     create_resp = client.post("/chat", json={"message": "Bye"}, headers=_auth_header("u1"))
+    assert create_resp.status_code == 200
     conv_id = create_resp.json()["conversation_id"]
 
     resp = client.delete(f"/chats/{conv_id}", headers=_auth_header("u1"))
@@ -109,3 +117,4 @@ def test_delete_chat():
 
     resp2 = client.get(f"/chats/{conv_id}", headers=_auth_header("u1"))
     assert resp2.status_code == 404
+
