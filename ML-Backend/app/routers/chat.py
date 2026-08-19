@@ -1,7 +1,7 @@
 """
-Chat router — Phase 1 endpoints (no persistence yet).
+Chat router — Phase 1 endpoints with persistence.
 
-No database yet; Phase 2 adds conversation/message persistence.
+Phase 2 adds conversation/message persistence.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from app.ollama import DEFAULT_CHAT_MODEL, OllamaAdapterError, stream
 from app.prompt import SYSTEM_PROMPT
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.ollama import generate
-from app.services.conversations import add_message, create_conversation, get_conversation
+from app.services.conversations import add_message, create_conversation, generate_title, get_conversation
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -49,6 +49,15 @@ async def _ollama_stream_to_sse(
         role="assistant",
         content=full_reply,
     )
+
+
+def _maybe_generate_title(user_id: str, conversation_id: str, user_message: str) -> None:
+    from app.services.conversations import get_conversation
+    conv = get_conversation(user_id, conversation_id)
+    if conv and not conv.title and conv.message_count == 1:
+        title = generate_title(user_message)
+        from app.services.conversations import update_conversation
+        update_conversation(conversation_id, title=title)
 
 
 @router.post("", response_model=ChatResponse)
@@ -85,6 +94,7 @@ async def chat(
             role="assistant",
             content=reply,
         )
+        _maybe_generate_title(user_id, conversation_id, body.message)
         return ChatResponse(reply=reply, model=model, conversation_id=conversation_id)
     except OllamaAdapterError as exc:
         raise HTTPException(status_code=502, detail=str(exc))

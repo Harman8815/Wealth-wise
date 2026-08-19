@@ -129,3 +129,19 @@ def delete_conversation(conversation_id: str) -> None:
             db.commit()
     finally:
         db.close()
+
+
+def generate_title(user_message: str) -> str:
+    from app.ollama import generate
+    from app.prompt import SYSTEM_PROMPT
+
+    messages = [
+        {"role": "system", "content": "Generate a short 3-6 word title for this conversation. Reply with only the title."},
+        {"role": "user", "content": user_message},
+    ]
+    try:
+        result = generate(messages, stream=False)
+        title = result.get("message", {}).get("content", "").strip()
+        return title[:255] if title else "New Chat"
+    except Exception:
+        return "New Chat"
