@@ -1,5 +1,5 @@
 """
-Memory extraction and storage for ML-Backend.
+Memory extraction, storage, and retrieval for ML-Backend.
 
 After each assistant turn, this module asks Ollama whether the turn
 contains a durable fact worth remembering.  If yes, it embeds the fact
@@ -69,3 +69,20 @@ async def maybe_store_memory(user_id: str, assistant_reply: str) -> None:
     service = EmbeddingService()
     embedding = await service.embed(memory)
     await store_memory(user_id, memory, embedding)
+
+
+async def retrieve_relevant(user_id: str, query: str, top_k: int = 5) -> List[str]:
+    if not query or not query.strip():
+        return []
+    service = EmbeddingService()
+    query_embedding = await service.embed(query)
+    if not query_embedding:
+        return []
+    collection = get_collection()
+    results = collection.query(
+        query_embeddings=[query_embedding],
+        n_results=top_k,
+        where={"user_id": user_id},
+    )
+    documents = results.get("documents", [[]])
+    return documents[0] if documents else []
