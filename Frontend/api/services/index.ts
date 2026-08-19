@@ -70,6 +70,11 @@ export {
   type ReportFrequency,
 } from './reports';
 export {
+  generateMLReport,
+  getMLReportSummary,
+  explainChartOrAlert,
+} from './ml-reports';
+export {
   ioApi,
   type UploadResponse,
   type CommitResponse,

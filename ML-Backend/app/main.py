@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 
 from .middleware import verify_jwt
 from .ollama import OllamaAdapterError
-from .routers import chat_router, conversations_router, duplicates_router, memory_router
+from .routers import chat_router, conversations_router, duplicates_router, memory_router, reports_router
 
 logger = logging.getLogger("ml_backend")
 
@@ -29,6 +29,7 @@ app.include_router(duplicates_router)
 app.include_router(conversations_router)
 app.include_router(chat_router)
 app.include_router(memory_router)
+app.include_router(reports_router)
 
 app.middleware("http")(verify_jwt)
 

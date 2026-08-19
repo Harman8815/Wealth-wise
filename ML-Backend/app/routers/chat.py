@@ -22,6 +22,9 @@ from app.ollama import generate
 from app.services.context import build_context
 from app.services.conversations import add_message, create_conversation, generate_title, get_conversation
 from app.services.summarization import maybe_summarize
+from app.services.assistants import answer_budget_question, answer_goal_question
+from app.services.intent import classify_intent
+from app.services.router import route_intent
 from app.services.tools import (
     get_balance_tool,
     get_budget_tool,
@@ -319,3 +322,57 @@ async def chat_stream(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@router.post("/goal-planning")
+async def goal_planning(request: Request, user_id: str = Depends(get_user_id)):
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header.")
+    token = auth_header.split(" ")[1]
+    body = await request.json()
+    question = body.get("question", "")
+    if not question:
+        raise HTTPException(status_code=400, detail="Missing question.")
+    answer = await answer_goal_question(token, user_id, question)
+    return {"answer": answer}
+
+
+@router.post("/budget-planning")
+async def budget_planning(request: Request, user_id: str = Depends(get_user_id)):
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header.")
+    token = auth_header.split(" ")[1]
+    body = await request.json()
+    question = body.get("question", "")
+    if not question:
+        raise HTTPException(status_code=400, detail="Missing question.")
+    answer = await answer_budget_question(token, user_id, question)
+    return {"answer": answer}
+
+
+@router.post("/agent")
+async def agent_chat(request: Request, user_id: str = Depends(get_user_id)):
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header.")
+    token = auth_header.split(" ")[1]
+    body = await request.json()
+    message = body.get("message", "")
+    if not message:
+        raise HTTPException(status_code=400, detail="Missing message.")
+    intent = await classify_intent(message)
+    routed = await route_intent(intent, token, user_id, message)
+    if routed.get("response") is None:
+        return {
+            "intent": routed["intent"],
+            "response": "I'm not sure how to help with that. Could you rephrase?",
+            "fallback": True,
+        }
+    return {
+        "intent": routed["intent"],
+        "response": routed["response"],
+        "data": routed.get("data"),
+        "filters": routed.get("filters"),
+    }
