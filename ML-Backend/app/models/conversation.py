@@ -11,7 +11,6 @@ from sqlalchemy import (
     Column,
     DateTime,
     Enum,
-    ForeignKey,
     Integer,
     String,
     Text,
@@ -40,23 +39,3 @@ class Conversation(Base):
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan", order_by="Message.created_at")
-
-
-class MessageRole(str, enum.Enum):
-    user = "user"
-    assistant = "assistant"
-    system = "system"
-
-
-class Message(Base):
-    __tablename__ = "messages"
-
-    id = Column(UUID(as_uuid=False), primary_key=True, default=uuid.uuid4)
-    conversation_id = Column(UUID(as_uuid=False), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True)
-    user_id = Column(String(255), nullable=False, index=True)
-    role = Column(Enum(MessageRole), nullable=False)
-    content = Column(Text, nullable=False)
-    token_count = Column(Integer, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-
-    conversation = relationship("Conversation", back_populates="messages")
