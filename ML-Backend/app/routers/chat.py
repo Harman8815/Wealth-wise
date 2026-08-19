@@ -29,6 +29,7 @@ from app.services.tools import (
     get_income_tool,
     get_profile_tool,
     get_transactions_tool,
+    search_transactions_nl,
 )
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -96,6 +97,20 @@ FINANCIAL_TOOLS: List[Dict[str, Any]] = [
     {
         "type": "function",
         "function": {
+            "name": "search_transactions_nl",
+            "description": "Search transactions using natural language. Use this when the user asks about spending, expenses, or transactions in plain language.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "The user's natural language query about transactions"},
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "get_profile",
             "description": "Get the user's profile information.",
             "parameters": {"type": "object", "properties": {}},
@@ -130,6 +145,9 @@ async def _execute_tool_call(name: str, arguments: Dict[str, Any], token: str, u
             result = await get_goals_tool(token, user_id)
         elif name == "get_profile":
             result = await get_profile_tool(token, user_id)
+        elif name == "search_transactions_nl":
+            query = arguments.get("query", "")
+            result = await search_transactions_nl(token, user_id, query)
         else:
             return json.dumps({"error": f"Unknown tool: {name}"})
         return json.dumps(result)

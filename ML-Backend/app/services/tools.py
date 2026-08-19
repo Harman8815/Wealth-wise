@@ -6,6 +6,7 @@ API client.  No LLM-generated queries are allowed here.
 """
 from __future__ import annotations
 
+import json
 from typing import Any, Dict, List, Optional
 
 from app.clients import (
@@ -15,6 +16,32 @@ from app.clients import (
     get_transactions,
     get_user_profile,
 )
+from app.ollama import DEFAULT_CHAT_MODEL, generate
+
+
+async def _extract_transaction_filters(query: str) -> Dict[str, Optional[str]]:
+    extraction_prompt = (
+        "Extract transaction search filters from the user's query. "
+        "Return ONLY a JSON object with keys: category, type_ (income|expense), "
+        "start_date (YYYY-MM-DD), end_date (YYYY-MM-DD). "
+        "Use null for missing values."
+    )
+    try:
+        result = await generate(
+            [
+                {"role": "system", "content": extraction_prompt},
+                {"role": "user", "content": query},
+            ],
+            model=DEFAULT_CHAT_MODEL,
+            stream=False,
+        )
+        content = result.get("message", {}).get("content", "").strip()
+        if not content:
+            return {}
+        data = json.loads(content)
+        return {k: v for k, v in data.items() if k in {"category", "type_", "start_date", "end_date"} and v}
+    except Exception:
+        return {}
 
 
 async def get_transactions_tool(
@@ -76,3 +103,17 @@ async def get_goals_tool(token: str, user_id: str) -> Dict[str, Any]:
 async def get_profile_tool(token: str, user_id: str) -> Dict[str, Any]:
     profile = await get_user_profile(token)
     return {"user_id": user_id, "data": profile}
+
+
+async def search_transactions_nl(token: str, user_id: str, query: str) -> Dict[str, Any]:
+    filters = await _extract_transaction_filters(query)
+    data = await get_transactions(
+        token,
+        page=1,
+        page_size=100,
+        category=filters.get("category"),
+        type_=filters.get("type_"),
+        start_date=filters.get("start_date"),
+        end_date=filters.get("end_date"),
+    )
+    return {"user_id": user_id, "query": query, "filters": filters, "data": data}
