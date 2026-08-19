@@ -107,3 +107,31 @@ async def embed(
             )
         data = resp.json()
         return data.get("embedding", [])
+
+
+async def generate_with_tools(
+    messages: List[Dict[str, Any]],
+    tools: List[Dict[str, Any]],
+    *,
+    model: str = DEFAULT_CHAT_MODEL,
+    options: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Send a chat completion request with tool definitions."""
+    payload: Dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "stream": False,
+        "tools": tools,
+    }
+    if options:
+        payload["options"] = options
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        resp = await client.post(
+            f"{OLLAMA_URL}/api/chat",
+            json=payload,
+        )
+        if resp.status_code != 200:
+            raise OllamaAdapterError(
+                f"Ollama chat failed ({resp.status_code}): {resp.text}"
+            )
+        return resp.json()
