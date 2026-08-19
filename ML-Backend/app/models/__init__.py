@@ -1,1 +1,3 @@
-# models package — Phase 2 adds conversations/messages tables here.
+from .conversation import Conversation
+
+__all__ = ["Conversation"]
