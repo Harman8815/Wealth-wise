@@ -38,6 +38,12 @@ async def list_chats(user_id: str = Depends(get_user_id)):
     return ConversationListResponse(results=[_serialize(c) for c in results], count=len(results))
 
 
+@router.post("", response_model=ConversationOut)
+async def create_chat(user_id: str = Depends(get_user_id)):
+    conv = create_conversation(user_id=user_id)
+    return _serialize(conv)
+
+
 @router.get("/{conversation_id}", response_model=ConversationOut)
 async def get_chat(conversation_id: str, user_id: str = Depends(get_user_id)):
     conv = get_conversation(user_id, conversation_id)

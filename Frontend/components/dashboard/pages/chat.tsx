@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,8 @@ const INITIAL_MESSAGE: ChatMessage = {
 };
 
 export function ChatPage() {
+  const searchParams = useSearchParams();
+  const conversationId = searchParams.get("conversation") || undefined;
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_MESSAGE]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -44,7 +47,7 @@ export function ChatPage() {
       setIsStreaming(true);
       let fullReply = "";
       await sendChatMessageStream(
-        { message: text },
+        { message: text, conversation_id: conversationId },
         (token) => {
           fullReply += token;
           setMessages((prev) => {

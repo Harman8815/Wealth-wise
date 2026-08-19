@@ -95,3 +95,12 @@ export {
   type ChatRequest,
   type ChatResponse,
 } from './chat';
+export {
+  listConversations,
+  getConversation,
+  deleteConversation,
+  renameConversation,
+  createConversation,
+  type Conversation,
+  type ConversationListResponse,
+} from './conversations';
