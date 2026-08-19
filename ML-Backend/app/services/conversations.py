@@ -96,3 +96,36 @@ def get_messages(user_id: str, conversation_id: str) -> List[Message]:
         )
     finally:
         db.close()
+
+
+def update_conversation(
+    conversation_id: str,
+    *,
+    title: Optional[str] = None,
+    status: Optional[ConversationStatus] = None,
+) -> Conversation:
+    db = _get_db()
+    try:
+        conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+        if not conv:
+            raise ValueError("Conversation not found.")
+        if title is not None:
+            conv.title = title
+        if status is not None:
+            conv.status = status
+        db.commit()
+        db.refresh(conv)
+        return conv
+    finally:
+        db.close()
+
+
+def delete_conversation(conversation_id: str) -> None:
+    db = _get_db()
+    try:
+        conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+        if conv:
+            db.delete(conv)
+            db.commit()
+    finally:
+        db.close()
