@@ -71,9 +71,6 @@ export function MainContent() {
   const visibleInsights = uiInsights.slice(0, 5)
   const hasMoreInsights = uiInsights.length > 5
 
-  const visibleInsights = uiInsights.slice(0, 5)
-  const hasMoreInsights = uiInsights.length > 5
-
   return (
     <div className="flex-1 min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       {/* Header */}
