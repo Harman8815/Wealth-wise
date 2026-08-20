@@ -35,6 +35,28 @@ WealthWise is a full-stack personal finance application:
 
 ## Quick Start
 
+### Prerequisites
+
+- Python 3.10+
+- Node.js 18+
+- Ollama (for AI features)
+
+### Option 1: VS Code Tasks (Recommended)
+
+If you open this project in VS Code, you can launch the entire stack with one command:
+
+- Press `Ctrl+Shift+B` (or `Cmd+Shift+B` on macOS)
+- Select **Start All Servers**
+
+This opens three dedicated terminal panels:
+- **Backend (Django)** — http://localhost:8000
+- **ML-Backend (FastAPI)** — http://localhost:8100
+- **Frontend (Next.js)** — http://localhost:3000
+
+Each server runs in its own terminal and can be stopped/restarted independently with `Ctrl+C`.
+
+### Option 2: Manual Start
+
 ### Backend
 
 ```bash
@@ -59,7 +81,7 @@ npm run dev                     # http://localhost:3000
 ```bash
 cd ML-Backend
 pip install -r requirements.txt
-uvicorn main:app --port 8100
+uvicorn app.main:app --port 8100
 ```
 
 See each module's README for detailed setup, architecture, API reference, and
