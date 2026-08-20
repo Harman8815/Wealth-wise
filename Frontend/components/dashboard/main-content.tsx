@@ -68,6 +68,12 @@ export function MainContent() {
       : undefined,
   }));
 
+  const visibleInsights = uiInsights.slice(0, 5)
+  const hasMoreInsights = uiInsights.length > 5
+
+  const visibleInsights = uiInsights.slice(0, 5)
+  const hasMoreInsights = uiInsights.length > 5
+
   return (
     <div className="flex-1 min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       {/* Header */}
@@ -131,12 +137,12 @@ export function MainContent() {
         </section>
 
         {/* Charts and Insights Grid */}
-        <div className="grid xl:grid-cols-3 gap-4 sm:gap-6 items-stretch">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 items-stretch">
           {/* Monthly Chart - Takes up 2/3 */}
-          <div className="lg:col-span-2 animate-slide-up stagger-1">
-            <div className="h-full w-full flex justify-normal items-start flex-col gap-6 p-0">
+          <div className="col-span-1 xl:col-span-2 animate-slide-up stagger-1">
+            <div className="h-full w-full flex flex-col gap-6">
               <MonthlyChart />
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up stagger-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up stagger-4">
                 <GlassCard hover className="flex items-center gap-4">
                   <div className="p-3 rounded-xl bg-blue-500/10 text-blue-500">
                     <Calendar className="h-5 w-5" />
@@ -181,7 +187,18 @@ export function MainContent() {
 
           {/* AI Insights - Takes up 1/3 */}
           <div className="xl:col-span-1 w-full flex animate-slide-up stagger-2 h-full ">
-            <AIInsightsCard insights={uiInsights} loading={insightsLoading} className="h-full w-full" />
+            <div className="h-full w-full flex flex-col gap-4">
+              <AIInsightsCard insights={visibleInsights} loading={insightsLoading} className="h-full w-full" />
+              {hasMoreInsights && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => router.push('/dashboard/ai-insights')}
+                >
+                  View All Insights ({insights.length})
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
