@@ -24,9 +24,12 @@ import {
   RefreshCw,
   Inbox,
   Sparkles,
+  Loader2,
 } from "lucide-react"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import type { Alert as AlertType, AlertSetting } from "@/api/services"
+import { explainChartOrAlert } from "@/api/services/ml-reports"
+import { toast } from "sonner"
 
 const ALERT_TABS = [
   { id: "all", label: "All" },
@@ -53,6 +56,8 @@ export function AlertsPage() {
   const { openSidebar } = useDashboardSidebar()
   const [activeTab, setActiveTab] = useState<string>("all")
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isExplaining, setIsExplaining] = useState(false)
+  const [alertExplanation, setAlertExplanation] = useState<string | null>(null)
 
   const {
     data: alertsData,
@@ -107,6 +112,34 @@ export function AlertsPage() {
       await generateAlerts.mutateAsync()
     } finally {
       setIsGenerating(false)
+    }
+  }
+
+  const handleExplainAlerts = async () => {
+    setIsExplaining(true)
+    setAlertExplanation(null)
+    try {
+      const totalAlerts = alerts.length
+      const unread = unreadCount
+      const categories = [...new Set(alerts.map((a) => a.category))]
+      const data = {
+        total_alerts: totalAlerts,
+        unread_alerts: unread,
+        categories: categories.length,
+        top_category: categories[0] || 'None',
+        alert_types: alerts.reduce<Record<string, number>>((acc, a) => {
+          acc[a.type] = (acc[a.type] || 0) + 1
+          return acc
+        }, {}),
+      }
+      const result = await explainChartOrAlert(data)
+      setAlertExplanation((result as any).explanation || "No explanation available.")
+      toast.success("Alert explanation generated")
+    } catch (error) {
+      console.error("Failed to explain alerts", error)
+      toast.error("Failed to explain alerts")
+    } finally {
+      setIsExplaining(false)
     }
   }
 
@@ -195,12 +228,20 @@ export function AlertsPage() {
               <Sparkles className={`w-4 h-4 mr-2 ${isGenerating ? "animate-spin" : ""}`} />
               Generate
             </Button>
-              <Button variant="outline" asChild>
-                <Link href="/dashboard/notifications/settings">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Notification Settings
-                </Link>
-              </Button>
+            <Button variant="outline" onClick={handleExplainAlerts} disabled={isExplaining}>
+              {isExplaining ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4 mr-2" />
+              )}
+              {isExplaining ? "Explaining..." : "Explain Alerts"}
+            </Button>
+                <Button variant="outline" asChild>
+                  <Link href="/dashboard/notifications/settings">
+                    <Settings className="w-4 h-4 mr-2" />
+                    Notification Settings
+                  </Link>
+                </Button>
           </div>
         </div>
       </header>
@@ -449,6 +490,18 @@ export function AlertsPage() {
             )}
           </CardContent>
         </Card>
+
+        {alertExplanation && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Alert Explanation</CardTitle>
+              <CardDescription>AI-powered explanation of your alert patterns</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap text-sm">{alertExplanation}</div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
