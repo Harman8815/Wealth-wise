@@ -2,6 +2,85 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Stop Backend (Django)",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        "$port=8000; $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue; if ($connections) { $pids = $connections | Select-Object -ExpandProperty OwningProcess -Unique; foreach ($pid in $pids) { Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue }; Write-Host \"Stopped Django on port $port\" } else { Write-Host \"Django not running on port $port\" }"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "group": "servers",
+        "clear": false,
+        "close": true
+      }
+    },
+    {
+      "label": "Stop ML-Backend (FastAPI)",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        "$port=8100; $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue; if ($connections) { $pids = $connections | Select-Object -ExpandProperty OwningProcess -Unique; foreach ($pid in $pids) { Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue }; Write-Host \"Stopped ML-Backend on port $port\" } else { Write-Host \"ML-Backend not running on port $port\" }"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "group": "servers",
+        "clear": false,
+        "close": true
+      }
+    },
+    {
+      "label": "Stop Frontend (Next.js)",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        "$port=3000; $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue; if ($connections) { $pids = $connections | Select-Object -ExpandProperty OwningProcess -Unique; foreach ($pid in $pids) { Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue }; Write-Host \"Stopped Frontend on port $port\" } else { Write-Host \"Frontend not running on port $port\" }"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "group": "servers",
+        "clear": false,
+        "close": true
+      }
+    },
+    {
+      "label": "Stop All Servers",
+      "dependsOrder": "parallel",
+      "dependsOn": [
+        "Stop Backend (Django)",
+        "Stop ML-Backend (FastAPI)",
+        "Stop Frontend (Next.js)"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "group": "servers",
+        "clear": false,
+        "close": false
+      }
+    },
+    {
       "label": "Backend (Django)",
       "type": "shell",
       "command": "powershell",
@@ -82,6 +161,24 @@
       "group": {
         "kind": "build",
         "isDefault": true
+      }
+    },
+    {
+      "label": "Restart All Servers",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Stop All Servers",
+        "Start All Servers"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "group": "servers",
+        "clear": false,
+        "close": false
       }
     }
   ]
