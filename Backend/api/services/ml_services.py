@@ -143,7 +143,6 @@ def cluster_merchants(transactions_df: pd.DataFrame) -> Dict[str, Any]:
     if set(feature_columns).issubset(merchant_agg.columns):
         X = merchant_agg[feature_columns]
         X_scaled = scaler.transform(X)
-        kmeans = _load_joblib(ML_NOTEBOOKS_DIR / 'merchant clustering' / 'models' / 'clustering_metadata.json')
         from sklearn.cluster import KMeans
         if 'n_clusters' in result['metadata']:
             kmeans = KMeans(n_clusters=result['metadata']['n_clusters'], random_state=42)
