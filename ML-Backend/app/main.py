@@ -12,6 +12,7 @@ import time
 from typing import Any
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .logging_utils import get_request_id, log_error, log_request
@@ -25,6 +26,18 @@ app = FastAPI(
     title="WealthWise ML-Backend",
     description="FastAPI service for AI chat, Ollama orchestration, and duplicate detection.",
     version="0.1.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:3002",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(duplicates_router)
