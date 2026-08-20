@@ -23,6 +23,7 @@ from .views import (
     DuplicateViewSet,
     InsightsViewSet,
     SubscriptionViewSet,
+    MLViewSet,
     accept_invitation,
     health_check,
     seed_historical_data,
@@ -60,6 +61,7 @@ router.register(r'financial-health', FinancialHealthViewSet, basename='financial
 router.register(r'duplicates', DuplicateViewSet, basename='duplicate')
 router.register(r'insights', InsightsViewSet, basename='insight')
 router.register(r'subscriptions', SubscriptionViewSet, basename='subscription')
+router.register(r'ml', MLViewSet, basename='ml')
 
 # URL patterns
 urlpatterns = [
