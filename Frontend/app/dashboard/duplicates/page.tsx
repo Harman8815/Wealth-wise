@@ -70,7 +70,7 @@ export default function DuplicatesPageRoute() {
     setLoading(true)
     try {
       const response = await apiClient.get<DuplicateGroup[]>('/duplicates/')
-      setGroups(response.data)
+      setGroups(Array.isArray(response.data) ? response.data : (response.data as any).results ?? [])
     } catch (error) {
       console.error('Failed to load duplicates', error)
       toast.error('Failed to load duplicates')
