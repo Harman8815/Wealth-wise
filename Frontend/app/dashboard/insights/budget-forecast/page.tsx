@@ -29,7 +29,7 @@ import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import { toast } from "sonner"
 import { mlApi, type BudgetForecastResponse } from "@/api/services"
 
-export function BudgetForecastPage() {
+export default function BudgetForecastPageRoute() {
   const { openSidebar } = useDashboardSidebar()
   const [forecasts, setForecasts] = useState<BudgetForecastResponse['forecasts']>([])
   const [loading, setLoading] = useState(true)

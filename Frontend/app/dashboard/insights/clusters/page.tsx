@@ -30,7 +30,7 @@ import { mlApi, type ClustersResponse, type MerchantCluster } from "@/api/servic
 
 const COLORS = ["#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ec4899", "#06b6d4", "#f97316"]
 
-export function ClustersPage() {
+export default function ClustersPageRoute() {
   const { openSidebar } = useDashboardSidebar()
   const [data, setData] = useState<ClustersResponse | null>(null)
   const [loading, setLoading] = useState(true)

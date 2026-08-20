@@ -10,7 +10,7 @@ import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import { toast } from "sonner"
 import { mlApi, type Anomaly } from "@/api/services"
 
-export function AnomaliesPage() {
+export default function AnomaliesPageRoute() {
   const { openSidebar } = useDashboardSidebar()
   const [anomalies, setAnomalies] = useState<Anomaly[]>([])
   const [loading, setLoading] = useState(true)

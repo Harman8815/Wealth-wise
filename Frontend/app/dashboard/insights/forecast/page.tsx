@@ -31,7 +31,7 @@ import { mlApi, type ForecastResponse } from "@/api/services"
 
 type ForecastTab = "prophet" | "lstm" | "combined"
 
-export function ForecastPage() {
+export default function ForecastPageRoute() {
   const { openSidebar } = useDashboardSidebar()
   const [forecast, setForecast] = useState<ForecastResponse | null>(null)
   const [loading, setLoading] = useState(true)

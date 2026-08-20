@@ -58,7 +58,7 @@ interface DuplicateGroup {
   matches: DuplicateMatch[]
 }
 
-export function DuplicatesPage() {
+export default function DuplicatesPageRoute() {
   const { openSidebar } = useDashboardSidebar()
   const [groups, setGroups] = useState<DuplicateGroup[]>([])
   const [loading, setLoading] = useState(true)
