@@ -4,8 +4,12 @@
     {
       "label": "Backend (Django)",
       "type": "shell",
-      "command": "${workspaceFolder}/Backend/venv/Scripts/python.exe",
-      "args": ["manage.py", "runserver", "8000"],
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        "$port=8000; if (-not (Test-NetConnection -ComputerName 127.0.0.1 -Port $port -InformationLevel Quiet -WarningAction SilentlyContinue)) { & '${workspaceFolder}/Backend/venv/Scripts/python.exe' manage.py runserver 8000 } else { Write-Host \"Django already running on port $port\" }"
+      ],
       "options": { "cwd": "${workspaceFolder}/Backend" },
       "isBackground": true,
       "problemMatcher": [],
@@ -23,8 +27,12 @@
     {
       "label": "ML-Backend (FastAPI)",
       "type": "shell",
-      "command": "${workspaceFolder}/ML-Backend/.venv/Scripts/uvicorn.exe",
-      "args": ["app.main:app", "--port", "8100"],
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        "$port=8100; if (-not (Test-NetConnection -ComputerName 127.0.0.1 -Port $port -InformationLevel Quiet -WarningAction SilentlyContinue)) { & '${workspaceFolder}/ML-Backend/.venv/Scripts/uvicorn.exe' app.main:app --port 8100 } else { Write-Host \"ML-Backend already running on port $port\" }"
+      ],
       "options": { "cwd": "${workspaceFolder}/ML-Backend" },
       "isBackground": true,
       "problemMatcher": [],
@@ -42,8 +50,12 @@
     {
       "label": "Frontend (Next.js)",
       "type": "shell",
-      "command": "npm.cmd",
-      "args": ["run", "dev"],
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        "$port=3000; if (-not (Test-NetConnection -ComputerName 127.0.0.1 -Port $port -InformationLevel Quiet -WarningAction SilentlyContinue)) { npm.cmd run dev } else { Write-Host \"Frontend already running on port $port\" }"
+      ],
       "options": { "cwd": "${workspaceFolder}/Frontend" },
       "isBackground": true,
       "problemMatcher": [],
@@ -61,7 +73,11 @@
     {
       "label": "Start All Servers",
       "dependsOrder": "parallel",
-      "dependsOn": ["Backend (Django)", "ML-Backend (FastAPI)", "Frontend (Next.js)"],
+      "dependsOn": [
+        "Backend (Django)",
+        "ML-Backend (FastAPI)",
+        "Frontend (Next.js)"
+      ],
       "problemMatcher": [],
       "group": {
         "kind": "build",
