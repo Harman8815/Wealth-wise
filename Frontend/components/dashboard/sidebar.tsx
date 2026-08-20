@@ -19,6 +19,10 @@ import {
   Plus,
   Trash2,
   Pencil,
+  AlertTriangle,
+  TrendingUp,
+  Users,
+  Copy,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { usePathname, useRouter } from "next/navigation"
@@ -41,6 +45,11 @@ const navigationItems = [
   { icon: PiggyBank, label: "Budget Planner", href: "/dashboard/budget" },
   { icon: CreditCard, label: "Transactions", href: "/dashboard/transactions" },
   { icon: BarChart3, label: "Reports & Insights", href: "/dashboard/reports" },
+  { icon: AlertTriangle, label: "Anomalies", href: "/dashboard/insights/anomalies" },
+  { icon: TrendingUp, label: "Forecast", href: "/dashboard/insights/forecast" },
+  { icon: Users, label: "Clusters", href: "/dashboard/insights/clusters" },
+  { icon: BarChart, label: "Budget Forecast", href: "/dashboard/insights/budget-forecast" },
+  { icon: Copy, label: "Duplicates", href: "/dashboard/duplicates" },
   { icon: ArrowDownUp, label: "Import & Export", href: "/dashboard/import-export" },
   { icon: Target, label: "Goals", href: "/dashboard/goals" },
   { icon: Repeat, label: "Recurring", href: "/dashboard/recurring" },
