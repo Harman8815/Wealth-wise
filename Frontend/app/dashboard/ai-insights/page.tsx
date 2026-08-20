@@ -3,61 +3,117 @@
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Menu, ArrowLeft, Sparkles } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Menu, ArrowLeft, Sparkles, AlertTriangle, TrendingUp, Users, BarChart3, Copy } from "lucide-react"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
-import { AIInsightsPanel } from "@/shared/components/ai-insights"
-import { insightsApi, type AIInsight } from "@/api/services"
 import { useState, useEffect, useCallback } from "react"
 import { toast } from "sonner"
+import { mlApi, type AnomaliesResponse, type ForecastResponse, type ClustersResponse, type BudgetForecastResponse } from "@/api/services"
+
+interface SummaryCard {
+  title: string
+  description: string
+  icon: React.ReactNode
+  href: string
+  color: string
+  bgColor: string
+  count?: number
+  loadingKey: string
+}
 
 export default function AIInsightsPage() {
   const router = useRouter()
   const { openSidebar } = useDashboardSidebar()
-  const [insights, setInsights] = useState<AIInsight[]>([])
+  const [anomaliesCount, setAnomaliesCount] = useState<number | null>(null)
+  const [forecastAvailable, setForecastAvailable] = useState(false)
+  const [clustersCount, setClustersCount] = useState<number | null>(null)
+  const [budgetForecastCount, setBudgetForecastCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const loadInsights = useCallback(async () => {
+  const loadSummary = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await insightsApi.list()
-      const results = data.results ?? []
-      if (results.length === 0) {
-        const generated = await insightsApi.generate()
-        setInsights(generated.results ?? [])
-      } else {
-        setInsights(results)
+      const [anomaliesRes, forecastRes, clustersRes, budgetRes] = await Promise.allSettled([
+        mlApi.getAnomalies(),
+        mlApi.getForecast(),
+        mlApi.getClusters(),
+        mlApi.getBudgetForecast(),
+      ])
+
+      if (anomaliesRes.status === 'fulfilled') {
+        setAnomaliesCount(anomaliesRes.value.count)
+      }
+      if (forecastRes.status === 'fulfilled') {
+        setForecastAvailable(true)
+      }
+      if (clustersRes.status === 'fulfilled') {
+        setClustersCount(clustersRes.value.clusters?.length || 0)
+      }
+      if (budgetRes.status === 'fulfilled') {
+        setBudgetForecastCount(budgetRes.value.forecasts?.length || 0)
       }
     } catch {
-      toast.error("Failed to load insights")
+      toast.error("Failed to load AI insights summary")
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    loadInsights()
-  }, [loadInsights])
+    loadSummary()
+  }, [loadSummary])
 
-  const uiInsights = insights.map((insight) => ({
-    id: insight.id,
-    type: (insight.kind === 'recurring' ? 'alert' : insight.kind) as
-      'spending' | 'saving' | 'investment' | 'alert' | 'goal',
-    title: insight.title,
-    description: insight.description,
-    impact: insight.severity,
-    metadata: insight.metadata,
-    action: insight.action_url
-      ? {
-          label: "View",
-          onClick: () => {
-            const url = insight.action_url!.startsWith("/")
-              ? `/dashboard${insight.action_url}`
-              : insight.action_url!
-            router.push(url)
-          },
-        }
-      : undefined,
-  }))
+  const cards: SummaryCard[] = [
+    {
+      title: "Anomalies",
+      description: "Detect unusual transactions using Isolation Forest",
+      icon: <AlertTriangle className="w-6 h-6" />,
+      href: "/dashboard/insights/anomalies",
+      color: "text-red-500",
+      bgColor: "bg-red-50 dark:bg-red-950/50",
+      count: anomaliesCount !== null ? anomaliesCount : undefined,
+      loadingKey: "anomalies",
+    },
+    {
+      title: "Spending Forecast",
+      description: "30-day spending prediction with Prophet and LSTM",
+      icon: <TrendingUp className="w-6 h-6" />,
+      href: "/dashboard/insights/forecast",
+      color: "text-blue-500",
+      bgColor: "bg-blue-50 dark:bg-blue-950/50",
+      count: forecastAvailable ? 1 : undefined,
+      loadingKey: "forecast",
+    },
+    {
+      title: "Merchant Clusters",
+      description: "Segment merchants by spending behavior",
+      icon: <Users className="w-6 h-6" />,
+      href: "/dashboard/insights/clusters",
+      color: "text-purple-500",
+      bgColor: "bg-purple-50 dark:bg-purple-950/50",
+      count: clustersCount !== null ? clustersCount : undefined,
+      loadingKey: "clusters",
+    },
+    {
+      title: "Budget Forecast",
+      description: "3-month budget category predictions",
+      icon: <BarChart3 className="w-6 h-6" />,
+      href: "/dashboard/insights/budget-forecast",
+      color: "text-emerald-500",
+      bgColor: "bg-emerald-50 dark:bg-emerald-950/50",
+      count: budgetForecastCount !== null ? budgetForecastCount : undefined,
+      loadingKey: "budget",
+    },
+    {
+      title: "Duplicate Detection",
+      description: "Find and resolve duplicate transactions",
+      icon: <Copy className="w-6 h-6" />,
+      href: "/dashboard/duplicates",
+      color: "text-amber-500",
+      bgColor: "bg-amber-50 dark:bg-amber-950/50",
+      loadingKey: "duplicates",
+    },
+  ]
 
   return (
     <div className="flex-1 min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -73,7 +129,7 @@ export default function AIInsightsPage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">AI Insights</h1>
               <p className="text-sm text-muted-foreground">
-                All your smart recommendations and financial insights
+                ML-powered analysis, forecasts, and smart detection
               </p>
             </div>
           </div>
@@ -81,40 +137,28 @@ export default function AIInsightsPage() {
       </header>
 
       <main className="p-4 sm:p-6 space-y-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20">
-                <Sparkles className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle>All Insights</CardTitle>
-                <CardDescription>
-                  {insights.length} insight{insights.length !== 1 ? 's' : ''} found
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-3">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="p-4 rounded-xl bg-muted/50 animate-pulse">
-                    <div className="flex gap-3">
-                      <div className="h-10 w-10 rounded-lg bg-muted" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-4 w-1/3 rounded bg-muted" />
-                        <div className="h-3 w-full rounded bg-muted" />
-                      </div>
-                    </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {cards.map((card) => (
+            <Card
+              key={card.href}
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => router.push(card.href)}
+            >
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className={`p-3 rounded-xl ${card.bgColor} ${card.color}`}>
+                    {card.icon}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <AIInsightsPanel insights={uiInsights} />
-            )}
-          </CardContent>
-        </Card>
+                  {card.count !== undefined && !loading && (
+                    <span className="text-2xl font-bold">{card.count}</span>
+                  )}
+                </div>
+                <CardTitle className="mt-4">{card.title}</CardTitle>
+                <CardDescription>{card.description}</CardDescription>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
       </main>
     </div>
   )
