@@ -26,7 +26,7 @@ export const useCategory = (id: string) => {
 
 export const useSearchCategories = (query: string, type?: string) => {
   return useQuery({
-    queryKey: [...queryKeys.categories.search, query, type],
+    queryKey: queryKeys.categories.search(query, type),
     queryFn: () => categoryApi.search(query, type),
     enabled: query.length > 0,
   });
