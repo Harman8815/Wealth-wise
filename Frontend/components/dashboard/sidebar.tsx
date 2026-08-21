@@ -122,7 +122,7 @@ function SidebarContent({
       <div className={cn("p-4 border-b border-slate-800 flex items-center justify-between transition-all duration-300", isCollapsed ? "justify-center" : "")}>
         <div className={cn("flex items-center space-x-2 overflow-hidden", isCollapsed ? "w-0 hidden" : "w-auto flex")}>
           <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shrink-0">
-            <BarChart className="w-5 h-5 text-white" />
+            <BarChart3 className="w-5 h-5 text-white" />
           </div>
           <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent truncate">
             WealthWise
@@ -130,7 +130,7 @@ function SidebarContent({
         </div>
         {isCollapsed && (
           <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shrink-0 mb-2 mt-1">
-            <BarChart className="w-5 h-5 text-white" />
+            <BarChart3 className="w-5 h-5 text-white" />
           </div>
         )}
         
