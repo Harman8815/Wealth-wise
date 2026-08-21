@@ -111,7 +111,7 @@ export function BudgetOverviewPanel({
       </div>
 
       {/* Center: the gauge itself */}
-      <div className="order-1 flex w-full justify-center lg:order-2">
+      <div className="order-1 flex w-full justify-center lg:order-2 ">
         <BudgetGauge totalBudget={totalBudget} spent={spent} remaining={remaining} percentage={percentage} maxSize={maxSize} />
       </div>
 
