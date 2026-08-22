@@ -14,7 +14,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional
 import httpx
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
-DEFAULT_CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", "qwen2.5:14b")
+DEFAULT_CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", "llama3.2")
 DEFAULT_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
 
 

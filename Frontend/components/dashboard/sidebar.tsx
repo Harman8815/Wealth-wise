@@ -23,6 +23,9 @@ import { useActiveProject } from "@/components/project/project-context"
 import { useUnreadCount } from "@/lib/notifications"
 import { useState, useEffect } from "react"
 import { listConversations, deleteConversation, renameConversation, type Conversation } from "@/api/services/conversations"
+// import chevronLeft from "@/assets/icons/chevron-left.svg"
+// import chevronRight from "@/assets/icons/chevron-right.svg"
+import { ChevronLeft, ChevronRight, Plus, Trash2, Pencil } from "lucide-react"
 
 interface SidebarProps {
   onSettingsClick: () => void

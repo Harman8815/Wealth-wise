@@ -7,7 +7,7 @@ Run from the repo root or ML-Backend/ with the venv activated:
 
 Requires `ollama` running locally and the models pulled:
 
-    ollama pull qwen2.5:14b
+    ollama pull llama3.2
     ollama pull nomic-embed-text
 """
 from __future__ import annotations
@@ -18,7 +18,7 @@ import os
 import httpx
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
-CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", "qwen2.5:14b")
+CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", "llama3.2")
 EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
 
 
