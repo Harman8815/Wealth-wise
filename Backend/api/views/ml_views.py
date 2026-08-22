@@ -75,7 +75,7 @@ class MLViewSet(viewsets.GenericViewSet):
         result = cluster_merchants(df)
         return Response(result, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], url_path='budget-forecast')
     def budget_forecast(self, request):
         """Budget category forecast for the active project."""
         tx_df = self._get_transactions(request)
