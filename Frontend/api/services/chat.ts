@@ -11,11 +11,13 @@ export interface ChatMessage {
 export interface ChatRequest {
   message: string;
   model?: string;
+  conversation_id?: string;
 }
 
 export interface ChatResponse {
   reply: string;
   model: string;
+  conversation_id: string;
 }
 
 function getAuthHeader(): Record<string, string> {
@@ -43,6 +45,7 @@ export async function sendChatMessageStream(
   data: ChatRequest,
   onToken: (token: string) => void,
   onError: (error: Error) => void,
+  signal?: AbortSignal,
 ): Promise<void> {
   try {
     const res = await fetch(`${ML_BACKEND_URL}/chat/stream`, {
@@ -52,6 +55,7 @@ export async function sendChatMessageStream(
         ...getAuthHeader(),
       },
       body: JSON.stringify(data),
+      signal,
     });
     if (!res.ok) {
       throw new Error(`Stream failed (${res.status})`);
@@ -93,6 +97,10 @@ export async function sendChatMessageStream(
       }
     }
   } catch (err) {
+    if ((err as Error).name === "AbortError") {
+      onError(new Error("Request cancelled by user."));
+      return;
+    }
     onError(err as Error);
   }
 }

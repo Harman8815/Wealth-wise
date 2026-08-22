@@ -13,6 +13,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from starlette.background import ClientDisconnect
 
 from app.context import ContextBudget, get_context_budget
 from app.deps import get_user_id
@@ -233,6 +234,14 @@ async def _ollama_stream_to_sse(
             full_reply += token
             payload = json.dumps({"token": token})
             yield _sse_pack("token", payload)
+    except ClientDisconnect:
+        add_message(
+            user_id=user_id,
+            conversation_id=conversation_id,
+            role="assistant",
+            content="Request cancelled by user.",
+        )
+        return
     except OllamaAdapterError as exc:
         payload = json.dumps({"error": str(exc)})
         yield _sse_pack("error", payload)

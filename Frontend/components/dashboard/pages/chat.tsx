@@ -1,21 +1,61 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Send, Sparkles, User, Loader2, AlertCircle } from "lucide-react";
+import {
+  Send,
+  Sparkles,
+  User,
+  Loader2,
+  AlertCircle,
+  Square,
+  Plus,
+  Trash2,
+  MessageSquare,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { sendChatMessage, sendChatMessageStream, type ChatMessage } from "@/api/services/chat";
+import {
+  sendChatMessageStream,
+  sendChatMessage,
+  type ChatMessage,
+} from "@/api/services/chat";
+import {
+  createConversation,
+  deleteConversation,
+  listConversations,
+  type Conversation,
+} from "@/api/services/conversations";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const INITIAL_MESSAGE: ChatMessage = {
   role: "assistant",
   content:
     "Hello! I'm WealthWise AI. Ask me anything about your finances — budgets, goals, transactions, or savings.",
 };
+
+const PROCESSING_MESSAGES = [
+  "Understanding your question...",
+  "Searching your financial data...",
+  "Checking your budget...",
+  "Analyzing spending patterns...",
+  "Generating insights...",
+  "Preparing your response...",
+];
 
 export function ChatPage() {
   const searchParams = useSearchParams();
@@ -24,13 +64,45 @@ export function ChatPage() {
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [processingTime, setProcessingTime] = useState(0);
+  const [processingMessage, setProcessingMessage] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const messageIndexRef = useRef(0);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, processingTime]);
+
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setProcessingTime(0);
+    setProcessingMessage("");
+    messageIndexRef.current = 0;
+  }, []);
+
+  const startTimer = useCallback(() => {
+    clearTimer();
+    setProcessingTime(0);
+    setProcessingMessage(PROCESSING_MESSAGES[0]);
+    messageIndexRef.current = 0;
+    timerRef.current = setInterval(() => {
+      setProcessingTime((prev) => {
+        const next = prev + 1;
+        if (next % 3 === 0 && messageIndexRef.current < PROCESSING_MESSAGES.length - 1) {
+          messageIndexRef.current += 1;
+          setProcessingMessage(PROCESSING_MESSAGES[messageIndexRef.current]);
+        }
+        return next;
+      });
+    }, 1000);
+  }, [clearTimer]);
 
   const appendMessage = (role: "user" | "assistant", content: string) => {
     setMessages((prev) => [...prev, { role, content }]);
@@ -45,7 +117,10 @@ export function ChatPage() {
 
     try {
       setIsStreaming(true);
+      startTimer();
+      abortControllerRef.current = new AbortController();
       let fullReply = "";
+
       await sendChatMessageStream(
         { message: text, conversation_id: conversationId },
         (token) => {
@@ -62,16 +137,61 @@ export function ChatPage() {
           });
         },
         (err) => {
-          setError(err.message);
-          toast({ title: err.message, variant: "destructive" });
+          if (err.message === "Request cancelled by user.") {
+            setMessages((prev) => {
+              const next = [...prev];
+              const last = next[next.length - 1];
+              if (last.role === "assistant" && last.content === fullReply && fullReply) {
+                next[next.length - 1] = {
+                  ...last,
+                  content: fullReply + " [cancelled]",
+                };
+              }
+              return next;
+            });
+            toast.info("Generation stopped");
+          } else {
+            setError(err.message);
+            toast({ title: err.message, variant: "destructive" });
+          }
         },
+        abortControllerRef.current.signal,
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to send message";
       setError(message);
       toast({ title: message, variant: "destructive" });
     } finally {
+      clearTimer();
       setIsStreaming(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+  };
+
+  const handleNewChat = async () => {
+    try {
+      const created = await createConversation("New Chat");
+      window.location.href = `/dashboard/chat?conversation=${created.id}`;
+      toast.success("New chat created");
+    } catch {
+      toast.error("Failed to create chat");
+    }
+  };
+
+  const handleDeleteChat = async () => {
+    if (!conversationId) return;
+    try {
+      await deleteConversation(conversationId);
+      window.location.href = "/dashboard/chat";
+      toast.success("Chat deleted");
+    } catch {
+      toast.error("Failed to delete chat");
     }
   };
 
@@ -82,99 +202,167 @@ export function ChatPage() {
     }
   };
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+      .toString()
+      .padStart(2, "0");
+    const secs = (seconds % 60).toString().padStart(2, "0");
+    return `${mins}:${secs}`;
+  };
+
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)]">
-      <Card className="flex-1 flex flex-col overflow-hidden border-border/60">
-        <CardHeader className="border-b border-border/60">
+    <div className="flex flex-col h-full">
+      <CardHeader className="border-b border-border/60 pb-3">
+        <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Sparkles className="h-5 w-5 text-blue-500" />
             WealthWise AI Chat
           </CardTitle>
-        </CardHeader>
-        <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
-          <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-            <div className="space-y-4">
-              {messages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  {msg.role === "assistant" && (
-                    <Avatar className="h-8 w-8 shrink-0">
-                      <AvatarFallback className="bg-blue-600 text-white">
-                        <Sparkles className="h-4 w-4" />
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-                  <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                      msg.role === "user"
-                        ? "bg-blue-600 text-white rounded-br-sm"
-                        : "bg-slate-800 text-slate-100 rounded-bl-sm"
-                    }`}
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              onClick={handleNewChat}
+              title="New Chat"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            {conversationId && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-red-500"
+                    title="Delete Chat"
                   >
-                    {msg.content}
-                  </div>
-                  {msg.role === "user" && (
-                    <Avatar className="h-8 w-8 shrink-0">
-                      <AvatarFallback className="bg-slate-700 text-slate-200">
-                        <User className="h-4 w-4" />
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-                </div>
-              ))}
-              {isStreaming && messages[messages.length - 1]?.role !== "assistant" && (
-                <div className="flex gap-3 justify-start">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete this conversation and all its messages.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteChat} className="bg-red-600 hover:bg-red-700">
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
+        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+          <div className="space-y-4">
+            {messages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                {msg.role === "assistant" && (
                   <Avatar className="h-8 w-8 shrink-0">
                     <AvatarFallback className="bg-blue-600 text-white">
                       <Sparkles className="h-4 w-4" />
                     </AvatarFallback>
                   </Avatar>
-                  <div className="bg-slate-800 text-slate-100 rounded-2xl rounded-bl-sm px-4 py-2.5">
-                    <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
-                  </div>
+                )}
+                <div
+                  className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                    msg.role === "user"
+                      ? "bg-blue-600 text-white rounded-br-sm"
+                      : "bg-slate-800 text-slate-100 rounded-bl-sm"
+                  }`}
+                >
+                  {msg.content}
                 </div>
-              )}
-              {error && (
-                <div className="flex gap-3 justify-start">
+                {msg.role === "user" && (
                   <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarFallback className="bg-red-600 text-white">
-                      <AlertCircle className="h-4 w-4" />
+                    <AvatarFallback className="bg-slate-700 text-slate-200">
+                      <User className="h-4 w-4" />
                     </AvatarFallback>
                   </Avatar>
-                  <div className="max-w-[80%] rounded-2xl rounded-bl-sm px-4 py-2.5 text-sm bg-red-950/50 text-red-200 border border-red-800/50">
-                    {error}
-                  </div>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-          <div className="border-t border-border/60 p-4">
-            <div className="flex gap-2">
-              <Input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask WealthWise AI anything..."
-                disabled={isStreaming}
-                className="flex-1 bg-slate-900 border-border focus-visible:ring-blue-500"
-              />
-              <Button
-                onClick={handleSend}
-                disabled={!input.trim() || isStreaming}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                {isStreaming ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
                 )}
+              </div>
+            ))}
+            {isStreaming && messages[messages.length - 1]?.role !== "assistant" && (
+              <div className="flex gap-3 justify-start">
+                <Avatar className="h-8 w-8 shrink-0">
+                  <AvatarFallback className="bg-blue-600 text-white">
+                    <Sparkles className="h-4 w-4" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="bg-slate-800 text-slate-100 rounded-2xl rounded-bl-sm px-4 py-2.5 flex items-center gap-3">
+                  <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                  {processingMessage && (
+                    <span className="text-xs text-slate-400">
+                      {processingMessage} {formatTime(processingTime)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+            {error && (
+              <div className="flex gap-3 justify-start">
+                <Avatar className="h-8 w-8 shrink-0">
+                  <AvatarFallback className="bg-red-600 text-white">
+                    <AlertCircle className="h-4 w-4" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="max-w-[80%] rounded-2xl rounded-bl-sm px-4 py-2.5 text-sm bg-red-950/50 text-red-200 border border-red-800/50">
+                  {error}
+                </div>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+        <div className="border-t border-border/60 p-4">
+          {isStreaming && (
+            <div className="flex items-center justify-between mb-2 px-1">
+              <span className="text-xs text-muted-foreground">
+                Thinking... {formatTime(processingTime)}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleStop}
+                className="h-7 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+              >
+                <Square className="h-3.5 w-3.5 mr-1.5 fill-current" />
+                Stop
               </Button>
             </div>
+          )}
+          <div className="flex gap-2">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask WealthWise AI anything..."
+              disabled={isStreaming}
+              className="flex-1 bg-slate-900 border-border focus-visible:ring-blue-500"
+            />
+            <Button
+              onClick={handleSend}
+              disabled={!input.trim() || isStreaming}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isStreaming ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </CardContent>
     </div>
   );
 }
