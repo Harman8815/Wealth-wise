@@ -28,18 +28,6 @@ app = FastAPI(
     version="0.1.0",
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:3002",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 app.include_router(duplicates_router)
 app.include_router(conversations_router)
 app.include_router(chat_router)
@@ -63,6 +51,24 @@ async def log_requests(request: Request, call_next):
         latency_ms=latency,
     )
     return response
+
+
+# CORSMiddleware must be added LAST so that Starlette places it as the
+# outermost wrapper in the middleware stack (Starlette reverses registration
+# order).  Being outermost means it runs first on every request and last on
+# every response, guaranteeing CORS headers are present on all responses —
+# including 401/500 short-circuits from inner middleware such as verify_jwt.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:3002",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
