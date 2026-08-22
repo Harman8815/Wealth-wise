@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils"
 import { NotificationProvider, NotificationSyncBridge } from "@/lib/notifications"
 import { NotificationPopupProvider } from "@/components/notifications/notification-popup"
 import { NotificationWidget } from "@/components/notifications/notification-widget"
+import { FloatingChatWidget } from "@/components/dashboard/floating-chat-widget"
 
 export default function DashboardLayout({
   children,
@@ -77,6 +78,9 @@ export default function DashboardLayout({
 
           {/* Floating Notification Bell */}
           <NotificationWidget />
+
+          {/* Floating Chat Widget */}
+          <FloatingChatWidget />
         </DashboardSidebarProvider>
       </NotificationPopupProvider>
     </NotificationProvider>
