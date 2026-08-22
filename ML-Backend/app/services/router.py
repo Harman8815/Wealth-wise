@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from app.services.assistants import answer_budget_question, answer_goal_question
+from app.services.insights_agent import answer_insights_question
 from app.services.intent import Intent
 from app.services.reports import build_report, explain_chart_or_alert
 from app.services.tools import search_transactions_nl
@@ -55,6 +56,13 @@ async def route_intent(
             "response": f"Found {len(result.get('data', {}).get('results', []))} transactions matching your query.",
             "data": result.get("data"),
             "filters": result.get("filters"),
+        }
+
+    if intent == Intent.INSIGHTS:
+        answer = await answer_insights_question(token, user_id, message)
+        return {
+            "intent": intent.value,
+            "response": answer,
         }
 
     # general_chat fallback
