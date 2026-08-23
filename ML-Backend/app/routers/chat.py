@@ -391,6 +391,18 @@ async def budget_planning(request: Request, user_id: str = Depends(get_user_id),
     return {"answer": answer}
 
 
+@router.post("/db/refresh")
+async def refresh_db_context():
+    """Refresh the database schema context."""
+    from app.services.db_context import refresh_database_context
+    context = refresh_database_context()
+    return {
+        "status": "refreshed",
+        "table_count": context.get("table_count", 0),
+        "database_type": context.get("database_type", ""),
+    }
+
+
 @router.post("/agent")
 async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: None = Depends(enforce_rate_limit)):
     auth_header = request.headers.get("authorization", "")

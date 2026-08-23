@@ -142,6 +142,21 @@ AGENT_REGISTRY: Dict[str, Dict[str, Any]] = {
         },
         "handler": "fallback",
     },
+    "db_context": {
+        "name": "db_context",
+        "slash_command": "/db",
+        "description": "Inspect the database schema, tables, columns, and relationships.",
+        "intent": "db_context",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "message": {"type": "string", "description": "The user's question about the database"},
+                "conversation_id": {"type": "string", "description": "Optional conversation ID for context"},
+            },
+            "required": ["message"],
+        },
+        "handler": "answer_database_question",
+    },
 }
 
 
