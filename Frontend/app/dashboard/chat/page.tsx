@@ -13,7 +13,7 @@ function ChatPageWithSidebar() {
   const conversationId = searchParams.get("conversation") || undefined
 
   return (
-    <div className="flex h-[calc(100vh-8rem)]">
+    <div className="flex h-full">
       <ChatSidebar conversationId={conversationId} />
       <div className="flex-1 min-w-0">
         <ChatPage />
