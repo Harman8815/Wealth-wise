@@ -164,7 +164,7 @@ export function ExpenseTracker() {
                         onChange={(e) => setNewExpense({ ...newExpense, amount: Number(e.target.value) })}
                       />
                     ) : (
-                      {formatCurrency(expense.amount)}
+                      formatCurrency(expense.amount)
                     )}
                   </TableCell>
                   <TableCell>

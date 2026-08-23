@@ -65,8 +65,8 @@ export function AnimatedNumber({
   }, [value, duration]);
 
   const formattedValue = formatNumber(displayValue, {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
+    minFractionDigits: decimals,
+    maxFractionDigits: decimals,
   });
 
   return (

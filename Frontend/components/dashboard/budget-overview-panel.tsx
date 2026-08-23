@@ -26,8 +26,6 @@ interface BudgetOverviewPanelProps {
 }
 
 function categoryStatus(spent: number, budget: number) {
-
-interface BudgetOverviewPanelProps {
   const percent = budget > 0 ? (spent / budget) * 100 : 0
   if (percent > 100) return { percent, label: "Over Budget", color: "#ef4444", bg: "bg-red-500/10", text: "text-red-500" }
   if (percent >= 80) return { percent, label: "Near Limit", color: "#f59e0b", bg: "bg-amber-500/10", text: "text-amber-500" }

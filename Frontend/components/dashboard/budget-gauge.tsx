@@ -31,8 +31,6 @@ type GaugeStatus = {
   colorLight: string;
 };
 
-function polarToCartesian(
-
 const STATUS: Record<"healthy" | "near" | "over", GaugeStatus> = {
   healthy: { label: "On Track", color: "#10b981", colorLight: "#6ee7b7" },
   near: { label: "Near Budget Limit", color: "#f59e0b", colorLight: "#fcd34d" },
@@ -45,7 +43,7 @@ function getStatus(percentage: number): GaugeStatus {
   return STATUS.healthy;
 }
 
-type GaugeStatus = {
+function polarToCartesian(
   cx: number,
   cy: number,
   radius: number,

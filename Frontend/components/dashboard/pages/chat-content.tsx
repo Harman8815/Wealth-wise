@@ -187,7 +187,7 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
               toast.info("Generation stopped");
             } else {
               setError(err.message);
-              toast({ title: err.message, variant: "destructive" });
+              toast.error(err.message);
             }
           },
           abortControllerRef.current.signal,
@@ -205,7 +205,7 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
               toast.info("Generation stopped");
             } else {
               setError(err.message);
-              toast({ title: err.message, variant: "destructive" });
+              toast.error(err.message);
             }
           },
           abortControllerRef.current.signal,
@@ -214,7 +214,7 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to send message";
       setError(message);
-      toast({ title: message, variant: "destructive" });
+      toast.error(message);
     } finally {
       clearTimer();
       setIsStreaming(false);
