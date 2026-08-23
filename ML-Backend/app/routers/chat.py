@@ -258,10 +258,12 @@ async def _ollama_stream_to_sse(
 def _maybe_generate_title(user_id: str, conversation_id: str, user_message: str) -> None:
     from app.services.conversations import get_conversation
     conv = get_conversation(user_id, conversation_id)
-    if conv and not conv.title and conv.message_count == 1:
-        title = generate_title(user_message)
-        from app.services.conversations import update_conversation
-        update_conversation(conversation_id, title=title)
+    if conv and conv.message_count == 1:
+        import re
+        if not conv.title or re.match(r"^New Chat(?: \(\d+\))?$", conv.title or ""):
+            title = generate_title(user_message)
+            from app.services.conversations import update_conversation
+            update_conversation(conversation_id, title=title)
 
 
 def _get_token(request: Request) -> str:
@@ -309,13 +311,13 @@ async def chat(
             role="user",
             content=body.message,
         )
+        _maybe_generate_title(user_id, conversation_id, body.message)
         add_message(
             user_id=user_id,
             conversation_id=conversation_id,
             role="assistant",
             content=reply,
         )
-        _maybe_generate_title(user_id, conversation_id, body.message)
         return ChatResponse(reply=reply, model=body.model or DEFAULT_CHAT_MODEL, conversation_id=conversation_id)
     except OllamaAdapterError as exc:
         raise HTTPException(status_code=502, detail=str(exc))

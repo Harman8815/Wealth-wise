@@ -75,8 +75,9 @@ export function ChatSidebar({ conversationId }: ChatSidebarProps) {
       try {
         const updated = await renameConversation(id, editTitle.trim())
         setConversations((prev) => prev.map((c) => c.id === id ? updated : c))
-      } catch {
-        toast.error("Failed to rename chat")
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to rename chat"
+        toast.error(message)
       }
     }
     setEditingId(null)

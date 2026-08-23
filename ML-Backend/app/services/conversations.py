@@ -22,6 +22,10 @@ def _get_db() -> Session:
 def create_conversation(user_id: str, title: Optional[str] = None) -> Conversation:
     db = _get_db()
     try:
+        if not title:
+            title = _generate_unique_title(db, user_id)
+        else:
+            title = _generate_unique_title(db, user_id, base=title)
         conv = Conversation(user_id=user_id, title=title)
         db.add(conv)
         db.commit()
@@ -29,6 +33,21 @@ def create_conversation(user_id: str, title: Optional[str] = None) -> Conversati
         return conv
     finally:
         db.close()
+
+
+def _generate_unique_title(db: Session, user_id: str, base: str = "New Chat") -> str:
+    existing_titles = [
+        row[0]
+        for row in db.query(Conversation.title)
+        .filter(Conversation.user_id == user_id, Conversation.title != None)
+        .all()
+    ]
+    title = base
+    counter = 1
+    while title in existing_titles:
+        title = f"{base} ({counter})"
+        counter += 1
+    return title
 
 
 def get_conversation(user_id: str, conversation_id: str) -> Optional[Conversation]:
@@ -110,6 +129,13 @@ def update_conversation(
         if not conv:
             raise ValueError("Conversation not found.")
         if title is not None:
+            existing = (
+                db.query(Conversation)
+                .filter(Conversation.user_id == conv.user_id, Conversation.title == title, Conversation.id != conversation_id)
+                .first()
+            )
+            if existing:
+                raise ValueError(f"A conversation named '{title}' already exists.")
             conv.title = title
         if status is not None:
             conv.status = status

@@ -67,14 +67,14 @@ export async function renameConversation(id: string, title: string): Promise<Con
   return res.json();
 }
 
-export async function createConversation(): Promise<Conversation> {
+export async function createConversation(title?: string): Promise<Conversation> {
   const res = await fetch(`${ML_BACKEND_URL}/chats`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...getAuthHeader(),
     },
-    body: JSON.stringify({}),
+    body: JSON.stringify(title ? { title } : {}),
   });
   if (!res.ok) {
     throw new Error(`Failed to create conversation (${res.status})`);
