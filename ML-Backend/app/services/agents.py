@@ -48,6 +48,22 @@ AGENT_REGISTRY: Dict[str, Dict[str, Any]] = {
         "handler": "route_intent",
         "registered_at": "2026-08-22",
     },
+    "alert": {
+        "name": "alert",
+        "slash_command": "/alert",
+        "description": "Explain financial alerts in plain language.",
+        "intent": "chart_alert",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "message": {"type": "string", "description": "The user's message or question about alerts"},
+                "conversation_id": {"type": "string", "description": "Optional conversation ID for context"},
+            },
+            "required": ["message"],
+        },
+        "handler": "route_intent",
+        "registered_at": "2026-08-22",
+    },
     "goal": {
         "name": "goal",
         "slash_command": "/goal",

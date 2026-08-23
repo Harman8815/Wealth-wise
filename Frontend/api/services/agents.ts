@@ -1,6 +1,6 @@
 import { Sparkles, FileText, BarChart3, AlertTriangle, Target, PiggyBank, Search } from "lucide-react";
 
-export type AgentId = "insights" | "report" | "chart" | "alert" | "goal" | "budget" | "search";
+export type AgentId = "insights" | "report" | "chart_alert" | "alert" | "goal" | "budget" | "transaction_search";
 
 export interface Agent {
   id: AgentId;
@@ -26,15 +26,15 @@ export const agents: Agent[] = [
     icon: FileText,
   },
   {
-    id: "chart",
-    name: "Chart",
-    description: "Explain charts and alerts",
-    slashCommand: "/chart",
+    id: "chart_alert",
+    name: "Chart & Alerts",
+    description: "Explain charts, alerts, or financial visualizations",
+    slashCommand: "/explain",
     icon: BarChart3,
   },
   {
     id: "alert",
-    name: "Alert",
+    name: "Alerts",
     description: "Explain financial alerts",
     slashCommand: "/alert",
     icon: AlertTriangle,
@@ -54,7 +54,7 @@ export const agents: Agent[] = [
     icon: PiggyBank,
   },
   {
-    id: "search",
+    id: "transaction_search",
     name: "Search",
     description: "Search transactions naturally",
     slashCommand: "/search",
