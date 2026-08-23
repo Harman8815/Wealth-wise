@@ -4,6 +4,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Sparkles, TrendingUp, TrendingDown, AlertTriangle, Target, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/lib/format";
 
 interface AIInsight {
   id: string;
@@ -164,7 +165,7 @@ export function AIInsightsPanel({
 
                 {insight.metadata?.amount && (
                   <p className={cn("text-xs font-medium mt-1.5", config.color)}>
-                    ₹{insight.metadata.amount.toLocaleString("en-IN")}
+                    {formatCurrency(insight.metadata.amount)}
                   </p>
                 )}
 

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { COLOR_OPTIONS } from "@/data/category-symbols"
 import type { BudgetAllocation } from "@/api/services"
+import { formatCurrency } from "@/lib/format"
 
 interface CategoryAllocationEditorProps {
   allocations: BudgetAllocation[]
@@ -106,7 +107,7 @@ export function CategoryAllocationEditor({ allocations, onChange }: CategoryAllo
           <Plus className="mr-1 h-4 w-4" /> Add Category
         </Button>
         <p className="text-sm font-medium text-foreground">
-          Total allocated: ₹{total.toLocaleString()}
+          Total allocated: {formatCurrency(total)}
         </p>
       </div>
     </div>

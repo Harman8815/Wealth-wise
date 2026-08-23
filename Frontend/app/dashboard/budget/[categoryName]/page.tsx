@@ -11,6 +11,7 @@ import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import Link from "next/link"
 import { ICON_MAP } from "@/components/dashboard/symbol-picker"
 import { DEFAULT_TEXT_COLOR } from "@/data/category-symbols"
+import { formatCurrency } from "@/lib/format"
 
 export default function CategoryDetailPage() {
   const { openSidebar } = useDashboardSidebar()
@@ -75,7 +76,7 @@ export default function CategoryDetailPage() {
               <CardTitle className="text-lg">Budgeted</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-blue-600">₹{budgeted.toLocaleString()}</div>
+              <div className="text-3xl font-bold text-blue-600">{formatCurrency(budgeted)}</div>
             </CardContent>
           </Card>
 
@@ -84,7 +85,7 @@ export default function CategoryDetailPage() {
               <CardTitle className="text-lg">Spent</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-red-600">₹{totalSpent.toLocaleString()}</div>
+              <div className="text-3xl font-bold text-red-600">{formatCurrency(totalSpent)}</div>
             </CardContent>
           </Card>
 
@@ -94,7 +95,7 @@ export default function CategoryDetailPage() {
             </CardHeader>
             <CardContent>
               <div className={`text-3xl font-bold ${budgeted - totalSpent >= 0 ? "text-green-600" : "text-red-600"}`}>
-                ₹{Math.abs(budgeted - totalSpent).toLocaleString()}
+                {formatCurrency(Math.abs(budgeted - totalSpent))}
               </div>
               <Badge variant={percentage > 100 ? "destructive" : percentage >= 90 ? "secondary" : "default"}>
                 {percentage > 100 ? "Over Budget" : percentage >= 90 ? "Near Limit" : "Good"}
@@ -130,7 +131,7 @@ export default function CategoryDetailPage() {
                     </div>
                     <div className="text-right">
                       <p className={`font-semibold ${t.type === "income" ? "text-green-600" : "text-red-600"}`}>
-                        {t.type === "income" ? "+" : "-"}₹{Number(t.amount).toLocaleString()}
+                        {t.type === "income" ? "+" : "-"}{formatCurrency(Number(t.amount))}
                       </p>
                     </div>
                   </div>

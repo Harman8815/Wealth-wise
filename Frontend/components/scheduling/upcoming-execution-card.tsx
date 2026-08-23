@@ -3,6 +3,7 @@
 import { CalendarClock, ArrowDownLeft, ArrowUpRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { RecurringRule } from "@/api/services"
+import { formatCurrency } from "@/lib/format"
 
 interface UpcomingExecutionCardProps {
   rule: RecurringRule
@@ -40,7 +41,7 @@ export function UpcomingExecutionCard({ rule }: UpcomingExecutionCardProps) {
       </div>
       <div className="text-right">
         <p className={cn("text-sm font-semibold", isIncome ? "text-emerald-600" : "text-rose-600")}>
-          {isIncome ? '+' : '-'}₹{rule.amount.toLocaleString()}
+          {isIncome ? '+' : '-'}{formatCurrency(rule.amount)}
         </p>
         <p className="flex items-center gap-1 text-xs text-muted-foreground">
           <CalendarClock className="h-3 w-3" />

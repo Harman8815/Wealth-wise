@@ -28,6 +28,7 @@ import {
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import { toast } from "sonner"
 import { mlApi, type BudgetForecastResponse } from "@/api/services"
+import { formatCurrency } from "@/lib/format"
 
 export default function BudgetForecastPageRoute() {
   const { openSidebar } = useDashboardSidebar()
@@ -140,20 +141,20 @@ export default function BudgetForecastPageRoute() {
                     )}
                   </div>
                   <CardDescription>
-                    Monthly avg: ₹{item.monthly_average.toLocaleString()}
+                    Monthly avg: {formatCurrency(item.monthly_average)}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Current Spent</p>
-                        <p className="text-lg font-bold">₹{item.current_spent.toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Budget</p>
-                        <p className="text-lg font-bold">₹{item.budget.toLocaleString()}</p>
-                      </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Current Spent</p>
+                          <p className="text-lg font-bold">{formatCurrency(item.current_spent)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Budget</p>
+                          <p className="text-lg font-bold">{formatCurrency(item.budget)}</p>
+                        </div>
                     </div>
                     <div className="h-40">
                       <ResponsiveContainer width="100%" height="100%">
@@ -173,7 +174,7 @@ export default function BudgetForecastPageRoute() {
                             className="text-muted-foreground"
                             tickFormatter={(value: any) => `₹${(value / 1000).toFixed(0)}k`}
                           />
-                          <Tooltip formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, '']} />
+                          <Tooltip formatter={(value: any) => [formatCurrency(Number(value)), '']} />
                           <Bar dataKey="predicted" fill="#3b82f6" radius={[3, 3, 0, 0]} name="Predicted" />
                           <Bar dataKey="budget" fill="#10b981" radius={[3, 3, 0, 0]} name="Budget" />
                         </BarChart>
@@ -182,7 +183,7 @@ export default function BudgetForecastPageRoute() {
                     <div className="flex items-center justify-between text-sm pt-2 border-t">
                       <span className="text-muted-foreground">Variance</span>
                       <span className={variance >= 0 ? 'text-green-500 font-medium' : 'text-red-500 font-medium'}>
-                        {variance >= 0 ? '+' : ''}₹{variance.toLocaleString()}
+                        {variance >= 0 ? '+' : ''}{formatCurrency(variance)}
                       </span>
                     </div>
                   </div>

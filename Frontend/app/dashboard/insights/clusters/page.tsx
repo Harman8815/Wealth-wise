@@ -27,6 +27,7 @@ import {
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import { toast } from "sonner"
 import { mlApi, type ClustersResponse, type MerchantCluster } from "@/api/services"
+import { formatCurrency } from "@/lib/format"
 
 const COLORS = ["#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ec4899", "#06b6d4", "#f97316"]
 
@@ -188,7 +189,7 @@ export default function ClustersPageRoute() {
                         className="text-muted-foreground"
                         tickFormatter={(value: any) => `₹${(value / 1000).toFixed(0)}k`}
                       />
-                      <Tooltip formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, 'Total Spend']} />
+                      <Tooltip formatter={(value: any) => [formatCurrency(Number(value)), 'Total Spend']} />
                       <Bar dataKey="total_spend" radius={[4, 4, 0, 0]}>
                         {topMerchants.map((entry) => (
                           <Cell key={entry.merchant} fill={COLORS[entry.cluster % COLORS.length]} />
@@ -223,8 +224,8 @@ export default function ClustersPageRoute() {
                       {data.clusters.map((merchant) => (
                         <tr key={merchant.merchant} className="border-b last:border-0 hover:bg-muted/50">
                           <td className="py-2 px-4 font-medium">{merchant.merchant || 'Unknown'}</td>
-                          <td className="text-right py-2 px-4">₹{merchant.total_spend.toLocaleString()}</td>
-                          <td className="text-right py-2 px-4">₹{merchant.avg_spend.toLocaleString()}</td>
+                          <td className="text-right py-2 px-4">{formatCurrency(merchant.total_spend)}</td>
+                          <td className="text-right py-2 px-4">{formatCurrency(merchant.avg_spend)}</td>
                           <td className="text-right py-2 px-4">{merchant.transaction_count}</td>
                           <td className="text-center py-2 px-4">
                             <Badge variant="secondary" style={{ backgroundColor: COLORS[merchant.cluster % COLORS.length] + '20', color: COLORS[merchant.cluster % COLORS.length] }}>

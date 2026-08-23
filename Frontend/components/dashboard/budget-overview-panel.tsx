@@ -3,6 +3,7 @@
 import { useMemo } from "react"
 import { AlertTriangle, Calendar, TrendingUp, Wallet } from "lucide-react"
 import { BudgetGauge } from "./budget-gauge"
+import { formatCurrency } from "@/lib/format"
 
 export interface CategoryInput {
   id?: string
@@ -24,13 +25,9 @@ interface BudgetOverviewPanelProps {
   maxSize?: number
 }
 
-function formatCurrency(value: number): string {
-  const rounded = Math.round(value)
-  const sign = rounded < 0 ? "-" : ""
-  return `${sign}₹${Math.abs(rounded).toLocaleString()}`
-}
-
 function categoryStatus(spent: number, budget: number) {
+
+interface BudgetOverviewPanelProps {
   const percent = budget > 0 ? (spent / budget) * 100 : 0
   if (percent > 100) return { percent, label: "Over Budget", color: "#ef4444", bg: "bg-red-500/10", text: "text-red-500" }
   if (percent >= 80) return { percent, label: "Near Limit", color: "#f59e0b", bg: "bg-amber-500/10", text: "text-amber-500" }

@@ -10,6 +10,7 @@ import { useDashboardSidebar } from "@/components/dashboard/sidebar-context";
 import { CreateProjectDialog } from "@/components/dashboard/create-project-dialog";
 import { ProjectIcon } from "@/components/project/project-icon";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/format";
 
 const ROLE_BADGE: Record<string, string> = {
   owner: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-800",
@@ -17,14 +18,6 @@ const ROLE_BADGE: Record<string, string> = {
   editor: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
   viewer: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
 };
-
-function formatCurrency(amount: number, currency: string) {
-  try {
-    return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(amount);
-  } catch {
-    return `${currency} ${amount}`;
-  }
-}
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -137,7 +130,7 @@ export default function ProjectsPage() {
                           <Wallet className="h-3 w-3" /> Budget
                         </div>
                         <div className="mt-1 font-semibold text-gray-900 dark:text-white">
-                          {formatCurrency(project.initial_budget, project.currency)}
+                          {formatCurrency(project.initial_budget)}
                         </div>
                       </div>
                       <div className="rounded-md bg-muted/60 p-2">

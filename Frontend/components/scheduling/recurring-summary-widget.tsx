@@ -6,6 +6,7 @@ import { CalendarClock, ArrowUpRight, ArrowDownLeft, Repeat } from "lucide-react
 import { cn } from "@/lib/utils"
 import { useRecurringRules } from "@/hooks/use-recurring"
 import type { RecurringRule } from "@/api/services"
+import { formatCurrency } from "@/lib/format"
 
 /**
  * Dashboard widget summarizing recurring activity: counts, monthly recurring
@@ -53,8 +54,8 @@ export function RecurringSummaryWidget() {
       <CardContent className="space-y-3">
         <div className="grid grid-cols-3 gap-2 text-center">
           <Stat label="Active" value={active.length} />
-          <Stat label="Mo. Expense" value={`₹${Math.round(monthlyExpense).toLocaleString()}`} />
-          <Stat label="Mo. Income" value={`₹${Math.round(monthlyIncome).toLocaleString()}`} />
+          <Stat label="Mo. Expense" value={formatCurrency(Math.round(monthlyExpense))} />
+          <Stat label="Mo. Income" value={formatCurrency(Math.round(monthlyIncome))} />
         </div>
 
         {nextRule ? (
@@ -82,7 +83,7 @@ export function RecurringSummaryWidget() {
               ) : (
                 <ArrowDownLeft className="inline h-4 w-4" />
               )}
-              ₹{nextRule.amount.toLocaleString()}
+              {formatCurrency(nextRule.amount)}
             </p>
           </div>
         ) : (

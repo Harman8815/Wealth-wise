@@ -29,6 +29,7 @@ import type {
 } from "@/api/services"
 import type { ScheduleConfig } from "@/lib/scheduling"
 import { previewOccurrences } from "@/lib/scheduling"
+import { formatCurrency } from "@/lib/format"
 
 interface RecurringBudgetFormModalProps {
   open: boolean
@@ -184,7 +185,7 @@ export function RecurringBudgetFormModal({ open, onOpenChange, editing }: Recurr
         <DialogHeader>
           <DialogTitle>{editing ? "Edit Recurring Budget" : "New Recurring Budget"}</DialogTitle>
           <DialogDescription>
-            Automatically generate planned budgets (₹{Number(totalBudget || 0).toLocaleString()}) on a
+            Automatically generate planned budgets ({formatCurrency(Number(totalBudget || 0))}) on a
             schedule.
           </DialogDescription>
         </DialogHeader>
