@@ -15,6 +15,7 @@ class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1)
     model: str | None = None
     conversation_id: str | None = None
+    agent: str | None = None
 
 
 class ChatResponse(BaseModel):
