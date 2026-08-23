@@ -58,7 +58,9 @@ export default function AIInsightsPage() {
         setAnomaliesCount(anomaliesRes.value.count)
       }
       if (forecastRes.status === "fulfilled") {
-        setForecastAvailable(true)
+        const forecast = forecastRes.value
+        const hasForecast = (forecast.prophet?.length ?? 0) > 0 || (forecast.lstm?.forecast?.length ?? 0) > 0 || (forecast.csv_data?.length ?? 0) > 0
+        setForecastAvailable(hasForecast)
       }
       if (clustersRes.status === "fulfilled") {
         setClustersCount(clustersRes.value.clusters?.length || 0)
