@@ -2,152 +2,60 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Stop Backend (Django)",
-      "type": "shell",
-      "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-Command",
-        "$port=8000; $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue; if ($connections) { $pids = $connections | Select-Object -ExpandProperty OwningProcess -Unique; foreach ($pid in $pids) { Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue }; Write-Host \"Stopped Django on port $port\" } else { Write-Host \"Django not running on port $port\" }"
-      ],
-      "problemMatcher": [],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "dedicated",
-        "group": "servers",
-        "clear": false,
-        "close": true
-      }
-    },
-    {
-      "label": "Stop ML-Backend (FastAPI)",
-      "type": "shell",
-      "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-Command",
-        "$port=8100; $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue; if ($connections) { $pids = $connections | Select-Object -ExpandProperty OwningProcess -Unique; foreach ($pid in $pids) { Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue }; Write-Host \"Stopped ML-Backend on port $port\" } else { Write-Host \"ML-Backend not running on port $port\" }"
-      ],
-      "problemMatcher": [],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "dedicated",
-        "group": "servers",
-        "clear": false,
-        "close": true
-      }
-    },
-    {
-      "label": "Stop Frontend (Next.js)",
-      "type": "shell",
-      "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-Command",
-        "$port=3000; $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue; if ($connections) { $pids = $connections | Select-Object -ExpandProperty OwningProcess -Unique; foreach ($pid in $pids) { Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue }; Write-Host \"Stopped Frontend on port $port\" } else { Write-Host \"Frontend not running on port $port\" }"
-      ],
-      "problemMatcher": [],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "dedicated",
-        "group": "servers",
-        "clear": false,
-        "close": true
-      }
-    },
-    {
-      "label": "Stop All Servers",
-      "dependsOrder": "parallel",
-      "dependsOn": [
-        "Stop Backend (Django)",
-        "Stop ML-Backend (FastAPI)",
-        "Stop Frontend (Next.js)"
-      ],
-      "problemMatcher": [],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "dedicated",
-        "group": "servers",
-        "clear": false,
-        "close": false
-      }
-    },
-    {
       "label": "Backend (Django)",
       "type": "shell",
-      "command": "powershell",
+      "command": "${workspaceFolder}/Backend/venv/Scripts/python.exe",
       "args": [
-        "-NoProfile",
-        "-Command",
-        "$port=8000; if (-not (Test-NetConnection -ComputerName 127.0.0.1 -Port $port -InformationLevel Quiet -WarningAction SilentlyContinue)) { & '${workspaceFolder}/Backend/venv/Scripts/python.exe' manage.py runserver 8000 } else { Write-Host \"Django already running on port $port\" }"
+        "manage.py",
+        "runserver",
+        "8000"
       ],
-      "options": { "cwd": "${workspaceFolder}/Backend" },
+      "options": {
+        "cwd": "${workspaceFolder}/Backend"
+      },
       "isBackground": true,
       "problemMatcher": [],
       "presentation": {
-        "echo": true,
         "reveal": "always",
-        "focus": false,
-        "panel": "dedicated",
-        "group": "servers",
-        "clear": false,
-        "close": false
-      },
-      "runOptions": { "runOn": "default" }
+        "panel": "dedicated"
+      }
     },
     {
       "label": "ML-Backend (FastAPI)",
       "type": "shell",
-      "command": "powershell",
+      "command": "${workspaceFolder}/ML-Backend/.venv/Scripts/uvicorn.exe",
       "args": [
-        "-NoProfile",
-        "-Command",
-        "$port=8100; if (-not (Test-NetConnection -ComputerName 127.0.0.1 -Port $port -InformationLevel Quiet -WarningAction SilentlyContinue)) { & '${workspaceFolder}/ML-Backend/.venv/Scripts/uvicorn.exe' app.main:app --port 8100 } else { Write-Host \"ML-Backend already running on port $port\" }"
+        "app.main:app",
+        "--port",
+        "8100"
       ],
-      "options": { "cwd": "${workspaceFolder}/ML-Backend" },
+      "options": {
+        "cwd": "${workspaceFolder}/ML-Backend"
+      },
       "isBackground": true,
       "problemMatcher": [],
       "presentation": {
-        "echo": true,
         "reveal": "always",
-        "focus": false,
-        "panel": "dedicated",
-        "group": "servers",
-        "clear": false,
-        "close": false
-      },
-      "runOptions": { "runOn": "default" }
+        "panel": "dedicated"
+      }
     },
     {
       "label": "Frontend (Next.js)",
       "type": "shell",
-      "command": "powershell",
+      "command": "npm.cmd",
       "args": [
-        "-NoProfile",
-        "-Command",
-        "$port=3000; if (-not (Test-NetConnection -ComputerName 127.0.0.1 -Port $port -InformationLevel Quiet -WarningAction SilentlyContinue)) { npm.cmd run dev } else { Write-Host \"Frontend already running on port $port\" }"
+        "run",
+        "dev"
       ],
-      "options": { "cwd": "${workspaceFolder}/Frontend" },
+      "options": {
+        "cwd": "${workspaceFolder}/Frontend"
+      },
       "isBackground": true,
       "problemMatcher": [],
       "presentation": {
-        "echo": true,
         "reveal": "always",
-        "focus": false,
-        "panel": "dedicated",
-        "group": "servers",
-        "clear": false,
-        "close": false
-      },
-      "runOptions": { "runOn": "default" }
+        "panel": "dedicated"
+      }
     },
     {
       "label": "Start All Servers",
@@ -157,29 +65,11 @@
         "ML-Backend (FastAPI)",
         "Frontend (Next.js)"
       ],
-      "problemMatcher": [],
       "group": {
         "kind": "build",
         "isDefault": true
-      }
-    },
-    {
-      "label": "Restart All Servers",
-      "dependsOrder": "sequence",
-      "dependsOn": [
-        "Stop All Servers",
-        "Start All Servers"
-      ],
-      "problemMatcher": [],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "dedicated",
-        "group": "servers",
-        "clear": false,
-        "close": false
-      }
+      },
+      "problemMatcher": []
     }
   ]
 }
