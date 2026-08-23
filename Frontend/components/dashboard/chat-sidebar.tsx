@@ -85,8 +85,8 @@ export function ChatSidebar({ conversationId }: ChatSidebarProps) {
   }
 
   return (
-    <div className={cn("flex flex-col h-full bg-[#020617]/80 backdrop-blur-md text-slate-200 border-r border-slate-800 transition-all duration-300", isCollapsed ? "w-16" : "w-64")}>
-      <div className="p-3 border-b border-slate-800 flex items-center justify-between">
+    <div className={cn("flex flex-col h-full bg-[#0B0F19] text-slate-200 border-r border-white/10 transition-all duration-300", isCollapsed ? "w-16" : "w-64")}>
+      <div className="p-3 border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-2 overflow-hidden">
           <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shrink-0">
             <MessageSquare className="w-4 h-4 text-white" />
@@ -131,7 +131,7 @@ export function ChatSidebar({ conversationId }: ChatSidebarProps) {
           {loading ? (
             <div className={cn("space-y-2", isCollapsed ? "px-0" : "px-2")}>
               {[...Array(3)].map((_, i) => (
-                <div key={i} className={cn("rounded-md bg-slate-800/50 animate-pulse", isCollapsed ? "h-10 w-10" : "h-10 w-full")} />
+                <div key={i} className={cn("rounded-md bg-white/5 animate-pulse", isCollapsed ? "h-10 w-10" : "h-10 w-full")} />
               ))}
             </div>
           ) : conversations.length === 0 ? (
@@ -146,8 +146,8 @@ export function ChatSidebar({ conversationId }: ChatSidebarProps) {
                   "group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm cursor-pointer transition-colors",
                   isCollapsed ? "justify-center px-2" : "",
                   conversationId === conv.id
-                    ? "bg-slate-800/60 text-white"
-                    : "text-slate-300 hover:bg-slate-800/40 hover:text-white"
+                    ? "bg-blue-500/10 text-white"
+                    : "text-slate-300 hover:bg-white/5 hover:text-white"
                 )}
                 onClick={() => handleSelectChat(conv.id)}
               >
@@ -185,7 +185,7 @@ export function ChatSidebar({ conversationId }: ChatSidebarProps) {
       </ScrollArea>
 
       {!isCollapsed && (
-        <div className="p-3 border-t border-slate-800">
+        <div className="p-3 border-t border-white/10">
           <p className="text-[11px] text-slate-500 text-center">
             Use the three-dot menu to discover AI agents
           </p>
