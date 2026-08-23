@@ -38,10 +38,13 @@ async def generate(
     if options:
         payload["options"] = options
     async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.post(
-            f"{OLLAMA_URL}/api/chat",
-            json=payload,
-        )
+        try:
+            resp = await client.post(
+                f"{OLLAMA_URL}/api/chat",
+                json=payload,
+            )
+        except httpx.RequestError as exc:
+            raise OllamaAdapterError(f"Ollama chat failed: {exc}") from exc
         if resp.status_code != 200:
             raise OllamaAdapterError(
                 f"Ollama chat failed ({resp.status_code}): {resp.text}"
@@ -64,30 +67,33 @@ async def stream(
     if options:
         payload["options"] = options
     async with httpx.AsyncClient(timeout=120.0) as client:
-        async with client.stream(
-            "POST",
-            f"{OLLAMA_URL}/api/chat",
-            json=payload,
-        ) as resp:
-            if resp.status_code != 200:
-                text = await resp.aread()
-                raise OllamaAdapterError(
-                    f"Ollama stream failed ({resp.status_code}): {text.decode()}"
-                )
-            async for line in resp.aiter_lines():
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    chunk = json.loads(line)
-                    if "done" in chunk and chunk["done"]:
-                        break
-                    message = chunk.get("message", {})
-                    content = message.get("content", "")
-                    if content:
-                        yield content
-                except Exception:
-                    continue
+        try:
+            async with client.stream(
+                "POST",
+                f"{OLLAMA_URL}/api/chat",
+                json=payload,
+            ) as resp:
+                if resp.status_code != 200:
+                    text = await resp.aread()
+                    raise OllamaAdapterError(
+                        f"Ollama stream failed ({resp.status_code}): {text.decode()}"
+                    )
+                async for line in resp.aiter_lines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        chunk = json.loads(line)
+                        if "done" in chunk and chunk["done"]:
+                            break
+                        message = chunk.get("message", {})
+                        content = message.get("content", "")
+                        if content:
+                            yield content
+                    except Exception:
+                        continue
+        except httpx.RequestError as exc:
+            raise OllamaAdapterError(f"Ollama stream failed: {exc}") from exc
 
 
 async def embed(
@@ -97,10 +103,13 @@ async def embed(
 ) -> List[float]:
     """Return an embedding vector for ``text``."""
     async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.post(
-            f"{OLLAMA_URL}/api/embed",
-            json={"model": model, "prompt": text},
-        )
+        try:
+            resp = await client.post(
+                f"{OLLAMA_URL}/api/embed",
+                json={"model": model, "prompt": text},
+            )
+        except httpx.RequestError as exc:
+            raise OllamaAdapterError(f"Ollama embed failed: {exc}") from exc
         if resp.status_code != 200:
             raise OllamaAdapterError(
                 f"Ollama embed failed ({resp.status_code}): {resp.text}"
@@ -126,10 +135,13 @@ async def generate_with_tools(
     if options:
         payload["options"] = options
     async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.post(
-            f"{OLLAMA_URL}/api/chat",
-            json=payload,
-        )
+        try:
+            resp = await client.post(
+                f"{OLLAMA_URL}/api/chat",
+                json=payload,
+            )
+        except httpx.RequestError as exc:
+            raise OllamaAdapterError(f"Ollama chat failed: {exc}") from exc
         if resp.status_code != 200:
             raise OllamaAdapterError(
                 f"Ollama chat failed ({resp.status_code}): {resp.text}"

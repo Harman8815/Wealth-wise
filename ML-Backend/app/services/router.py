@@ -10,6 +10,7 @@ from typing import Any, Dict
 from app.services.assistants import answer_budget_question, answer_goal_question
 from app.services.db_agent import answer_database_question
 from app.services.insights_agent import answer_insights_question
+from app.services.intent import Intent
 from app.services.reports import build_report, explain_chart_or_alert
 from app.services.tools import search_transactions_nl
 

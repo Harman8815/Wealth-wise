@@ -13,7 +13,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from starlette.background import ClientDisconnect
+from starlette.requests import ClientDisconnect
 
 from app.context import ContextBudget, get_context_budget
 from app.deps import get_user_id
@@ -255,14 +255,14 @@ async def _ollama_stream_to_sse(
     )
 
 
-def _maybe_generate_title(user_id: str, conversation_id: str, user_message: str) -> None:
+async def _maybe_generate_title(user_id: str, conversation_id: str, user_message: str) -> None:
     from app.services.conversations import get_conversation
     conv = get_conversation(user_id, conversation_id)
     if conv and conv.message_count == 1:
         import re
         if not conv.title or re.match(r"^New Chat(?: \(\d+\))?$", conv.title or ""):
-            title = generate_title(user_message)
-            from app.services.conversations import update_conversation
+            from app.services.conversations import generate_title, update_conversation
+            title = await generate_title(user_message)
             update_conversation(conversation_id, title=title)
 
 
@@ -311,7 +311,7 @@ async def chat(
             role="user",
             content=body.message,
         )
-        _maybe_generate_title(user_id, conversation_id, body.message)
+        await _maybe_generate_title(user_id, conversation_id, body.message)
         add_message(
             user_id=user_id,
             conversation_id=conversation_id,

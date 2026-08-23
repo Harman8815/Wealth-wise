@@ -157,7 +157,7 @@ def delete_conversation(conversation_id: str) -> None:
         db.close()
 
 
-def generate_title(user_message: str) -> str:
+async def generate_title(user_message: str) -> str:
     from app.ollama import generate
     from app.prompt import SYSTEM_PROMPT
 
@@ -166,7 +166,7 @@ def generate_title(user_message: str) -> str:
         {"role": "user", "content": user_message},
     ]
     try:
-        result = generate(messages, stream=False)
+        result = await generate(messages, stream=False)
         title = result.get("message", {}).get("content", "").strip()
         return title[:255] if title else "New Chat"
     except Exception:
