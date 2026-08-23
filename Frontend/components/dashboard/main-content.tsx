@@ -15,7 +15,6 @@ import { useDashboardSidebar } from "@/components/dashboard/sidebar-context";
 import { SeedDataDialog } from "./seed-data-dialog";
 import { RecurringSummaryWidget } from "@/components/scheduling/recurring-summary-widget";
 import { RecurringBudgetSummaryWidget } from "@/components/scheduling/recurring-budget-summary-widget";
-import { FinancialHealthCard } from "./financial-health-card";
 import { insightsApi, type AIInsight } from "@/api/services/insights";
 
 export function MainContent() {
@@ -74,13 +73,13 @@ export function MainContent() {
   return (
     <div className="flex-1 min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       {/* Header */}
-      <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/80 border-b border-border/50 px-6 py-4">
+      <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/80 border-b border-border/50 px-4 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
               size="icon-sm"
-              className="lg:hidden"
+              className="md:hidden"
               onClick={openSidebar}
             >
               <Menu className="h-5 w-5" />
@@ -198,11 +197,6 @@ export function MainContent() {
             </div>
           </div>
         </div>
-
-        {/* Financial Health */}
-        <section className="animate-slide-up stagger-3">
-          <FinancialHealthCard />
-        </section>
 
         {/* Recent Transactions */}
         <section className="animate-slide-up stagger-3">

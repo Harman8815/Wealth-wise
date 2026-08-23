@@ -157,24 +157,36 @@ function SidebarContent({
 
 export function Sidebar({ onSettingsClick, isCollapsed = false, onToggleCollapse }: SidebarProps) {
   const { isSidebarOpen, openSidebar, closeSidebar } = useDashboardSidebar()
+  const [isMediumScreen, setIsMediumScreen] = useState(false)
+
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 768px) and (max-width: 1023px)")
+    const update = () => setIsMediumScreen(mql.matches)
+    update()
+    mql.addEventListener("change", update)
+    return () => mql.removeEventListener("change", update)
+  }, [])
+
+  const effectiveCollapsed = isMediumScreen ? true : isCollapsed
 
   return (
     <>
-      {/* Desktop Sidebar */}
+      {/* Desktop/Mobile Sidebar */}
       <div 
         className={cn(
-          "hidden lg:block h-screen fixed left-0 top-0 z-40 transition-all duration-300",
-          isCollapsed ? "w-20" : "w-64"
+          "fixed left-0 top-0 z-40 transition-all duration-300 h-screen",
+          "md:block hidden",
+          effectiveCollapsed ? "md:w-20" : "lg:w-64 md:w-20"
         )}
       >
         <SidebarContent 
           onSettingsClick={onSettingsClick} 
-          isCollapsed={isCollapsed}
+          isCollapsed={effectiveCollapsed}
           onToggleCollapse={onToggleCollapse}
         />
       </div>
 
-      {/* Mobile Sidebar */}
+      {/* Mobile Sheet Sidebar */}
       <Sheet
         open={isSidebarOpen}
         onOpenChange={(open) => {
@@ -185,7 +197,7 @@ export function Sidebar({ onSettingsClick, isCollapsed = false, onToggleCollapse
           }
         }}
       >
-        <SheetContent side="left" className="p-0 w-64 border-r-0 bg-transparent">
+        <SheetContent side="left" className="p-0 w-64 border-r-0 bg-transparent md:hidden">
           <SidebarContent 
             onSettingsClick={onSettingsClick} 
             isCollapsed={false} 

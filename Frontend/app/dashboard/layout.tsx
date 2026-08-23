@@ -65,6 +65,7 @@ export default function DashboardLayout({
               <div
                 className={cn(
                   "flex-1 transition-all duration-300",
+                  "md:ml-20",
                   isSidebarCollapsed ? "lg:ml-20" : "lg:ml-64"
                 )}
               >
