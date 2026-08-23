@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { MessageSquare, X, Plus, ExternalLink, MessageCircle } from "lucide-react"
+import { MessageSquare, X, Plus, ExternalLink, MessageCircle, MoreHorizontal } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -19,6 +19,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  agents,
+} from "@/api/services/agents"
 
 export function FloatingChatWidget() {
   const pathname = usePathname()
@@ -93,6 +102,39 @@ export function FloatingChatWidget() {
                 <MessageCircle className="h-4 w-4" />
               </div>
               <span className="font-semibold text-sm">AI Chat</span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground ml-auto"
+                    title="Agents"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {agents.map((agent) => {
+                    const Icon = agent.icon;
+                    return (
+                      <DropdownMenuItem
+                        key={agent.id}
+                        onClick={() => {
+                          setIsOpen(false)
+                          router.push(`/dashboard/chat?agent=${agent.id}`)
+                        }}
+                        className="cursor-pointer"
+                      >
+                        <Icon className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium">{agent.name}</span>
+                          <span className="text-[11px] text-muted-foreground">{agent.description}</span>
+                        </div>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
             <Button
               variant="ghost"
