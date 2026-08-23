@@ -23,6 +23,7 @@ class Intent(str, Enum):
     GOAL = "goal"
     BUDGET = "budget"
     TRANSACTION_SEARCH = "transaction_search"
+    INSIGHTS = "insights"
     GENERAL_CHAT = "general_chat"
 
 
@@ -34,6 +35,7 @@ INTENT_CLASSIFIER_PROMPT = (
     "- goal: user is asking about financial goals or goal planning\n"
     "- budget: user is asking about budgets or budget planning\n"
     "- transaction_search: user is searching for transactions\n"
+    "- insights: user wants financial insights or AI-generated analysis\n"
     "- general_chat: everything else\n\n"
     "Return ONLY the category name, nothing else."
 )

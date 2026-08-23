@@ -399,7 +399,20 @@ async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: N
     message = body.get("message", "")
     if not message:
         raise HTTPException(status_code=400, detail="Missing message.")
-    intent = await classify_intent(message)
+    agent_name = body.get("agent")
+    if agent_name:
+        from app.services.agents import get_agent
+        agent_entry = get_agent(agent_name)
+        if not agent_entry:
+            raise HTTPException(status_code=400, detail=f"Unknown agent: {agent_name}")
+        intent_value = agent_entry.get("intent", agent_name)
+        from app.services.intent import Intent
+        try:
+            intent = Intent(intent_value)
+        except ValueError:
+            intent = Intent.GENERAL_CHAT
+    else:
+        intent = await classify_intent(message)
     routed = await route_intent(intent, token, user_id, message)
     if routed.get("response") is None:
         return {

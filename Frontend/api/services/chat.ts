@@ -104,3 +104,55 @@ export async function sendChatMessageStream(
     onError(err as Error);
   }
 }
+
+export interface AgentMessageRequest {
+  message: string;
+  agent?: string;
+  conversation_id?: string;
+}
+
+export async function sendAgentMessage(
+  data: AgentMessageRequest,
+  onToken: (token: string) => void,
+  onError: (error: Error) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  try {
+    const res = await fetch(`${ML_BACKEND_URL}/chat/agent`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeader(),
+      },
+      body: JSON.stringify(data),
+      signal,
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || `Agent request failed (${res.status})`);
+    }
+    const result: { response?: string; error?: string } = await res.json();
+    if (result.error) {
+      onError(new Error(result.error));
+      return;
+    }
+    if (result.response) {
+      const tokens = result.response.match(/.{1,4}/g) || [result.response];
+      let idx = 0;
+      const interval = setInterval(() => {
+        if (idx < tokens.length) {
+          onToken(tokens[idx]);
+          idx++;
+        } else {
+          clearInterval(interval);
+        }
+      }, 10);
+    }
+  } catch (err) {
+    if ((err as Error).name === "AbortError") {
+      onError(new Error("Request cancelled by user."));
+      return;
+    }
+    onError(err as Error);
+  }
+}

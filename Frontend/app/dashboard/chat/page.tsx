@@ -1,3 +1,5 @@
+"use client"
+
 import { ChatPage } from "@/components/dashboard/pages/chat"
 import { ChatSidebar } from "@/components/dashboard/chat-sidebar"
 import { useSearchParams } from "next/navigation"

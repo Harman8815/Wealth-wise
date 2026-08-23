@@ -89,3 +89,13 @@ async def get_user_profile(token: str) -> Dict[str, Any]:
         )
         resp.raise_for_status()
         return resp.json()
+
+
+async def get_insights(token: str) -> Dict[str, Any]:
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.get(
+            f"{BACKEND_API_URL}/insights/",
+            headers=_headers(token),
+        )
+        resp.raise_for_status()
+        return resp.json()
