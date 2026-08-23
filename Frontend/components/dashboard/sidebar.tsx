@@ -43,7 +43,6 @@ const navigationItems = [
   { icon: Target, label: "Goals", href: "/dashboard/goals" },
   { icon: Repeat, label: "Recurring", href: "/dashboard/recurring" },
   { icon: Bell, label: "Alerts", href: "/dashboard/alerts", badge: "alerts" },
-  { icon: MessageSquare, label: "AI Chat", href: "/dashboard/chat" },
 ]
 
 function SidebarContent({ 
