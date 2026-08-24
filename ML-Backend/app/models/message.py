@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from app.db import Base
 
@@ -26,6 +27,8 @@ class Message(Base):
     user_id = Column(String(255), nullable=False, index=True)
     role = Column(Enum(MessageRole), nullable=False)
     content = Column(Text, nullable=False)
+    structured_data = Column(JSONB, nullable=True)
+    metadata = Column(JSONB, nullable=True)
     token_count = Column(Integer, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 

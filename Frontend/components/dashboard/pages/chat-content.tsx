@@ -40,7 +40,9 @@ import {
   sendAgentMessage,
   type ChatMessage,
   type AgentMessageRequest,
+  type StructuredResponse,
 } from "@/api/services/chat";
+import { AIResponseRenderer } from "@/components/dashboard/ai-response-renderer";
 import ReactMarkdown from "react-markdown";
 import {
   createConversation,
@@ -69,6 +71,7 @@ const INITIAL_MESSAGE: ChatMessage = {
   role: "assistant",
   content:
     "Hello! I'm WealthWise AI. Ask me anything about your finances — budgets, goals, transactions, or savings.",
+  structured: undefined,
 };
 
 const PROCESSING_MESSAGES = [
@@ -168,7 +171,8 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
       startTimer();
       abortControllerRef.current = new AbortController();
       let fullReply = "";
-      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+      const structuredRef = { current: undefined as StructuredResponse | undefined };
+      setMessages((prev) => [...prev, { role: "assistant", content: "", structured: undefined }]);
 
       if (agentId) {
         const payload: AgentMessageRequest = {
@@ -209,8 +213,21 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
               toast.error(err.message);
             }
           },
+          (structured) => {
+            structuredRef.current = structured;
+          },
           abortControllerRef.current.signal,
         );
+        if (structuredRef.current) {
+          setMessages((prev) => {
+            const next = [...prev];
+            const last = next[next.length - 1];
+            if (last.role === "assistant") {
+              next[next.length - 1] = { ...last, structured: structuredRef.current };
+            }
+            return next;
+          });
+        }
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to send message";
@@ -401,7 +418,9 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
                         : "bg-white/5 text-slate-200 rounded-bl-sm border border-white/10"
                     }`}
                   >
-                    {msg.role === "assistant" ? (
+                    {msg.role === "assistant" && msg.structured ? (
+                      <AIResponseRenderer response={msg.structured} />
+                    ) : msg.role === "assistant" ? (
                       <ReactMarkdown
                         components={{
                           p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,

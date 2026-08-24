@@ -22,3 +22,4 @@ class ChatResponse(BaseModel):
     reply: str
     model: str
     conversation_id: str
+    structured: Optional[Dict[str, Any]] = None

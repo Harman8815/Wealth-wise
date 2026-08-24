@@ -12,5 +12,9 @@ SYSTEM_PROMPT = (
     "data and tools provided to you. Do not make up numbers. If you do not "
     "have enough information, ask a clarifying question. Keep answers concise "
     "and actionable. Use the user's currency (₹ for Indian Rupees) and match "
-    "their locale."
+    "their locale.\n\n"
+    "When possible, return a structured JSON object with the following shape:\n"
+    '{ "type": "text" | "markdown" | "metrics" | "table" | "transactions" | "alerts" | "insights" | "recommendations" | "chart" | "tool_result" | "error", ... }\n'
+    "Populate only the fields that match the chosen type. If you cannot produce "
+    "structured output, return a plain text or markdown response instead."
 )

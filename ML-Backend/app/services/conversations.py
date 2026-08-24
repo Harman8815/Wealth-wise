@@ -12,7 +12,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
-from app.models import Conversation, Message, MessageRole
+from app.models import Conversation, Message, MessageRole, ToolExecution, ToolExecutionStatus
 
 
 def _get_db() -> Session:
@@ -83,6 +83,8 @@ def add_message(
     role: str,
     content: str,
     token_count: Optional[int] = None,
+    structured_data: Optional[dict] = None,
+    metadata: Optional[dict] = None,
 ) -> Message:
     db = _get_db()
     try:
@@ -92,6 +94,8 @@ def add_message(
             role=MessageRole(role),
             content=content,
             token_count=token_count,
+            structured_data=structured_data,
+            metadata=metadata,
         )
         db.add(msg)
         conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
@@ -100,6 +104,38 @@ def add_message(
         db.commit()
         db.refresh(msg)
         return msg
+    finally:
+        db.close()
+
+
+def add_tool_execution(
+    user_id: str,
+    conversation_id: str,
+    tool_name: str,
+    status: str,
+    input_data: Optional[dict] = None,
+    output_data: Optional[dict] = None,
+    error: Optional[str] = None,
+    latency_ms: Optional[float] = None,
+    message_id: Optional[str] = None,
+) -> ToolExecution:
+    db = _get_db()
+    try:
+        execution = ToolExecution(
+            conversation_id=conversation_id,
+            message_id=message_id,
+            user_id=user_id,
+            tool_name=tool_name,
+            status=ToolExecutionStatus(status),
+            input_data=input_data,
+            output_data=output_data,
+            error=error,
+            latency_ms=latency_ms,
+        )
+        db.add(execution)
+        db.commit()
+        db.refresh(execution)
+        return execution
     finally:
         db.close()
 
