@@ -175,9 +175,13 @@ FINANCIAL_TOOLS: List[Dict[str, Any]] = [
 ]
 
 
-async def _execute_tool_call(name: str, arguments: Dict[str, Any], token: str, user_id: str) -> str:
+async def _execute_tool_call(name: str, arguments: Dict[str, Any], token: str, user_id: str, conversation_id: Optional[str] = None, message_id: Optional[str] = None) -> str:
+    start = time.perf_counter()
+    result = None
+    status = "success"
+    error = None
+    output = None
     try:
-        result = None
         if name == "get_transactions":
             result = await get_transactions_tool(
                 token,
@@ -220,7 +224,31 @@ async def _execute_tool_call(name: str, arguments: Dict[str, Any], token: str, u
             return json.dumps({"error": f"Unknown tool: {name}"})
         return json.dumps(result)
     except Exception as exc:  # noqa: BLE001
-        return json.dumps({"error": str(exc)})
+        status = "error"
+        error = str(exc)
+        return json.dumps({"error": error})
+    finally:
+        latency = (time.perf_counter() - start) * 1000
+        if output is None:
+            try:
+                parsed = json.loads(result) if isinstance(result, str) else result
+                output = parsed if isinstance(parsed, dict) else {"raw": str(parsed)}
+            except Exception:
+                output = {"raw": str(result)}
+        if status == "error":
+            output = {"error": error}
+        from app.services.conversations import add_tool_execution
+        add_tool_execution(
+            user_id=user_id,
+            conversation_id=conversation_id or "",
+            tool_name=name,
+            status=status,
+            input_data=arguments,
+            output_data=output,
+            error=error,
+            latency_ms=latency,
+            message_id=message_id,
+        )
 
 
 async def _chat_with_tools(
@@ -262,7 +290,7 @@ async def _chat_with_tools(
                 except json.JSONDecodeError:
                     arguments = {}
             tool_start = time.perf_counter()
-            tool_result = await _execute_tool_call(name, arguments, token, user_id)
+            tool_result = await _execute_tool_call(name, arguments, token, user_id, conversation_id=conversation_id)
             tool_latency = (time.perf_counter() - tool_start) * 1000
             log_tool_call(
                 request_id=get_request_id(request),
@@ -384,11 +412,13 @@ async def chat(
             content=body.message,
         )
         await _maybe_generate_title(user_id, conversation_id, body.message)
-        add_message(
+        assistant_msg = add_message(
             user_id=user_id,
             conversation_id=conversation_id,
             role="assistant",
             content=reply,
+            structured_data=structured if structured.get("type") != "text" else None,
+            metadata={"model": body.model or DEFAULT_CHAT_MODEL},
         )
         log_chat(
             request_id=request_id,
