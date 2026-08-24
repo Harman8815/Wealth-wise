@@ -143,6 +143,7 @@ export async function sendChatMessageStream(
           } catch {
             // ignore malformed JSON
           }
+        }
       }
     }
   } catch (err) {
