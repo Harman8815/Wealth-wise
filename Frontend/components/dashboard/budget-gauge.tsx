@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { RotateCcw } from "lucide-react";
+import { formatCurrency } from "@/lib/format";
 
 interface BudgetGaugeProps {
   totalBudget: number;
@@ -40,12 +41,6 @@ function getStatus(percentage: number): GaugeStatus {
   if (percentage > 100) return STATUS.over;
   if (percentage >= 80) return STATUS.near;
   return STATUS.healthy;
-}
-
-function formatCurrency(value: number): string {
-  const rounded = Math.round(value);
-  const sign = rounded < 0 ? "-" : "";
-  return `${sign}₹${Math.abs(rounded).toLocaleString()}`;
 }
 
 function polarToCartesian(

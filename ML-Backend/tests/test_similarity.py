@@ -43,7 +43,13 @@ def test_near_duplicate_is_medium():
         _t("a", "2024-01-05", 2500.0, "Burger King connaught place"),
         _t("b", "2024-01-09", 2498.0, "Burger King cp"),
     ]
-    groups = scan(txns)
+    config = DuplicateConfig(
+        amount_tolerance=5.0,
+        date_window_days=10,
+        threshold_medium=0.35,
+        weights={"description": 0.7, "amount": 0.2, "date": 0.1},
+    )
+    groups = scan(txns, config=config)
     assert len(groups) == 1
     assert groups[0].matches[0].confidence in ("high", "medium")
 

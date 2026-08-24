@@ -3,6 +3,7 @@
 import { useMemo } from "react"
 import { AlertTriangle, Calendar, TrendingUp, Wallet } from "lucide-react"
 import { BudgetGauge } from "./budget-gauge"
+import { formatCurrency } from "@/lib/format"
 
 export interface CategoryInput {
   id?: string
@@ -22,12 +23,6 @@ interface BudgetOverviewPanelProps {
   now?: Date
   /** Cap on how large the gauge may grow. Defaults to 560px so it fills wide screens. */
   maxSize?: number
-}
-
-function formatCurrency(value: number): string {
-  const rounded = Math.round(value)
-  const sign = rounded < 0 ? "-" : ""
-  return `${sign}₹${Math.abs(rounded).toLocaleString()}`
 }
 
 function categoryStatus(spent: number, budget: number) {

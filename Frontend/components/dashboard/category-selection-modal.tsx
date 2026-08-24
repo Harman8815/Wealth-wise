@@ -32,6 +32,7 @@ import {
   Briefcase,
 } from "lucide-react"
 import { CATEGORY_SYMBOLS, COLOR_OPTIONS, DEFAULT_TEXT_COLOR } from "@/data/category-symbols"
+import { formatCurrency } from "@/lib/format"
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   utensils: <Utensils className="w-5 h-5" />,
@@ -118,7 +119,7 @@ export function CategorySelectionModal({ isOpen, onClose, onSelect }: CategorySe
                     <div className="text-left flex-1 min-w-0">
                       <div className="font-medium truncate">{category.name}</div>
                       <div className="text-xs text-gray-500">
-                        ₹{Number(category.spent).toLocaleString()} / ₹{Number(category.budgeted).toLocaleString()}
+                        {formatCurrency(Number(category.spent))} / {formatCurrency(Number(category.budgeted))}
                       </div>
                     </div>
                     {Number(category.spent) > Number(category.budgeted) && (

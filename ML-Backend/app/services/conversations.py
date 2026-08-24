@@ -12,7 +12,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
-from app.models import Conversation, Message, MessageRole
+from app.models import Conversation, Message, MessageRole, ToolExecution, ToolExecutionStatus
 
 
 def _get_db() -> Session:
@@ -22,6 +22,10 @@ def _get_db() -> Session:
 def create_conversation(user_id: str, title: Optional[str] = None) -> Conversation:
     db = _get_db()
     try:
+        if not title:
+            title = _generate_unique_title(db, user_id)
+        else:
+            title = _generate_unique_title(db, user_id, base=title)
         conv = Conversation(user_id=user_id, title=title)
         db.add(conv)
         db.commit()
@@ -29,6 +33,21 @@ def create_conversation(user_id: str, title: Optional[str] = None) -> Conversati
         return conv
     finally:
         db.close()
+
+
+def _generate_unique_title(db: Session, user_id: str, base: str = "New Chat") -> str:
+    existing_titles = [
+        row[0]
+        for row in db.query(Conversation.title)
+        .filter(Conversation.user_id == user_id, Conversation.title != None)
+        .all()
+    ]
+    title = base
+    counter = 1
+    while title in existing_titles:
+        title = f"{base} ({counter})"
+        counter += 1
+    return title
 
 
 def get_conversation(user_id: str, conversation_id: str) -> Optional[Conversation]:
@@ -64,6 +83,8 @@ def add_message(
     role: str,
     content: str,
     token_count: Optional[int] = None,
+    structured_data: Optional[dict] = None,
+    metadata: Optional[dict] = None,
 ) -> Message:
     db = _get_db()
     try:
@@ -73,6 +94,8 @@ def add_message(
             role=MessageRole(role),
             content=content,
             token_count=token_count,
+            structured_data=structured_data,
+            metadata=metadata,
         )
         db.add(msg)
         conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
@@ -81,6 +104,38 @@ def add_message(
         db.commit()
         db.refresh(msg)
         return msg
+    finally:
+        db.close()
+
+
+def add_tool_execution(
+    user_id: str,
+    conversation_id: str,
+    tool_name: str,
+    status: str,
+    input_data: Optional[dict] = None,
+    output_data: Optional[dict] = None,
+    error: Optional[str] = None,
+    latency_ms: Optional[float] = None,
+    message_id: Optional[str] = None,
+) -> ToolExecution:
+    db = _get_db()
+    try:
+        execution = ToolExecution(
+            conversation_id=conversation_id,
+            message_id=message_id,
+            user_id=user_id,
+            tool_name=tool_name,
+            status=ToolExecutionStatus(status),
+            input_data=input_data,
+            output_data=output_data,
+            error=error,
+            latency_ms=latency_ms,
+        )
+        db.add(execution)
+        db.commit()
+        db.refresh(execution)
+        return execution
     finally:
         db.close()
 
@@ -110,6 +165,13 @@ def update_conversation(
         if not conv:
             raise ValueError("Conversation not found.")
         if title is not None:
+            existing = (
+                db.query(Conversation)
+                .filter(Conversation.user_id == conv.user_id, Conversation.title == title, Conversation.id != conversation_id)
+                .first()
+            )
+            if existing:
+                raise ValueError(f"A conversation named '{title}' already exists.")
             conv.title = title
         if status is not None:
             conv.status = status
@@ -131,7 +193,7 @@ def delete_conversation(conversation_id: str) -> None:
         db.close()
 
 
-def generate_title(user_message: str) -> str:
+async def generate_title(user_message: str) -> str:
     from app.ollama import generate
     from app.prompt import SYSTEM_PROMPT
 
@@ -140,7 +202,7 @@ def generate_title(user_message: str) -> str:
         {"role": "user", "content": user_message},
     ]
     try:
-        result = generate(messages, stream=False)
+        result = await generate(messages, stream=False)
         title = result.get("message", {}).get("content", "").strip()
         return title[:255] if title else "New Chat"
     except Exception:

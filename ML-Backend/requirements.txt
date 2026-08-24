@@ -10,5 +10,7 @@ ollama>=0.3
 python-dotenv>=1.0
 scikit-learn>=1.5
 numpy>=1.26
+chromadb>=0.4
+django>=4.2
 pytest
 pytest-asyncio>=0.23

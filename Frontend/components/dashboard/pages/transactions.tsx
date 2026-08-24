@@ -19,6 +19,7 @@ import { Transaction } from "@/api/services"
 import { toast } from "@/hooks/use-toast"
 import { ICON_MAP } from "../symbol-picker"
 import { getCategoryIcon } from "@/data/category-symbols"
+import { formatCurrency } from "@/lib/format"
 
 const PAGE_SIZE = 10
 
@@ -158,7 +159,7 @@ const hasActiveFilters = searchTerm.trim() !== "" || filterCategory !== "all" ||
                  <div>
                    <Label>Amount</Label>
                    <p className={`font-semibold ${viewTransaction.type === "income" ? "text-green-600" : "text-red-600"}`}>
-                     {viewTransaction.type === "income" ? "+" : "-"}₹{Number(viewTransaction.amount).toLocaleString()}
+                      {viewTransaction.type === "income" ? "+" : "-"}{formatCurrency(Number(viewTransaction.amount))}
                    </p>
                  </div>
                  <div>
@@ -226,7 +227,7 @@ const hasActiveFilters = searchTerm.trim() !== "" || filterCategory !== "all" ||
               <CardTitle className="text-lg text-green-600">Total Income</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-600">₹{totalIncome.toLocaleString()}</div>
+               <div className="text-3xl font-bold text-green-600">{formatCurrency(totalIncome)}</div>
               <p className="text-sm text-gray-600 dark:text-gray-400">This month</p>
             </CardContent>
           </Card>
@@ -236,7 +237,7 @@ const hasActiveFilters = searchTerm.trim() !== "" || filterCategory !== "all" ||
               <CardTitle className="text-lg text-red-600">Total Expenses</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-red-600">₹{totalExpenses.toLocaleString()}</div>
+               <div className="text-3xl font-bold text-red-600">{formatCurrency(totalExpenses)}</div>
               <p className="text-sm text-gray-600 dark:text-gray-400">This month</p>
             </CardContent>
           </Card>
@@ -246,11 +247,11 @@ const hasActiveFilters = searchTerm.trim() !== "" || filterCategory !== "all" ||
               <CardTitle className="text-lg text-blue-600">Net Flow</CardTitle>
             </CardHeader>
             <CardContent>
-              <div
-                className={`text-3xl font-bold ${netFlow >= 0 ? "text-green-600" : "text-red-600"}`}
-              >
-                ₹{Math.abs(netFlow).toLocaleString()}
-              </div>
+               <div
+                 className={`text-3xl font-bold ${netFlow >= 0 ? "text-green-600" : "text-red-600"}`}
+               >
+                 {formatCurrency(Math.abs(netFlow))}
+               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">This month</p>
             </CardContent>
           </Card>
@@ -426,7 +427,7 @@ const hasActiveFilters = searchTerm.trim() !== "" || filterCategory !== "all" ||
                                   : "text-red-600 dark:text-red-400"
                               }`}
                             >
-                              {transaction.type === "income" ? "+" : "-"}₹{Number(transaction.amount).toLocaleString()}
+                              {transaction.type === "income" ? "+" : "-"}{formatCurrency(Number(transaction.amount))}
                             </span>
                           </TableCell>
                           <TableCell>

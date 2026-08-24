@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { useSWRMonthlyStats } from "@/hooks/use-transactions-swr"
 import { TrendingUp, BarChart3, Activity } from "lucide-react"
+import { formatCurrency } from "@/lib/format"
 
 type ChartType = "bar" | "line"
 
@@ -33,7 +34,7 @@ export function MonthlyChart() {
               />
               <span className="text-muted-foreground">{entry.name}:</span>
               <span className="font-semibold text-foreground">
-                ₹{Number(entry.value).toLocaleString()}
+                {formatCurrency(Number(entry.value))}
               </span>
             </div>
           ))}

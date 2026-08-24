@@ -22,10 +22,9 @@ import { ProjectSwitcher } from "@/components/dashboard/project-switcher"
 import { useActiveProject } from "@/components/project/project-context"
 import { useUnreadCount } from "@/lib/notifications"
 import { useState, useEffect } from "react"
-import { listConversations, deleteConversation, renameConversation, type Conversation } from "@/api/services/conversations"
 // import chevronLeft from "@/assets/icons/chevron-left.svg"
 // import chevronRight from "@/assets/icons/chevron-right.svg"
-import { ChevronLeft, ChevronRight, Plus, Trash2, Pencil } from "lucide-react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 
 interface SidebarProps {
   onSettingsClick: () => void
@@ -44,7 +43,6 @@ const navigationItems = [
   { icon: Target, label: "Goals", href: "/dashboard/goals" },
   { icon: Repeat, label: "Recurring", href: "/dashboard/recurring" },
   { icon: Bell, label: "Alerts", href: "/dashboard/alerts", badge: "alerts" },
-  { icon: MessageSquare, label: "AI Chat", href: "/dashboard/chat" },
 ]
 
 function SidebarContent({ 
@@ -60,64 +58,12 @@ function SidebarContent({
   const router = useRouter()
   const { projects } = useActiveProject()
   const unreadCount = useUnreadCount()
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [loadingConversations, setLoadingConversations] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editTitle, setEditTitle] = useState("")
 
   const badgeValue = (kind?: string): number => {
     if (kind === "projects") return projects.length
     if (kind === "alerts") return unreadCount
     return 0
   }
-
-  const loadConversations = async () => {
-    setLoadingConversations(true)
-    try {
-      const data = await listConversations()
-      setConversations(data.results)
-    } catch {
-      // ignore
-    } finally {
-      setLoadingConversations(false)
-    }
-  }
-
-  useEffect(() => {
-    if (pathname === "/dashboard/chat") {
-      loadConversations()
-    }
-  }, [pathname])
-
-  const handleNewChat = async () => {
-    router.push("/dashboard/chat")
-    await loadConversations()
-  }
-
-  const handleSelectChat = (id: string) => {
-    router.push(`/dashboard/chat?conversation=${id}`)
-  }
-
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    await deleteConversation(id)
-    await loadConversations()
-  }
-
-  const handleStartEdit = (id: string, title: string) => {
-    setEditingId(id)
-    setEditTitle(title || "")
-  }
-
-  const handleSaveEdit = async (id: string) => {
-    if (editTitle.trim()) {
-      await renameConversation(id, editTitle.trim())
-      await loadConversations()
-    }
-    setEditingId(null)
-  }
-
-  const showConversations = pathname === "/dashboard/chat" && !isCollapsed
 
   return (
     <div className="flex flex-col h-full bg-[#020617]/80 backdrop-blur-md text-slate-200 border-r border-slate-800 transition-all duration-300">
@@ -153,81 +99,6 @@ function SidebarContent({
       <div className={cn("px-3 pt-3", isCollapsed && "hidden")}>
         <ProjectSwitcher />
       </div>
-
-      {/* Conversations */}
-      {showConversations && (
-        <div className="px-3 pt-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Chats</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 text-slate-400 hover:text-white"
-              onClick={handleNewChat}
-            >
-              <Plus className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-          <div className="space-y-1 max-h-48 overflow-y-auto">
-            {loadingConversations ? (
-              <p className="text-xs text-slate-500 px-2">Loading...</p>
-            ) : conversations.length === 0 ? (
-              <p className="text-xs text-slate-500 px-2">No chats yet</p>
-            ) : (
-              conversations.map((conv) => (
-                <div
-                  key={conv.id}
-                  className={cn(
-                    "group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm cursor-pointer transition-colors",
-                    pathname === "/dashboard/chat" && conv.title
-                      ? "bg-slate-800/50 text-white"
-                      : "text-slate-300 hover:bg-slate-800/50 hover:text-white"
-                  )}
-                  onClick={() => handleSelectChat(conv.id)}
-                >
-                  <MessageSquare className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                  {editingId === conv.id ? (
-                    <input
-                      className="flex-1 bg-transparent text-sm outline-none border-b border-blue-500"
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      onBlur={() => handleSaveEdit(conv.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSaveEdit(conv.id)
-                        if (e.key === "Escape") setEditingId(null)
-                      }}
-                      autoFocus
-                    />
-                  ) : (
-                    <span className="truncate flex-1 text-left">{conv.title || "New Chat"}</span>
-                  )}
-                  <div className="hidden group-hover:flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5 text-slate-400 hover:text-white"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleStartEdit(conv.id, conv.title || "")
-                      }}
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5 text-slate-400 hover:text-red-400"
-                      onClick={(e) => handleDelete(conv.id, e)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-2 overflow-y-auto overflow-x-hidden">
@@ -286,24 +157,36 @@ function SidebarContent({
 
 export function Sidebar({ onSettingsClick, isCollapsed = false, onToggleCollapse }: SidebarProps) {
   const { isSidebarOpen, openSidebar, closeSidebar } = useDashboardSidebar()
+  const [isMediumScreen, setIsMediumScreen] = useState(false)
+
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 768px) and (max-width: 1023px)")
+    const update = () => setIsMediumScreen(mql.matches)
+    update()
+    mql.addEventListener("change", update)
+    return () => mql.removeEventListener("change", update)
+  }, [])
+
+  const effectiveCollapsed = isMediumScreen ? true : isCollapsed
 
   return (
     <>
-      {/* Desktop Sidebar */}
+      {/* Desktop/Mobile Sidebar */}
       <div 
         className={cn(
-          "hidden lg:block h-screen fixed left-0 top-0 z-40 transition-all duration-300",
-          isCollapsed ? "w-20" : "w-64"
+          "fixed left-0 top-0 z-40 transition-all duration-300 h-screen",
+          "md:block hidden",
+          effectiveCollapsed ? "md:w-20" : "lg:w-64 md:w-20"
         )}
       >
         <SidebarContent 
           onSettingsClick={onSettingsClick} 
-          isCollapsed={isCollapsed}
+          isCollapsed={effectiveCollapsed}
           onToggleCollapse={onToggleCollapse}
         />
       </div>
 
-      {/* Mobile Sidebar */}
+      {/* Mobile Sheet Sidebar */}
       <Sheet
         open={isSidebarOpen}
         onOpenChange={(open) => {
@@ -314,7 +197,7 @@ export function Sidebar({ onSettingsClick, isCollapsed = false, onToggleCollapse
           }
         }}
       >
-        <SheetContent side="left" className="p-0 w-64 border-r-0 bg-transparent">
+        <SheetContent side="left" className="p-0 w-64 border-r-0 bg-transparent md:hidden">
           <SidebarContent 
             onSettingsClick={onSettingsClick} 
             isCollapsed={false} 

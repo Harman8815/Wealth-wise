@@ -28,6 +28,7 @@ import {
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import { toast } from "sonner"
 import { mlApi, type ForecastResponse } from "@/api/services"
+import { formatCurrency } from "@/lib/format"
 
 type ForecastTab = "prophet" | "lstm" | "combined"
 
@@ -170,7 +171,7 @@ export default function ForecastPageRoute() {
                       tickFormatter={(value: any) => `₹${(value / 1000).toFixed(0)}k`}
                     />
                     <Tooltip
-                      formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, 'Predicted']}
+                      formatter={(value: any) => [formatCurrency(Number(value)), 'Predicted']}
                     />
                     <Line
                       type="monotone"
@@ -226,7 +227,7 @@ export default function ForecastPageRoute() {
                       className="text-muted-foreground"
                       tickFormatter={(value: any) => `₹${(value / 1000).toFixed(0)}k`}
                     />
-                    <Tooltip formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, 'Predicted']} />
+                    <Tooltip formatter={(value: any) => [formatCurrency(Number(value)), 'Predicted']} />
                     <Bar dataKey="predicted" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -259,7 +260,7 @@ export default function ForecastPageRoute() {
                       tickFormatter={(value: any) => `₹${(value / 1000).toFixed(0)}k`}
                     />
                     <Tooltip formatter={(value: any, name: any) => [
-                      `₹${Number(value).toLocaleString()}`,
+                      formatCurrency(Number(value)),
                       name === 'predicted' ? 'Predicted' : 'Actual'
                     ]} />
                     <Line type="monotone" dataKey="actual" stroke="#10b981" strokeWidth={2} dot={false} name="actual" />

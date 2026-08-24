@@ -19,6 +19,7 @@ from app.models import Message, MessageRole
 from app.prompt import SYSTEM_PROMPT
 from app.services.conversations import get_conversation, get_messages
 from app.services.memory import retrieve_relevant
+from app.logging_utils import log_chat
 
 
 def _to_dict(message: Message) -> dict:
@@ -37,6 +38,14 @@ async def build_context(
     conv = get_conversation(user_id, conversation_id)
     if not conv:
         raise ValueError("Conversation not found.")
+
+    log_chat(
+        request_id="",
+        user_id=user_id,
+        conversation_id=conversation_id,
+        event="context_building_started",
+        message=question,
+    )
 
     context_messages: List[dict] = []
     context_messages.insert(0, {"role": "system", "content": SYSTEM_PROMPT})
@@ -66,4 +75,13 @@ async def build_context(
 
     context_messages.extend(recent_messages)
     context_messages.append({"role": "user", "content": question})
+
+    log_chat(
+        request_id="",
+        user_id=user_id,
+        conversation_id=conversation_id,
+        event="context_building_completed",
+        message=question,
+        extra={"context_message_count": len(context_messages)},
+    )
     return context_messages

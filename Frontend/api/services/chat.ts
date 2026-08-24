@@ -6,16 +6,66 @@ const ML_BACKEND_URL = process.env.NEXT_PUBLIC_ML_BACKEND_URL || "http://localho
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
+  structured?: StructuredResponse;
 }
 
 export interface ChatRequest {
   message: string;
   model?: string;
+  conversation_id?: string;
+}
+
+export interface StructuredResponse {
+  type: "text" | "markdown" | "metrics" | "table" | "transactions" | "alerts" | "insights" | "recommendations" | "chart" | "tool_result" | "error";
+  text?: string;
+  markdown?: string;
+  metrics?: Array<{
+    label: string;
+    value: unknown;
+    format?: string;
+    metadata?: Record<string, unknown>;
+  }>;
+  table?: {
+    columns: Array<{ key: string; label: string; format?: string; align?: string }>;
+    rows: Array<Record<string, unknown>>;
+    caption?: string;
+    empty_message?: string;
+  };
+  transactions?: {
+    columns: Array<{ key: string; label: string; format?: string; align?: string }>;
+    rows: Array<Record<string, unknown>>;
+    caption?: string;
+    empty_message?: string;
+  };
+  alerts?: Array<Record<string, unknown>>;
+  insights?: Array<Record<string, unknown>>;
+  recommendations?: string[];
+  chart?: {
+    type: "line" | "bar" | "pie" | "donut";
+    data: Array<Record<string, unknown>>;
+    x_key?: string;
+    y_key?: string;
+    label_key?: string;
+    value_key?: string;
+    title?: string;
+  };
+  tool_result?: {
+    tool: string;
+    status: string;
+    input?: Record<string, unknown>;
+    output?: Record<string, unknown>;
+    error?: string;
+    latency_ms?: number;
+  };
+  error?: Record<string, unknown>;
+  raw?: Record<string, unknown>;
 }
 
 export interface ChatResponse {
   reply: string;
   model: string;
+  conversation_id: string;
+  structured?: StructuredResponse;
 }
 
 function getAuthHeader(): Record<string, string> {
@@ -43,6 +93,8 @@ export async function sendChatMessageStream(
   data: ChatRequest,
   onToken: (token: string) => void,
   onError: (error: Error) => void,
+  onStructured?: (structured: StructuredResponse) => void,
+  signal?: AbortSignal,
 ): Promise<void> {
   try {
     const res = await fetch(`${ML_BACKEND_URL}/chat/stream`, {
@@ -52,6 +104,7 @@ export async function sendChatMessageStream(
         ...getAuthHeader(),
       },
       body: JSON.stringify(data),
+      signal,
     });
     if (!res.ok) {
       throw new Error(`Stream failed (${res.status})`);
@@ -81,18 +134,74 @@ export async function sendChatMessageStream(
           } catch {
             // ignore malformed JSON
           }
-        } else if (line.startsWith("event: error") && lines[i + 1]?.startsWith("data: ")) {
+        } else if (line.startsWith("event: done") && lines[i + 1]?.startsWith("data: ")) {
           try {
             const parsed = JSON.parse(lines[i + 1].slice(6));
-            onError(new Error(parsed.error || "Stream error"));
+            if (parsed.structured) {
+              onStructured?.(parsed.structured);
+            }
           } catch {
-            onError(new Error("Stream error"));
+            // ignore malformed JSON
           }
-          return;
-        }
       }
     }
   } catch (err) {
+    if ((err as Error).name === "AbortError") {
+      onError(new Error("Request cancelled by user."));
+      return;
+    }
+    onError(err as Error);
+  }
+}
+
+export interface AgentMessageRequest {
+  message: string;
+  agent?: string;
+  conversation_id?: string;
+}
+
+export async function sendAgentMessage(
+  data: AgentMessageRequest,
+  onToken: (token: string) => void,
+  onError: (error: Error) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  try {
+    const res = await fetch(`${ML_BACKEND_URL}/chat/agent`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeader(),
+      },
+      body: JSON.stringify(data),
+      signal,
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || `Agent request failed (${res.status})`);
+    }
+    const result: { response?: string; error?: string } = await res.json();
+    if (result.error) {
+      onError(new Error(result.error));
+      return;
+    }
+    if (result.response) {
+      const tokens = result.response.match(/.{1,4}/g) || [result.response];
+      let idx = 0;
+      const interval = setInterval(() => {
+        if (idx < tokens.length) {
+          onToken(tokens[idx]);
+          idx++;
+        } else {
+          clearInterval(interval);
+        }
+      }, 10);
+    }
+  } catch (err) {
+    if ((err as Error).name === "AbortError") {
+      onError(new Error("Request cancelled by user."));
+      return;
+    }
     onError(err as Error);
   }
 }

@@ -9,6 +9,7 @@ import { AlertTriangle, RefreshCw, Loader2, CheckCircle2 } from "lucide-react"
 import { useDashboardSidebar } from "@/components/dashboard/sidebar-context"
 import { toast } from "sonner"
 import { mlApi, type Anomaly } from "@/api/services"
+import { formatCurrency } from "@/lib/format"
 
 export default function AnomaliesPageRoute() {
   const { openSidebar } = useDashboardSidebar()
@@ -109,7 +110,7 @@ export default function AnomaliesPageRoute() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm font-medium mb-1">{anomaly.description}</p>
-                <p className="text-lg font-bold">₹{anomaly.amount.toLocaleString()}</p>
+                <p className="text-lg font-bold">{formatCurrency(anomaly.amount)}</p>
                 <p className="text-xs text-muted-foreground mt-2">{anomaly.date}</p>
                 <div className="mt-3 pt-3 border-t">
                   <div className="flex items-center justify-between text-xs text-muted-foreground">

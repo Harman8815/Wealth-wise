@@ -18,6 +18,7 @@ from app.services.tools import (
     get_income_tool,
     get_transactions_tool,
 )
+from app.logging_utils import log_agent
 
 
 async def build_report_sections(token: str, user_id: str) -> Dict[str, Any]:
@@ -47,7 +48,7 @@ async def build_report_sections(token: str, user_id: str) -> Dict[str, Any]:
             "current": goal.get("current_amount"),
         })
 
-    return {
+    sections = {
         "summary": {
             "total_income": total_income,
             "total_expense": total_expense,
@@ -57,6 +58,15 @@ async def build_report_sections(token: str, user_id: str) -> Dict[str, Any]:
         "goal_progress": goal_progress,
         "balance": balance.get("data"),
     }
+    log_agent(
+        request_id="",
+        user_id=user_id,
+        conversation_id=None,
+        agent="report",
+        event="report_sections_built",
+        output_data=sections,
+    )
+    return sections
 
 
 async def generate_report_narrative(sections: Dict[str, Any]) -> str:
@@ -71,7 +81,16 @@ async def generate_report_narrative(sections: Dict[str, Any]) -> str:
         model=DEFAULT_CHAT_MODEL,
         stream=False,
     )
-    return result.get("message", {}).get("content", "")
+    narrative = result.get("message", {}).get("content", "")
+    log_agent(
+        request_id="",
+        user_id=None,
+        conversation_id=None,
+        agent="report",
+        event="report_narrative_generated",
+        output_data={"narrative": narrative},
+    )
+    return narrative
 
 
 async def build_report(token: str, user_id: str) -> Dict[str, Any]:
@@ -94,4 +113,14 @@ async def explain_chart_or_alert(data: Dict[str, Any]) -> str:
         model=DEFAULT_CHAT_MODEL,
         stream=False,
     )
-    return result.get("message", {}).get("content", "")
+    explanation = result.get("message", {}).get("content", "")
+    log_agent(
+        request_id="",
+        user_id=None,
+        conversation_id=None,
+        agent="chart_alert",
+        event="chart_or_alert_explained",
+        input_data=data,
+        output_data={"explanation": explanation},
+    )
+    return explanation

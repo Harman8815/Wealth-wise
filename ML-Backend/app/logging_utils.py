@@ -104,6 +104,121 @@ def log_llm_call(
     logger.info("llm_call", extra=payload)
 
 
+def log_chat(
+    request_id: str,
+    user_id: Optional[str],
+    conversation_id: Optional[str],
+    event: str,
+    message: Optional[str] = None,
+    agent: Optional[str] = None,
+    intent: Optional[str] = None,
+    response: Optional[str] = None,
+    latency_ms: Optional[float] = None,
+    **extra: Any,
+) -> None:
+    payload: Dict[str, Any] = {
+        "request_id": request_id,
+        "user_id": user_id,
+        "conversation_id": conversation_id,
+        "event": event,
+    }
+    if message is not None:
+        payload["message"] = _scrub(message)
+    if agent is not None:
+        payload["agent"] = agent
+    if intent is not None:
+        payload["intent"] = intent
+    if response is not None:
+        payload["response"] = _scrub(response)
+    if latency_ms is not None:
+        payload["latency_ms"] = round(latency_ms, 2)
+    payload.update(_scrub_dict(extra))
+    logger.info("chat", extra=payload)
+
+
+def log_agent(
+    request_id: str,
+    user_id: Optional[str],
+    conversation_id: Optional[str],
+    agent: str,
+    event: str,
+    input_data: Optional[Any] = None,
+    output_data: Optional[Any] = None,
+    latency_ms: Optional[float] = None,
+    **extra: Any,
+) -> None:
+    payload: Dict[str, Any] = {
+        "request_id": request_id,
+        "user_id": user_id,
+        "conversation_id": conversation_id,
+        "agent": agent,
+        "event": event,
+    }
+    if input_data is not None:
+        payload["input"] = _scrub_dict(input_data) if isinstance(input_data, dict) else _scrub(str(input_data))
+    if output_data is not None:
+        payload["output"] = _scrub_dict(output_data) if isinstance(output_data, dict) else _scrub(str(output_data))
+    if latency_ms is not None:
+        payload["latency_ms"] = round(latency_ms, 2)
+    payload.update(_scrub_dict(extra))
+    logger.info("agent", extra=payload)
+
+
+def log_db(
+    request_id: str,
+    user_id: Optional[str],
+    event: str,
+    query: Optional[str] = None,
+    result_count: Optional[int] = None,
+    result_data: Optional[Any] = None,
+    latency_ms: Optional[float] = None,
+    **extra: Any,
+) -> None:
+    payload: Dict[str, Any] = {
+        "request_id": request_id,
+        "user_id": user_id,
+        "event": event,
+    }
+    if query is not None:
+        payload["query"] = _scrub(query)
+    if result_count is not None:
+        payload["result_count"] = result_count
+    if result_data is not None:
+        payload["result_data"] = _scrub_dict(result_data) if isinstance(result_data, dict) else _scrub(str(result_data))
+    if latency_ms is not None:
+        payload["latency_ms"] = round(latency_ms, 2)
+    payload.update(_scrub_dict(extra))
+    logger.info("db", extra=payload)
+
+
+def log_validation(
+    request_id: str,
+    user_id: Optional[str],
+    event: str,
+    schema: Optional[str] = None,
+    data: Optional[Any] = None,
+    valid: bool = True,
+    error: Optional[str] = None,
+    **extra: Any,
+) -> None:
+    payload: Dict[str, Any] = {
+        "request_id": request_id,
+        "user_id": user_id,
+        "event": event,
+        "valid": valid,
+    }
+    if schema is not None:
+        payload["schema"] = schema
+    if data is not None:
+        payload["data"] = _scrub_dict(data) if isinstance(data, dict) else _scrub(str(data))
+    if error is not None:
+        payload["error"] = _scrub(error)
+        logger.error("validation", extra=payload)
+    else:
+        payload.update(_scrub_dict(extra))
+        logger.info("validation", extra=payload)
+
+
 def log_error(
     request_id: str,
     user_id: Optional[str],
