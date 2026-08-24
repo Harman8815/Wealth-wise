@@ -13,7 +13,7 @@ from app.services.db_agent import answer_database_question
 from app.services.insights_agent import answer_insights_question
 from app.services.intent import Intent
 from app.services.reports import build_report, explain_chart_or_alert
-from app.services.tools import search_transactions_nl
+from app.services.tools import search_transactions_nl, query_transactions_dynamic
 from app.logging_utils import log_agent
 
 
@@ -141,9 +141,34 @@ async def route_intent(
 
     if intent == Intent.ALERTS:
         answer = await answer_alerts_question(token, user_id, message)
+        log_agent(
+            request_id="",
+            user_id=user_id,
+            conversation_id=None,
+            agent="alerts",
+            event="alerts_question_answered",
+            output_data={"answer": answer},
+        )
         return {
             "intent": intent.value,
             "response": answer,
+        }
+
+    if intent == Intent.TRANSACTION_QUERY:
+        result = await query_transactions_dynamic(token, user_id, message)
+        log_agent(
+            request_id="",
+            user_id=user_id,
+            conversation_id=None,
+            agent="transaction_query",
+            event="transaction_query_completed",
+            output_data={"filters": result.get("filters"), "result_count": len(result.get("data", {}).get("results", [])) if isinstance(result.get("data"), dict) else 0},
+        )
+        return {
+            "intent": intent.value,
+            "response": f"Found {len(result.get('data', {}).get('results', [])) if isinstance(result.get('data'), dict) else 0} transactions matching your query.",
+            "data": result.get("data"),
+            "filters": result.get("filters"),
         }
 
     # general_chat fallback

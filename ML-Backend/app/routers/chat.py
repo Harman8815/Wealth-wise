@@ -38,6 +38,7 @@ from app.services.tools import (
     get_transactions_tool,
     search_transactions_nl,
     get_alerts_tool,
+    query_transactions_dynamic,
 )
 from app.services.alerts_agent import answer_alerts_question
 
@@ -140,6 +141,20 @@ FINANCIAL_TOOLS: List[Dict[str, Any]] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_transactions_dynamic",
+            "description": "Search transactions using a structured dynamic query derived from natural language. Supports merchant, date, date range, amount range, category, transaction type, description, and limit.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "The user's natural language query about transactions"},
+                },
+                "required": ["query"],
+            },
+        },
+    },
 ]
 
 
@@ -181,6 +196,9 @@ async def _execute_tool_call(name: str, arguments: Dict[str, Any], token: str, u
                 category=arguments.get("category"),
                 type_=arguments.get("type_"),
             )
+        elif name == "query_transactions_dynamic":
+            query = arguments.get("query", "")
+            result = await query_transactions_dynamic(token, user_id, query)
         else:
             return json.dumps({"error": f"Unknown tool: {name}"})
         return json.dumps(result)
