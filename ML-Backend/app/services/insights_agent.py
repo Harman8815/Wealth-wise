@@ -10,6 +10,7 @@ from typing import Any, Dict
 
 from app.clients import get_insights
 from app.ollama import DEFAULT_CHAT_MODEL, generate
+from app.logging_utils import log_agent
 
 
 async def answer_insights_question(token: str, user_id: str, question: str) -> str:
@@ -31,4 +32,14 @@ async def answer_insights_question(token: str, user_id: str, question: str) -> s
         model=DEFAULT_CHAT_MODEL,
         stream=False,
     )
-    return result.get("message", {}).get("content", "")
+    answer = result.get("message", {}).get("content", "")
+    log_agent(
+        request_id="",
+        user_id=user_id,
+        conversation_id=None,
+        agent="insights",
+        event="insights_question_answered",
+        input_data={"question": question, "insights_count": len(insights_data) if isinstance(insights_data, list) else 0},
+        output_data={"answer": answer},
+    )
+    return answer

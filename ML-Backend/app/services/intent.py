@@ -15,6 +15,7 @@ from enum import Enum
 from typing import Dict
 
 from app.ollama import DEFAULT_CHAT_MODEL, generate
+from app.logging_utils import log_chat
 
 
 class Intent(str, Enum):
@@ -54,6 +55,23 @@ async def classify_intent(message: str) -> Intent:
     )
     content = result.get("message", {}).get("content", "").strip().lower()
     try:
-        return Intent(content)
+        intent = Intent(content)
+        log_chat(
+            request_id="",
+            user_id=None,
+            conversation_id=None,
+            event="intent_classified",
+            message=message,
+            intent=intent.value,
+        )
+        return intent
     except ValueError:
+        log_chat(
+            request_id="",
+            user_id=None,
+            conversation_id=None,
+            event="intent_classification_failed",
+            message=message,
+            intent="general_chat",
+        )
         return Intent.GENERAL_CHAT

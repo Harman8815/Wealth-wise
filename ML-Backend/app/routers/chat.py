@@ -28,7 +28,7 @@ from app.services.assistants import answer_budget_question, answer_goal_question
 from app.services.intent import classify_intent
 from app.services.router import route_intent
 from app.rate_limit import enforce_rate_limit
-from app.logging_utils import get_request_id, log_llm_call, log_tool_call
+from app.logging_utils import get_request_id, log_chat, log_llm_call, log_tool_call
 from app.services.tools import (
     get_balance_tool,
     get_budget_tool,
@@ -128,6 +128,7 @@ FINANCIAL_TOOLS: List[Dict[str, Any]] = [
 
 async def _execute_tool_call(name: str, arguments: Dict[str, Any], token: str, user_id: str) -> str:
     try:
+        result = None
         if name == "get_transactions":
             result = await get_transactions_tool(
                 token,
@@ -280,6 +281,14 @@ async def chat(
     user_id: str = Depends(get_user_id),
     _: None = Depends(enforce_rate_limit),
 ) -> ChatResponse:
+    request_id = get_request_id(request)
+    log_chat(
+        request_id=request_id,
+        user_id=user_id,
+        conversation_id=body.conversation_id,
+        event="request_received",
+        message=body.message,
+    )
     conversation_id = body.conversation_id
     if conversation_id:
         conv = get_conversation(user_id, conversation_id)
@@ -318,8 +327,22 @@ async def chat(
             role="assistant",
             content=reply,
         )
+        log_chat(
+            request_id=request_id,
+            user_id=user_id,
+            conversation_id=conversation_id,
+            event="response_generated",
+            response=reply,
+        )
         return ChatResponse(reply=reply, model=body.model or DEFAULT_CHAT_MODEL, conversation_id=conversation_id)
     except OllamaAdapterError as exc:
+        log_chat(
+            request_id=request_id,
+            user_id=user_id,
+            conversation_id=conversation_id,
+            event="error",
+            error=str(exc),
+        )
         raise HTTPException(status_code=502, detail=str(exc))
 
 
@@ -330,6 +353,14 @@ async def chat_stream(
     user_id: str = Depends(get_user_id),
     _: None = Depends(enforce_rate_limit),
 ) -> StreamingResponse:
+    request_id = get_request_id(request)
+    log_chat(
+        request_id=request_id,
+        user_id=user_id,
+        conversation_id=body.conversation_id,
+        event="stream_request_received",
+        message=body.message,
+    )
     conversation_id = body.conversation_id
     if conversation_id:
         conv = get_conversation(user_id, conversation_id)
@@ -365,6 +396,13 @@ async def chat_stream(
 
 @router.post("/goal-planning")
 async def goal_planning(request: Request, user_id: str = Depends(get_user_id), _: None = Depends(enforce_rate_limit)):
+    request_id = get_request_id(request)
+    log_chat(
+        request_id=request_id,
+        user_id=user_id,
+        conversation_id=None,
+        event="goal_planning_request",
+    )
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header.")
@@ -374,11 +412,25 @@ async def goal_planning(request: Request, user_id: str = Depends(get_user_id), _
     if not question:
         raise HTTPException(status_code=400, detail="Missing question.")
     answer = await answer_goal_question(token, user_id, question)
+    log_chat(
+        request_id=request_id,
+        user_id=user_id,
+        conversation_id=None,
+        event="goal_planning_response",
+        response=answer,
+    )
     return {"answer": answer}
 
 
 @router.post("/budget-planning")
 async def budget_planning(request: Request, user_id: str = Depends(get_user_id), _: None = Depends(enforce_rate_limit)):
+    request_id = get_request_id(request)
+    log_chat(
+        request_id=request_id,
+        user_id=user_id,
+        conversation_id=None,
+        event="budget_planning_request",
+    )
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header.")
@@ -388,6 +440,13 @@ async def budget_planning(request: Request, user_id: str = Depends(get_user_id),
     if not question:
         raise HTTPException(status_code=400, detail="Missing question.")
     answer = await answer_budget_question(token, user_id, question)
+    log_chat(
+        request_id=request_id,
+        user_id=user_id,
+        conversation_id=None,
+        event="budget_planning_response",
+        response=answer,
+    )
     return {"answer": answer}
 
 
@@ -405,6 +464,14 @@ async def refresh_db_context():
 
 @router.post("/agent")
 async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: None = Depends(enforce_rate_limit)):
+    request_id = get_request_id(request)
+    log_chat(
+        request_id=request_id,
+        user_id=user_id,
+        conversation_id=None,
+        event="agent_request_received",
+        message=None,
+    )
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header.")
@@ -430,6 +497,14 @@ async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: N
             intent = Intent.GENERAL_CHAT
     else:
         intent = await classify_intent(message)
+    log_chat(
+        request_id=request_id,
+        user_id=user_id,
+        conversation_id=None,
+        event="agent_selected",
+        agent=agent_name or "auto",
+        intent=intent.value,
+    )
     routed = await route_intent(intent, token, user_id, message)
     if routed.get("response") is None:
         return {
@@ -437,6 +512,15 @@ async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: N
             "response": "I'm not sure how to help with that. Could you rephrase?",
             "fallback": True,
         }
+    log_chat(
+        request_id=request_id,
+        user_id=user_id,
+        conversation_id=None,
+        event="agent_response_generated",
+        agent=agent_name or "auto",
+        intent=intent.value,
+        response=routed.get("response"),
+    )
     return {
         "intent": routed["intent"],
         "response": routed["response"],

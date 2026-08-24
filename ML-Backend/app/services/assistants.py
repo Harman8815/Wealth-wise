@@ -18,6 +18,7 @@ from app.services.tools import (
     get_profile_tool,
     get_transactions_tool,
 )
+from app.logging_utils import log_agent
 
 
 async def answer_goal_question(token: str, user_id: str, question: str) -> str:
@@ -54,7 +55,17 @@ async def answer_goal_question(token: str, user_id: str, question: str) -> str:
         model=DEFAULT_CHAT_MODEL,
         stream=False,
     )
-    return result.get("message", {}).get("content", "")
+    answer = result.get("message", {}).get("content", "")
+    log_agent(
+        request_id="",
+        user_id=user_id,
+        conversation_id=None,
+        agent="goal",
+        event="goal_question_answered",
+        input_data={"question": question, "goal_count": len(goals_data)},
+        output_data={"answer": answer},
+    )
+    return answer
 
 
 async def answer_budget_question(token: str, user_id: str, question: str) -> str:
@@ -89,5 +100,14 @@ async def answer_budget_question(token: str, user_id: str, question: str) -> str
         model=DEFAULT_CHAT_MODEL,
         stream=False,
     )
-    return result.get("message", {}).get("content", "")
-
+    answer = result.get("message", {}).get("content", "")
+    log_agent(
+        request_id="",
+        user_id=user_id,
+        conversation_id=None,
+        agent="budget",
+        event="budget_question_answered",
+        input_data={"question": question, "total_income": total_income, "total_expense": total_expense, "savings_rate": savings_rate, "budget_variance": budget_variance},
+        output_data={"answer": answer},
+    )
+    return answer

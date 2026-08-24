@@ -17,6 +17,7 @@ from app.clients import (
     get_user_profile,
 )
 from app.ollama import DEFAULT_CHAT_MODEL, generate
+from app.logging_utils import log_agent
 
 
 async def _extract_transaction_filters(query: str) -> Dict[str, Optional[str]]:
@@ -55,6 +56,14 @@ async def get_transactions_tool(
     page: int = 1,
     page_size: int = 100,
 ) -> Dict[str, Any]:
+    log_agent(
+        request_id="",
+        user_id=user_id,
+        conversation_id=None,
+        agent="tool",
+        event="get_transactions_called",
+        input_data={"category": category, "type_": type_, "start_date": start_date, "end_date": end_date, "page": page, "page_size": page_size},
+    )
     data = await get_transactions(
         token,
         page=page,
@@ -64,16 +73,55 @@ async def get_transactions_tool(
         start_date=start_date,
         end_date=end_date,
     )
+    result_count = len(data.get("results", [])) if isinstance(data, dict) else 0
+    log_agent(
+        request_id="",
+        user_id=user_id,
+        conversation_id=None,
+        agent="tool",
+        event="get_transactions_result",
+        output_data={"result_count": result_count},
+    )
     return {"user_id": user_id, "data": data}
 
 
 async def get_balance_tool(token: str, user_id: str) -> Dict[str, Any]:
+    log_agent(
+        request_id="",
+        user_id=user_id,
+        conversation_id=None,
+        agent="tool",
+        event="get_balance_called",
+    )
     accounts = await get_accounts(token)
+    log_agent(
+        request_id="",
+        user_id=user_id,
+        conversation_id=None,
+        agent="tool",
+        event="get_balance_result",
+        output_data={"account_count": len(accounts.get("results", [])) if isinstance(accounts, dict) else 0},
+    )
     return {"user_id": user_id, "data": accounts}
 
 
 async def get_budget_tool(token: str, user_id: str) -> Dict[str, Any]:
+    log_agent(
+        request_id="",
+        user_id=user_id,
+        conversation_id=None,
+        agent="tool",
+        event="get_budget_called",
+    )
     budgets = await get_budgets(token)
+    log_agent(
+        request_id="",
+        user_id=user_id,
+        conversation_id=None,
+        agent="tool",
+        event="get_budget_result",
+        output_data={"budget_count": len(budgets.get("results", [])) if isinstance(budgets, dict) else 0},
+    )
     return {"user_id": user_id, "data": budgets}
 
 
@@ -84,6 +132,14 @@ async def get_income_tool(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
 ) -> Dict[str, Any]:
+    log_agent(
+        request_id="",
+        user_id=user_id,
+        conversation_id=None,
+        agent="tool",
+        event="get_income_called",
+        input_data={"start_date": start_date, "end_date": end_date},
+    )
     data = await get_transactions(
         token,
         page=1,
@@ -92,20 +148,66 @@ async def get_income_tool(
         start_date=start_date,
         end_date=end_date,
     )
+    result_count = len(data.get("results", [])) if isinstance(data, dict) else 0
+    log_agent(
+        request_id="",
+        user_id=user_id,
+        conversation_id=None,
+        agent="tool",
+        event="get_income_result",
+        output_data={"result_count": result_count},
+    )
     return {"user_id": user_id, "data": data}
 
 
 async def get_goals_tool(token: str, user_id: str) -> Dict[str, Any]:
+    log_agent(
+        request_id="",
+        user_id=user_id,
+        conversation_id=None,
+        agent="tool",
+        event="get_goals_called",
+    )
     goals = await get_goals(token)
+    log_agent(
+        request_id="",
+        user_id=user_id,
+        conversation_id=None,
+        agent="tool",
+        event="get_goals_result",
+        output_data={"goal_count": len(goals.get("results", [])) if isinstance(goals, dict) else 0},
+    )
     return {"user_id": user_id, "data": goals}
 
 
 async def get_profile_tool(token: str, user_id: str) -> Dict[str, Any]:
+    log_agent(
+        request_id="",
+        user_id=user_id,
+        conversation_id=None,
+        agent="tool",
+        event="get_profile_called",
+    )
     profile = await get_user_profile(token)
+    log_agent(
+        request_id="",
+        user_id=user_id,
+        conversation_id=None,
+        agent="tool",
+        event="get_profile_result",
+    )
     return {"user_id": user_id, "data": profile}
 
 
 async def search_transactions_nl(token: str, user_id: str, query: str) -> Dict[str, Any]:
+    log_agent(
+        request_id="",
+        user_id=user_id,
+        conversation_id=None,
+        agent="tool",
+        event="search_transactions_nl_called",
+        input_data={"query": query},
+    )
     filters = await _extract_transaction_filters(query)
     data = await get_transactions(
         token,
@@ -115,5 +217,14 @@ async def search_transactions_nl(token: str, user_id: str, query: str) -> Dict[s
         type_=filters.get("type_"),
         start_date=filters.get("start_date"),
         end_date=filters.get("end_date"),
+    )
+    result_count = len(data.get("results", [])) if isinstance(data, dict) else 0
+    log_agent(
+        request_id="",
+        user_id=user_id,
+        conversation_id=None,
+        agent="tool",
+        event="search_transactions_nl_result",
+        output_data={"query": query, "filters": filters, "result_count": result_count},
     )
     return {"user_id": user_id, "query": query, "filters": filters, "data": data}

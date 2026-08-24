@@ -33,6 +33,16 @@ def _log_ollama_request(endpoint: str, payload: Dict[str, Any]) -> None:
     )
 
 
+def _log_ollama_response(endpoint: str, response: Dict[str, Any]) -> None:
+    ollama_logger.debug(
+        "ollama_response",
+        extra={
+            "endpoint": endpoint,
+            "response": response,
+        },
+    )
+
+
 async def generate(
     messages: List[Dict[str, str]],
     *,
@@ -61,7 +71,9 @@ async def generate(
             raise OllamaAdapterError(
                 f"Ollama chat failed ({resp.status_code}): {resp.text}"
             )
-        return resp.json()
+        data = resp.json()
+        _log_ollama_response("/api/chat", data)
+        return data
 
 
 async def stream(
@@ -162,4 +174,6 @@ async def generate_with_tools(
             raise OllamaAdapterError(
                 f"Ollama chat failed ({resp.status_code}): {resp.text}"
             )
-        return resp.json()
+        data = resp.json()
+        _log_ollama_response("/api/chat", data)
+        return data
