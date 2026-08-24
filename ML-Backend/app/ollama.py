@@ -6,12 +6,13 @@ single place to change if the Ollama API surface moves.
 """
 from __future__ import annotations
 
-import asyncio
 import json
 import os
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 import httpx
+
+from app.logging_utils import logger as ollama_logger
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 DEFAULT_CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", "llama3.2")
@@ -20,6 +21,16 @@ DEFAULT_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
 
 class OllamaAdapterError(Exception):
     """Raised when Ollama returns a non-success response."""
+
+
+def _log_ollama_request(endpoint: str, payload: Dict[str, Any]) -> None:
+    ollama_logger.debug(
+        "ollama_request",
+        extra={
+            "endpoint": endpoint,
+            "payload": payload,
+        },
+    )
 
 
 async def generate(
@@ -37,6 +48,7 @@ async def generate(
     }
     if options:
         payload["options"] = options
+    _log_ollama_request("/api/chat", payload)
     async with httpx.AsyncClient(timeout=120.0) as client:
         try:
             resp = await client.post(
@@ -66,6 +78,7 @@ async def stream(
     }
     if options:
         payload["options"] = options
+    _log_ollama_request("/api/chat", payload)
     async with httpx.AsyncClient(timeout=120.0) as client:
         try:
             async with client.stream(
@@ -102,6 +115,8 @@ async def embed(
     model: str = DEFAULT_EMBED_MODEL,
 ) -> List[float]:
     """Return an embedding vector for ``text``."""
+    payload = {"model": model, "prompt": text}
+    _log_ollama_request("/api/embed", payload)
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
             resp = await client.post(
@@ -134,6 +149,7 @@ async def generate_with_tools(
     }
     if options:
         payload["options"] = options
+    _log_ollama_request("/api/chat", payload)
     async with httpx.AsyncClient(timeout=120.0) as client:
         try:
             resp = await client.post(
