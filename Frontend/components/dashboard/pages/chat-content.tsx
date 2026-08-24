@@ -41,6 +41,7 @@ import {
   type ChatMessage,
   type AgentMessageRequest,
 } from "@/api/services/chat";
+import ReactMarkdown from "react-markdown";
 import {
   createConversation,
   deleteConversation,
@@ -400,7 +401,27 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
                         : "bg-white/5 text-slate-200 rounded-bl-sm border border-white/10"
                     }`}
                   >
-                    {msg.content}
+                    {msg.role === "assistant" ? (
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                          ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
+                          li: ({ children }) => <li className="mb-1">{children}</li>,
+                          h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+                          h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                          h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                          code: ({ children }) => <code className="bg-white/10 rounded px-1 py-0.5 text-xs font-mono">{children}</code>,
+                          pre: ({ children }) => <pre className="bg-white/10 rounded p-2 mb-2 overflow-x-auto text-xs font-mono">{children}</pre>,
+                          blockquote: ({ children }) => <blockquote className="border-l-2 border-white/20 pl-2 italic mb-2">{children}</blockquote>,
+                          a: ({ href, children }) => <a href={href} className="text-blue-400 underline" target="_blank" rel="noopener noreferrer">{children}</a>,
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    ) : (
+                      msg.content
+                    )}
                   </div>
                 </div>
                 {msg.role === "user" && (
