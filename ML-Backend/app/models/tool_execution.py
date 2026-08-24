@@ -36,7 +36,3 @@ class ToolExecution(Base):
 
     conversation = relationship("Conversation", back_populates="tool_executions")
     message = relationship("Message", back_populates="tool_executions")
-
-
-Conversation.tool_executions = relationship("ToolExecution", back_populates="conversation", cascade="all, delete-orphan")
-Message.tool_executions = relationship("ToolExecution", back_populates="message", cascade="all, delete-orphan")
