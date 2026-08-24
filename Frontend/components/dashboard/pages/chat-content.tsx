@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -25,8 +25,15 @@ import {
   Trash2,
   MessageSquare,
   MoreHorizontal,
+  Sparkle,
+  BarChart3,
+  Target,
+  Search,
+  FileText,
+  AlertTriangle,
+  Database,
 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   sendChatMessageStream,
   sendChatMessage,
@@ -34,6 +41,7 @@ import {
   type ChatMessage,
   type AgentMessageRequest,
 } from "@/api/services/chat";
+import ReactMarkdown from "react-markdown";
 import {
   createConversation,
   deleteConversation,
@@ -76,9 +84,11 @@ type MessageMeta = {
   agentId?: string;
 };
 
-export function ChatPage() {
+export function ChatPageContent({ conversationId }: { conversationId?: string }) {
   const searchParams = useSearchParams();
-  const conversationId = searchParams.get("conversation") || undefined;
+  const urlConversationId = searchParams.get("conversation") || undefined;
+  const activeConversationId = conversationId || urlConversationId;
+  
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_MESSAGE]);
   const [messageMeta, setMessageMeta] = useState<Record<number, MessageMeta>>({});
   const [input, setInput] = useState("");
@@ -164,7 +174,7 @@ export function ChatPage() {
         const payload: AgentMessageRequest = {
           message: trimmed,
           agent: agentId,
-          conversation_id: conversationId,
+          conversation_id: activeConversationId,
         };
         await sendAgentMessage(
           payload,
@@ -178,14 +188,14 @@ export function ChatPage() {
               toast.info("Generation stopped");
             } else {
               setError(err.message);
-              toast({ title: err.message, variant: "destructive" });
+              toast.error(err.message);
             }
           },
           abortControllerRef.current.signal,
         );
       } else {
         await sendChatMessageStream(
-          { message: trimmed, conversation_id: conversationId },
+          { message: trimmed, conversation_id: activeConversationId },
           (token) => {
             fullReply += token;
             updateLastAssistant(fullReply);
@@ -196,7 +206,7 @@ export function ChatPage() {
               toast.info("Generation stopped");
             } else {
               setError(err.message);
-              toast({ title: err.message, variant: "destructive" });
+              toast.error(err.message);
             }
           },
           abortControllerRef.current.signal,
@@ -205,7 +215,7 @@ export function ChatPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to send message";
       setError(message);
-      toast({ title: message, variant: "destructive" });
+      toast.error(message);
     } finally {
       clearTimer();
       setIsStreaming(false);
@@ -216,7 +226,6 @@ export function ChatPage() {
   const handleSend = () => {
     const text = input.trim();
     if (!text || isStreaming) return;
-
     const matchedAgent = text.startsWith("/") ? agents.find((a) => a.slashCommand === text.split(" ")[0]) : undefined;
     handleSendWithAgent(text, matchedAgent);
   };
@@ -238,9 +247,9 @@ export function ChatPage() {
   };
 
   const handleDeleteChat = async () => {
-    if (!conversationId) return;
+    if (!activeConversationId) return;
     try {
-      await deleteConversation(conversationId);
+      await deleteConversation(activeConversationId);
       window.location.href = "/dashboard/chat";
       toast.success("Chat deleted");
     } catch {
@@ -270,20 +279,31 @@ export function ChatPage() {
     : [];
 
   return (
-    <div className="flex flex-col h-full">
-      <CardHeader className="border-b border-border/60 pb-3">
+    <div className="flex flex-col h-full w-full">
+      {/* Header */}
+      <div className="shrink-0 border-b border-white/10 bg-[#0B0F19]/80 backdrop-blur-xl px-4 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Sparkles className="h-5 w-5 text-blue-500" />
-            WealthWise AI Chat
-          </CardTitle>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Avatar className="h-9 w-9 sm:h-10 sm:w-10">
+                <AvatarFallback className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white">
+                  <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
+                </AvatarFallback>
+              </Avatar>
+              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 border-2 border-[#0B0F19]" />
+            </div>
+            <div>
+              <h1 className="text-sm sm:text-base font-semibold text-white">WealthWise AI</h1>
+              <p className="text-[11px] sm:text-xs text-slate-400">Online & ready</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  className="h-8 w-8 text-slate-400 hover:text-white"
                   title="Agents"
                 >
                   <MoreHorizontal className="h-4 w-4" />
@@ -298,10 +318,10 @@ export function ChatPage() {
                       onClick={() => setInput(agent.slashCommand + " ")}
                       className="cursor-pointer"
                     >
-                      <Icon className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <Icon className="h-4 w-4 mr-2 text-slate-400" />
                       <div className="flex flex-col">
                         <span className="text-sm font-medium">{agent.name}</span>
-                        <span className="text-[11px] text-muted-foreground">{agent.description}</span>
+                        <span className="text-[11px] text-slate-400">{agent.description}</span>
                       </div>
                     </DropdownMenuItem>
                   );
@@ -311,132 +331,154 @@ export function ChatPage() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              className="h-8 w-8 text-slate-400 hover:text-white"
               onClick={handleNewChat}
               title="New Chat"
             >
               <Plus className="h-4 w-4" />
             </Button>
-            {conversationId && (
+            {activeConversationId && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-red-500"
+                    className="h-8 w-8 text-slate-400 hover:text-red-400"
                     title="Delete Chat"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent>
+                <AlertDialogContent className="bg-[#0B0F19] border-white/10 text-white">
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
-                    <AlertDialogDescription>
+                    <AlertDialogDescription className="text-slate-400">
                       This action cannot be undone. This will permanently delete this conversation and all its messages.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteChat} className="bg-red-600 hover:bg-red-700">
-                      Delete
-                    </AlertDialogAction>
+                    <AlertDialogCancel className="bg-transparent border-white/10 text-white hover:bg-white/10">Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteChat} className="bg-red-600 hover:bg-red-700 text-white">Delete</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
             )}
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
-        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-          <div className="space-y-4">
-            {messages.map((msg, idx) => {
-              const meta = messageMeta[idx];
-              const agent = meta?.agentId ? agents.find((a) => a.id === meta.agentId) : undefined;
-              return (
-                <div
-                  key={idx}
-                  className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  {msg.role === "assistant" && (
-                    <Avatar className="h-8 w-8 shrink-0">
-                      <AvatarFallback className="bg-blue-600 text-white">
-                        <Sparkles className="h-4 w-4" />
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-                  <div className="flex flex-col gap-1 max-w-[80%]">
-                    {agent && msg.role === "assistant" && (
-                      <div className="flex items-center gap-1.5 px-1">
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 bg-blue-500/10 text-blue-600 dark:text-blue-400 border-0">
-                          <agent.icon className="h-3 w-3 mr-1" />
-                          {agent.name}
-                        </Badge>
-                      </div>
-                    )}
-                    <div
-                      className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                        msg.role === "user"
-                          ? "bg-blue-600 text-white rounded-br-sm"
-                          : "bg-slate-800 text-slate-100 rounded-bl-sm"
-                      }`}
-                    >
-                      {msg.content}
+      </div>
+
+      {/* Messages Area */}
+      <ScrollArea className="flex-1 px-4 sm:px-6 py-4" ref={scrollRef}>
+        <div className="max-w-3xl mx-auto space-y-6">
+          {messages.map((msg, idx) => {
+            const meta = messageMeta[idx];
+                    const agent = meta?.agentId ? agents.find((a) => a.id === meta.agentId) : undefined;
+            return (
+              <div
+                key={idx}
+                className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                {msg.role === "assistant" && (
+                  <Avatar className="h-8 w-8 shrink-0">
+                    <AvatarFallback className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white">
+                      <Sparkles className="h-4 w-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+                <div className="flex flex-col gap-1 max-w-[80%]">
+                  {agent && msg.role === "assistant" && (
+                    <div className="flex items-center gap-1.5 px-1">
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 bg-blue-500/10 text-blue-400 border-0">
+                        <agent.icon className="h-3 w-3 mr-1" />
+                        {agent.name}
+                      </Badge>
                     </div>
+                  )}
+                  <div
+                    className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                      msg.role === "user"
+                        ? "bg-blue-600 text-white rounded-br-sm"
+                        : "bg-white/5 text-slate-200 rounded-bl-sm border border-white/10"
+                    }`}
+                  >
+                    {msg.role === "assistant" ? (
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                          ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
+                          li: ({ children }) => <li className="mb-1">{children}</li>,
+                          h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+                          h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                          h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                          code: ({ children }) => <code className="bg-white/10 rounded px-1 py-0.5 text-xs font-mono">{children}</code>,
+                          pre: ({ children }) => <pre className="bg-white/10 rounded p-2 mb-2 overflow-x-auto text-xs font-mono">{children}</pre>,
+                          blockquote: ({ children }) => <blockquote className="border-l-2 border-white/20 pl-2 italic mb-2">{children}</blockquote>,
+                          a: ({ href, children }) => <a href={href} className="text-blue-400 underline" target="_blank" rel="noopener noreferrer">{children}</a>,
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    ) : (
+                      msg.content
+                    )}
                   </div>
-                  {msg.role === "user" && (
-                    <Avatar className="h-8 w-8 shrink-0">
-                      <AvatarFallback className="bg-slate-700 text-slate-200">
-                        <User className="h-4 w-4" />
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
                 </div>
-              );
-            })}
-            {isStreaming && messages[messages.length - 1]?.role !== "assistant" && (
-              <div className="flex gap-3 justify-start">
-                <Avatar className="h-8 w-8 shrink-0">
-                  <AvatarFallback className="bg-blue-600 text-white">
-                    <Sparkles className="h-4 w-4" />
-                  </AvatarFallback>
-                </Avatar>
-                <div className="bg-slate-800 text-slate-100 rounded-2xl rounded-bl-sm px-4 py-2.5 flex items-center gap-3">
-                  <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
-                  {processingMessage && (
-                    <span className="text-xs text-slate-400">
-                      {processingMessage} {formatTime(processingTime)}
-                    </span>
-                  )}
-                </div>
+                {msg.role === "user" && (
+                  <Avatar className="h-8 w-8 shrink-0">
+                    <AvatarFallback className="bg-slate-700 text-slate-200">
+                      <User className="h-4 w-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                )}
               </div>
-            )}
-            {error && (
-              <div className="flex gap-3 justify-start">
-                <Avatar className="h-8 w-8 shrink-0">
-                  <AvatarFallback className="bg-red-600 text-white">
-                    <AlertCircle className="h-4 w-4" />
-                  </AvatarFallback>
-                </Avatar>
-                <div className="max-w-[80%] rounded-2xl rounded-bl-sm px-4 py-2.5 text-sm bg-red-950/50 text-red-200 border border-red-800/50">
-                  {error}
-                </div>
+            );
+          })}
+          {isStreaming && messages[messages.length - 1]?.role !== "assistant" && (
+            <div className="flex gap-3 justify-start">
+              <Avatar className="h-8 w-8 shrink-0">
+                <AvatarFallback className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white">
+                  <Sparkles className="h-4 w-4" />
+                </AvatarFallback>
+              </Avatar>
+              <div className="bg-white/5 text-slate-200 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-3 border border-white/10">
+                <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
+                {processingMessage && (
+                  <span className="text-xs text-slate-400">
+                    {processingMessage} {formatTime(processingTime)}
+                  </span>
+                )}
               </div>
-            )}
-          </div>
-        </ScrollArea>
-        <div className="border-t border-border/60 p-4">
+            </div>
+          )}
+          {error && (
+            <div className="flex gap-3 justify-start">
+              <Avatar className="h-8 w-8 shrink-0">
+                <AvatarFallback className="bg-red-600 text-white">
+                  <AlertCircle className="h-4 w-4" />
+                </AvatarFallback>
+              </Avatar>
+              <div className="max-w-[80%] rounded-2xl rounded-bl-sm px-4 py-3 text-sm bg-red-950/50 text-red-200 border border-red-800/50">
+                {error}
+              </div>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+
+      {/* Input Area */}
+      <div className="shrink-0 border-t border-white/10 bg-[#0B0F19]/80 backdrop-blur-xl px-4 sm:px-6 py-3 sm:py-4">
+        <div className="max-w-3xl mx-auto">
           {isStreaming && (
             <div className="flex items-center justify-between mb-2 px-1">
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-slate-400">
                 Thinking... {formatTime(processingTime)}
               </span>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleStop}
-                className="h-7 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+                className="h-7 text-red-400 hover:text-red-300 hover:bg-red-950/30"
               >
                 <Square className="h-3.5 w-3.5 mr-1.5 fill-current" />
                 Stop
@@ -451,7 +493,7 @@ export function ChatPage() {
                 onKeyDown={handleKeyDown}
                 placeholder="Ask WealthWise AI anything... or type / for agents"
                 disabled={isStreaming}
-                className="flex-1 bg-slate-900 border-border focus-visible:ring-blue-500"
+                className="flex-1 bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus-visible:ring-blue-500/50"
               />
               <Button
                 onClick={handleSend}
@@ -466,7 +508,7 @@ export function ChatPage() {
               </Button>
             </div>
             {filteredAgents.length > 0 && (
-              <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-border/60 bg-background/95 backdrop-blur-xl shadow-xl overflow-hidden z-10">
+              <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-white/10 bg-[#0B0F19]/95 backdrop-blur-xl shadow-2xl overflow-hidden z-10">
                 <div className="p-1">
                   {filteredAgents.map((agent) => {
                     const Icon = agent.icon;
@@ -475,12 +517,12 @@ export function ChatPage() {
                         key={agent.id}
                         type="button"
                         onClick={() => setInput(agent.slashCommand + " ")}
-                        className="flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-left hover:bg-muted/60 transition-colors cursor-pointer"
+                        className="flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-left hover:bg-white/5 transition-colors cursor-pointer"
                       >
-                        <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <Icon className="h-4 w-4 text-slate-400 shrink-0" />
                         <div className="flex flex-col">
-                          <span className="text-sm font-medium">{agent.slashCommand}</span>
-                          <span className="text-[11px] text-muted-foreground">{agent.description}</span>
+                          <span className="text-sm font-medium text-white">{agent.slashCommand}</span>
+                          <span className="text-[11px] text-slate-400">{agent.description}</span>
                         </div>
                       </button>
                     );
@@ -490,7 +532,7 @@ export function ChatPage() {
             )}
           </div>
         </div>
-      </CardContent>
+      </div>
     </div>
   );
-};
+}

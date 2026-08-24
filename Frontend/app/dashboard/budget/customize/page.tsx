@@ -14,6 +14,7 @@ import { AddCategoryDialog } from "@/components/dashboard/add-category-dialog"
 import { DEFAULT_TEXT_COLOR, DEFAULT_SYMBOL } from "@/data/category-symbols"
 import { ICON_MAP } from "@/components/dashboard/symbol-picker"
 import { toast } from "@/hooks/use-toast"
+import { formatCurrency } from "@/lib/format"
 
 export default function CategoryCustomizePage() {
   const { openSidebar } = useDashboardSidebar()
@@ -134,7 +135,7 @@ export default function CategoryCustomizePage() {
                             <div>
                               <div className="font-semibold">{category.name}</div>
                               <div className="text-xs text-gray-500">
-                                ₹{Number(category.spent).toLocaleString()} / ₹{Number(category.budgeted).toLocaleString()}
+                                {formatCurrency(Number(category.spent))} / {formatCurrency(Number(category.budgeted))}
                               </div>
                             </div>
                           </div>
@@ -173,7 +174,7 @@ export default function CategoryCustomizePage() {
                             <span>{percentage.toFixed(1)}% used</span>
                             {isOverBudget && (
                               <span className="text-red-600">
-                                Over by ₹{(Number(category.spent) - Number(category.budgeted)).toLocaleString()}
+                                Over by {formatCurrency(Number(category.spent) - Number(category.budgeted))}
                               </span>
                             )}
                           </div>

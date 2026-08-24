@@ -9,6 +9,7 @@ import { ArrowUpRight, ArrowDownLeft, Eye, Coffee, Car, Film, ShoppingCart, Zap,
 import { useSWRRecentTransactions } from "@/hooks/use-transactions-swr"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { formatCurrency } from "@/lib/format"
 
 const categoryIcons: Record<string, React.ReactNode> = {
   "Food & Dining": <Coffee className="w-5 h-5" />,
@@ -120,7 +121,7 @@ export function RecentTransactions() {
                             : "text-red-600 dark:text-red-400"
                         }`}
                       >
-                        {transaction.type === "income" ? "+" : "-"}₹{Number(transaction.amount).toLocaleString()}
+                        {transaction.type === "income" ? "+" : "-"}{formatCurrency(Number(transaction.amount))}
                       </p>
                       <p className="text-xs text-gray-600 dark:text-gray-400">{transaction.date}</p>
                     </div>
@@ -168,7 +169,7 @@ export function RecentTransactions() {
                 <div>
                   <p className="text-gray-600 dark:text-gray-400">Amount</p>
                   <p className={`font-semibold ${viewTransaction.type === "income" ? "text-green-600" : "text-red-600"}`}>
-                    {viewTransaction.type === "income" ? "+" : "-"}₹{Number(viewTransaction.amount).toLocaleString()}
+                    {viewTransaction.type === "income" ? "+" : "-"}{formatCurrency(Number(viewTransaction.amount))}
                   </p>
                 </div>
                 <div>

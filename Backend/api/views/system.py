@@ -375,6 +375,48 @@ def seed_historical_data(request):
             
             current_date += timedelta(days=1)
         
+        duplicate_pairs = [
+            (expense_category_lookup.get('Food & Dining'), 5000, end_date - timedelta(days=15), 'Zomato order'),
+            (expense_category_lookup.get('Transportation'), 2500, end_date - timedelta(days=8), 'Uber ride'),
+            (expense_category_lookup.get('Shopping'), 12000, end_date - timedelta(days=3), 'Amazon purchase'),
+        ]
+        for category, amount, date, description in duplicate_pairs:
+            if category:
+                for _ in range(2):
+                    Transaction.objects.create(
+                        user=user,
+                        project=project,
+                        account=random.choice(accounts[2:5]),
+                        date=date,
+                        description=description,
+                        category=category,
+                        amount=amount,
+                        type='expense',
+                        status='completed',
+                    )
+                    transactions_created += 1
+
+        anomaly_transactions = [
+            (expense_category_lookup.get('Food & Dining'), 50000, end_date - timedelta(days=10), 'Luxury dinner'),
+            (expense_category_lookup.get('Transportation'), 45000, end_date - timedelta(days=20), 'Flight booking'),
+            (expense_category_lookup.get('Shopping'), 150000, end_date - timedelta(days=5), 'Premium gadget'),
+            (expense_category_lookup.get('Entertainment'), 80000, end_date - timedelta(days=12), 'Concert tickets'),
+        ]
+        for category, amount, date, description in anomaly_transactions:
+            if category:
+                Transaction.objects.create(
+                    user=user,
+                    project=project,
+                    account=random.choice(accounts[2:5]),
+                    date=date,
+                    description=description,
+                    category=category,
+                    amount=amount,
+                    type='expense',
+                    status='completed',
+                )
+                transactions_created += 1
+        
         alerts_data = [
             {'type': 'warning', 'title': 'Budget Alert', 'message': 'You have spent 85% of your Food & Dining budget', 'category': 'Budget', 'read': False},
             {'type': 'info', 'title': 'Bill Reminder', 'message': 'Your electricity bill is due in 3 days', 'category': 'Bills', 'read': False},

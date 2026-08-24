@@ -126,9 +126,8 @@ def normalize_description(text: str) -> str:
         return ""
     text = text.lower()
     text = _PUNCT_RE.sub(" ", text)
-    # Drop trailing reference numbers (e.g. "SWIGGY 9381 22").
-    text = _TRAILING_DIGITS_RE.sub("", text)
     text = _NOISE_RE.sub(" ", text)
+    text = _TRAILING_DIGITS_RE.sub("", text)
     text = _WS_RE.sub(" ", text).strip()
     return text
 

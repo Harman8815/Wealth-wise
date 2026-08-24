@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { formatNumber } from "@/lib/format";
 
 /**
  * CountUp Component
@@ -43,7 +44,7 @@ export function CountUp({ value, prefix = "", suffix = "", duration = 2 }: Count
   return (
     <span>
       {prefix}
-      {count.toLocaleString()}
+      {formatNumber(count)}
       {suffix}
     </span>
   );

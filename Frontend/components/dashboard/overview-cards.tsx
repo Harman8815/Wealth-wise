@@ -6,6 +6,7 @@ import { GlassCard } from "@/shared/components";
 import { ProgressBar } from "@/shared/components/progress";
 import { AnimatedNumber } from "@/shared/components/animated-number";
 import { Wallet, Target, TrendingDown, PiggyBank, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { AccountSummary, TransactionSummary, BudgetOverview, GoalProgress } from "@/api/services";
 
@@ -164,7 +165,7 @@ export function OverviewCards() {
             variant={budgetPercentage > 90 ? "danger" : budgetPercentage > 75 ? "warning" : "success"}
           />
           <p className="text-xs text-muted-foreground mt-3">
-            ₹{totalSpent.toLocaleString("en-IN")} of ₹{totalBudgeted.toLocaleString("en-IN")} spent
+            {formatCurrency(totalSpent)} of {formatCurrency(totalBudgeted)} spent
           </p>
         </GlassCard>
 
@@ -188,7 +189,7 @@ export function OverviewCards() {
             variant={goalPercentage >= 100 ? "success" : "default"}
           />
           <p className="text-xs text-muted-foreground mt-3">
-            {activeGoals} active goals · ₹{(totalTarget - totalSaved).toLocaleString("en-IN")} remaining
+            {activeGoals} active goals · {formatCurrency(totalTarget - totalSaved)} remaining
           </p>
         </GlassCard>
       </div>

@@ -96,9 +96,11 @@ export {
 export {
   sendChatMessage,
   sendChatMessageStream,
+  sendAgentMessage,
   type ChatMessage,
   type ChatRequest,
   type ChatResponse,
+  type AgentMessageRequest,
 } from './chat';
 export {
   listConversations,
@@ -117,3 +119,11 @@ export {
   type ClustersResponse,
   type BudgetForecastResponse,
 } from './ml';
+export {
+  agents,
+  getAgentById,
+  getAgentBySlash,
+  getAgentName,
+  type Agent,
+  type AgentId,
+} from './agents';

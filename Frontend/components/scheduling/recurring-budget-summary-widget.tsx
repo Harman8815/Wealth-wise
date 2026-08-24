@@ -6,6 +6,7 @@ import { CalendarClock, Repeat } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useRecurringBudgets } from "@/hooks/use-recurring-budgets"
 import type { RecurringBudget } from "@/api/services"
+import { formatCurrency } from "@/lib/format"
 
 /**
  * Dashboard widget summarizing recurring-budget activity: active rule count,
@@ -49,7 +50,7 @@ export function RecurringBudgetSummaryWidget() {
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 gap-2 text-center">
           <Stat label="Active" value={active.length} />
-          <Stat label="Planned" value={`₹${Math.round(plannedTotal).toLocaleString()}`} />
+          <Stat label="Planned" value={formatCurrency(Math.round(plannedTotal))} />
         </div>
 
         {nextRule ? (
@@ -67,7 +68,7 @@ export function RecurringBudgetSummaryWidget() {
               </div>
             </div>
             <p className={cn("text-sm font-semibold text-blue-600")}>
-              ₹{Number(nextRule.total_budget).toLocaleString()}
+              {formatCurrency(Number(nextRule.total_budget))}
             </p>
           </div>
         ) : (

@@ -95,13 +95,16 @@ def test_create_chat_creates_conversation(mock_generate_with_tools):
 def test_list_chats_returns_only_own(mock_generate_with_tools):
     mock_generate_with_tools.return_value = {"message": {"content": "Hi"}, "model": "test-model"}
     _setup_db()
-    client.post("/chat", json={"message": "Hi A"}, headers=_auth_header("u1"))
-    client.post("/chat", json={"message": "Hi B"}, headers=_auth_header("u2"))
+    resp_u1 = client.post("/chat", json={"message": "Hi A"}, headers=_auth_header("u1"))
+    resp_u2 = client.post("/chat", json={"message": "Hi B"}, headers=_auth_header("u2"))
+    conv_u1 = resp_u1.json()["conversation_id"]
+    conv_u2 = resp_u2.json()["conversation_id"]
 
     resp = client.get("/chats", headers=_auth_header("u1"))
     assert resp.status_code == 200
-    titles = [c.get("title") for c in resp.json()["results"]]
-    assert all((t is None) or ("u1" in t) for t in titles)
+    results = resp.json()["results"]
+    assert len(results) == 1
+    assert results[0]["id"] == conv_u1
 
 
 @patch("app.routers.chat.generate_with_tools")

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useEffect, useState, useRef } from "react";
+import { formatNumber } from "@/lib/format";
 
 interface AnimatedNumberProps {
   value: number;
@@ -63,9 +64,9 @@ export function AnimatedNumber({
     };
   }, [value, duration]);
 
-  const formattedValue = displayValue.toLocaleString("en-IN", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
+  const formattedValue = formatNumber(displayValue, {
+    minFractionDigits: decimals,
+    maxFractionDigits: decimals,
   });
 
   return (

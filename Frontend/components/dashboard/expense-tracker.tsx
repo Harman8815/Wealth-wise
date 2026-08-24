@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Edit, Trash2, Save, X } from "lucide-react"
 import { SearchableCategoryInput } from "@/components/ui/searchable-category-input"
+import { formatCurrency } from "@/lib/format"
 
 interface Expense {
   id: number
@@ -163,7 +164,7 @@ export function ExpenseTracker() {
                         onChange={(e) => setNewExpense({ ...newExpense, amount: Number(e.target.value) })}
                       />
                     ) : (
-                      `₹${expense.amount.toLocaleString()}`
+                      formatCurrency(expense.amount)
                     )}
                   </TableCell>
                   <TableCell>

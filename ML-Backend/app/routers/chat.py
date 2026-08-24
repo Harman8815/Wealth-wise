@@ -13,6 +13,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from starlette.requests import ClientDisconnect
 
 from app.context import ContextBudget, get_context_budget
 from app.deps import get_user_id
@@ -27,7 +28,7 @@ from app.services.assistants import answer_budget_question, answer_goal_question
 from app.services.intent import classify_intent
 from app.services.router import route_intent
 from app.rate_limit import enforce_rate_limit
-from app.logging_utils import get_request_id, log_llm_call, log_tool_call
+from app.logging_utils import get_request_id, log_chat, log_llm_call, log_tool_call
 from app.services.tools import (
     get_balance_tool,
     get_budget_tool,
@@ -36,7 +37,10 @@ from app.services.tools import (
     get_profile_tool,
     get_transactions_tool,
     search_transactions_nl,
+    get_alerts_tool,
+    query_transactions_dynamic,
 )
+from app.services.alerts_agent import answer_alerts_question
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -122,11 +126,41 @@ FINANCIAL_TOOLS: List[Dict[str, Any]] = [
             "parameters": {"type": "object", "properties": {}},
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_alerts",
+            "description": "Get the user's alerts and notifications. Use this when the user asks about alerts, warnings, or notifications.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "read": {"type": "boolean", "description": "Filter by read status"},
+                    "category": {"type": "string", "description": "Filter by category (Budget, Bills, Goals, Security, Account, Investments, Activity, System, AI)"},
+                    "type_": {"type": "string", "description": "Filter by type (warning, info, success, error)"},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_transactions_dynamic",
+            "description": "Search transactions using a structured dynamic query derived from natural language. Supports merchant, date, date range, amount range, category, transaction type, description, and limit.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "The user's natural language query about transactions"},
+                },
+                "required": ["query"],
+            },
+        },
+    },
 ]
 
 
 async def _execute_tool_call(name: str, arguments: Dict[str, Any], token: str, user_id: str) -> str:
     try:
+        result = None
         if name == "get_transactions":
             result = await get_transactions_tool(
                 token,
@@ -154,6 +188,17 @@ async def _execute_tool_call(name: str, arguments: Dict[str, Any], token: str, u
         elif name == "search_transactions_nl":
             query = arguments.get("query", "")
             result = await search_transactions_nl(token, user_id, query)
+        elif name == "get_alerts":
+            result = await get_alerts_tool(
+                token,
+                user_id,
+                read=arguments.get("read"),
+                category=arguments.get("category"),
+                type_=arguments.get("type_"),
+            )
+        elif name == "query_transactions_dynamic":
+            query = arguments.get("query", "")
+            result = await query_transactions_dynamic(token, user_id, query)
         else:
             return json.dumps({"error": f"Unknown tool: {name}"})
         return json.dumps(result)
@@ -233,6 +278,14 @@ async def _ollama_stream_to_sse(
             full_reply += token
             payload = json.dumps({"token": token})
             yield _sse_pack("token", payload)
+    except ClientDisconnect:
+        add_message(
+            user_id=user_id,
+            conversation_id=conversation_id,
+            role="assistant",
+            content="Request cancelled by user.",
+        )
+        return
     except OllamaAdapterError as exc:
         payload = json.dumps({"error": str(exc)})
         yield _sse_pack("error", payload)
@@ -246,13 +299,15 @@ async def _ollama_stream_to_sse(
     )
 
 
-def _maybe_generate_title(user_id: str, conversation_id: str, user_message: str) -> None:
+async def _maybe_generate_title(user_id: str, conversation_id: str, user_message: str) -> None:
     from app.services.conversations import get_conversation
     conv = get_conversation(user_id, conversation_id)
-    if conv and not conv.title and conv.message_count == 1:
-        title = generate_title(user_message)
-        from app.services.conversations import update_conversation
-        update_conversation(conversation_id, title=title)
+    if conv and conv.message_count == 1:
+        import re
+        if not conv.title or re.match(r"^New Chat(?: \(\d+\))?$", conv.title or ""):
+            from app.services.conversations import generate_title, update_conversation
+            title = await generate_title(user_message)
+            update_conversation(conversation_id, title=title)
 
 
 def _get_token(request: Request) -> str:
@@ -269,6 +324,14 @@ async def chat(
     user_id: str = Depends(get_user_id),
     _: None = Depends(enforce_rate_limit),
 ) -> ChatResponse:
+    request_id = get_request_id(request)
+    log_chat(
+        request_id=request_id,
+        user_id=user_id,
+        conversation_id=body.conversation_id,
+        event="request_received",
+        message=body.message,
+    )
     conversation_id = body.conversation_id
     if conversation_id:
         conv = get_conversation(user_id, conversation_id)
@@ -300,15 +363,29 @@ async def chat(
             role="user",
             content=body.message,
         )
+        await _maybe_generate_title(user_id, conversation_id, body.message)
         add_message(
             user_id=user_id,
             conversation_id=conversation_id,
             role="assistant",
             content=reply,
         )
-        _maybe_generate_title(user_id, conversation_id, body.message)
+        log_chat(
+            request_id=request_id,
+            user_id=user_id,
+            conversation_id=conversation_id,
+            event="response_generated",
+            response=reply,
+        )
         return ChatResponse(reply=reply, model=body.model or DEFAULT_CHAT_MODEL, conversation_id=conversation_id)
     except OllamaAdapterError as exc:
+        log_chat(
+            request_id=request_id,
+            user_id=user_id,
+            conversation_id=conversation_id,
+            event="error",
+            error=str(exc),
+        )
         raise HTTPException(status_code=502, detail=str(exc))
 
 
@@ -319,6 +396,14 @@ async def chat_stream(
     user_id: str = Depends(get_user_id),
     _: None = Depends(enforce_rate_limit),
 ) -> StreamingResponse:
+    request_id = get_request_id(request)
+    log_chat(
+        request_id=request_id,
+        user_id=user_id,
+        conversation_id=body.conversation_id,
+        event="stream_request_received",
+        message=body.message,
+    )
     conversation_id = body.conversation_id
     if conversation_id:
         conv = get_conversation(user_id, conversation_id)
@@ -354,6 +439,13 @@ async def chat_stream(
 
 @router.post("/goal-planning")
 async def goal_planning(request: Request, user_id: str = Depends(get_user_id), _: None = Depends(enforce_rate_limit)):
+    request_id = get_request_id(request)
+    log_chat(
+        request_id=request_id,
+        user_id=user_id,
+        conversation_id=None,
+        event="goal_planning_request",
+    )
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header.")
@@ -363,11 +455,25 @@ async def goal_planning(request: Request, user_id: str = Depends(get_user_id), _
     if not question:
         raise HTTPException(status_code=400, detail="Missing question.")
     answer = await answer_goal_question(token, user_id, question)
+    log_chat(
+        request_id=request_id,
+        user_id=user_id,
+        conversation_id=None,
+        event="goal_planning_response",
+        response=answer,
+    )
     return {"answer": answer}
 
 
 @router.post("/budget-planning")
 async def budget_planning(request: Request, user_id: str = Depends(get_user_id), _: None = Depends(enforce_rate_limit)):
+    request_id = get_request_id(request)
+    log_chat(
+        request_id=request_id,
+        user_id=user_id,
+        conversation_id=None,
+        event="budget_planning_request",
+    )
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header.")
@@ -377,11 +483,38 @@ async def budget_planning(request: Request, user_id: str = Depends(get_user_id),
     if not question:
         raise HTTPException(status_code=400, detail="Missing question.")
     answer = await answer_budget_question(token, user_id, question)
+    log_chat(
+        request_id=request_id,
+        user_id=user_id,
+        conversation_id=None,
+        event="budget_planning_response",
+        response=answer,
+    )
     return {"answer": answer}
+
+
+@router.post("/db/refresh")
+async def refresh_db_context():
+    """Refresh the database schema context."""
+    from app.services.db_context import refresh_database_context
+    context = refresh_database_context()
+    return {
+        "status": "refreshed",
+        "table_count": context.get("table_count", 0),
+        "database_type": context.get("database_type", ""),
+    }
 
 
 @router.post("/agent")
 async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: None = Depends(enforce_rate_limit)):
+    request_id = get_request_id(request)
+    log_chat(
+        request_id=request_id,
+        user_id=user_id,
+        conversation_id=None,
+        event="agent_request_received",
+        message=None,
+    )
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header.")
@@ -390,7 +523,31 @@ async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: N
     message = body.get("message", "")
     if not message:
         raise HTTPException(status_code=400, detail="Missing message.")
-    intent = await classify_intent(message)
+    agent_name = body.get("agent")
+    if agent_name:
+        from app.services.agents import get_agent
+        agent_entry = get_agent(agent_name)
+        if not agent_entry:
+            raise HTTPException(status_code=400, detail=f"Unknown agent: {agent_name}")
+        slash_command = agent_entry.get("slash_command", f"/{agent_name}")
+        if message.startswith(slash_command):
+            message = message[len(slash_command):].strip()
+        intent_value = agent_entry.get("intent", agent_name)
+        from app.services.intent import Intent
+        try:
+            intent = Intent(intent_value)
+        except ValueError:
+            intent = Intent.GENERAL_CHAT
+    else:
+        intent = await classify_intent(message)
+    log_chat(
+        request_id=request_id,
+        user_id=user_id,
+        conversation_id=None,
+        event="agent_selected",
+        agent=agent_name or "auto",
+        intent=intent.value,
+    )
     routed = await route_intent(intent, token, user_id, message)
     if routed.get("response") is None:
         return {
@@ -398,6 +555,15 @@ async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: N
             "response": "I'm not sure how to help with that. Could you rephrase?",
             "fallback": True,
         }
+    log_chat(
+        request_id=request_id,
+        user_id=user_id,
+        conversation_id=None,
+        event="agent_response_generated",
+        agent=agent_name or "auto",
+        intent=intent.value,
+        response=routed.get("response"),
+    )
     return {
         "intent": routed["intent"],
         "response": routed["response"],
