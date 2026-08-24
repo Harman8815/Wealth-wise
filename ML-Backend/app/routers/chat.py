@@ -28,7 +28,8 @@ from app.services.assistants import answer_budget_question, answer_goal_question
 from app.services.intent import classify_intent
 from app.services.router import route_intent
 from app.rate_limit import enforce_rate_limit
-from app.logging_utils import get_request_id, log_chat, log_llm_call, log_tool_call
+from app.logging_utils import get_request_id, log_chat, log_llm_call, log_tool_call, log_validation
+from app.schemas.structured_response import StructuredResponse
 from app.services.tools import (
     get_balance_tool,
     get_budget_tool,
@@ -47,6 +48,22 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 def _sse_pack(event: str, data: str) -> str:
     return f"event: {event}\ndata: {data}\n\n"
+
+
+def _parse_structured_response(content: str) -> Dict[str, Any]:
+    if not content:
+        return {"type": "text", "text": ""}
+    try:
+        data = json.loads(content)
+        if isinstance(data, dict) and data.get("type"):
+            try:
+                validated = StructuredResponse(**data)
+                return validated.model_dump()
+            except Exception:
+                pass
+        return {"type": "markdown", "markdown": content}
+    except Exception:
+        return {"type": "text", "text": content}
 
 
 FINANCIAL_TOOLS: List[Dict[str, Any]] = [
@@ -290,13 +307,14 @@ async def _ollama_stream_to_sse(
         payload = json.dumps({"error": str(exc)})
         yield _sse_pack("error", payload)
         return
-    yield _sse_pack("done", json.dumps({"conversation_id": conversation_id}))
+    structured = _parse_structured_response(full_reply)
     add_message(
         user_id=user_id,
         conversation_id=conversation_id,
         role="assistant",
-        content=full_reply,
+        content=structured.get("text") or structured.get("markdown") or full_reply,
     )
+    yield _sse_pack("done", json.dumps({"conversation_id": conversation_id, "structured": structured}))
 
 
 async def _maybe_generate_title(user_id: str, conversation_id: str, user_message: str) -> None:
@@ -349,7 +367,7 @@ async def chat(
     )
     token = _get_token(request)
     try:
-        reply = await _chat_with_tools(
+        raw_reply = await _chat_with_tools(
             context_messages,
             token=token,
             user_id=user_id,
@@ -357,6 +375,8 @@ async def chat(
             conversation_id=conversation_id,
             request=request,
         )
+        structured = _parse_structured_response(raw_reply)
+        reply = structured.get("text") or structured.get("markdown") or raw_reply
         add_message(
             user_id=user_id,
             conversation_id=conversation_id,
@@ -377,7 +397,7 @@ async def chat(
             event="response_generated",
             response=reply,
         )
-        return ChatResponse(reply=reply, model=body.model or DEFAULT_CHAT_MODEL, conversation_id=conversation_id)
+        return ChatResponse(reply=reply, model=body.model or DEFAULT_CHAT_MODEL, conversation_id=conversation_id, structured=structured)
     except OllamaAdapterError as exc:
         log_chat(
             request_id=request_id,
