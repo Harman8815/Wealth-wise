@@ -99,3 +99,21 @@ async def get_insights(token: str) -> Dict[str, Any]:
         )
         resp.raise_for_status()
         return resp.json()
+
+
+async def get_alerts(token: str, *, read: Optional[bool] = None, category: Optional[str] = None, type_: Optional[str] = None) -> Dict[str, Any]:
+    params: Dict[str, Any] = {}
+    if read is not None:
+        params["read"] = str(read).lower()
+    if category:
+        params["category"] = category
+    if type_:
+        params["type"] = type_
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.get(
+            f"{BACKEND_API_URL}/alerts/",
+            headers=_headers(token),
+            params=params,
+        )
+        resp.raise_for_status()
+        return resp.json()

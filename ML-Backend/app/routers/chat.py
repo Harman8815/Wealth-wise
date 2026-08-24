@@ -37,7 +37,9 @@ from app.services.tools import (
     get_profile_tool,
     get_transactions_tool,
     search_transactions_nl,
+    get_alerts_tool,
 )
+from app.services.alerts_agent import answer_alerts_question
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -123,6 +125,21 @@ FINANCIAL_TOOLS: List[Dict[str, Any]] = [
             "parameters": {"type": "object", "properties": {}},
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_alerts",
+            "description": "Get the user's alerts and notifications. Use this when the user asks about alerts, warnings, or notifications.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "read": {"type": "boolean", "description": "Filter by read status"},
+                    "category": {"type": "string", "description": "Filter by category (Budget, Bills, Goals, Security, Account, Investments, Activity, System, AI)"},
+                    "type_": {"type": "string", "description": "Filter by type (warning, info, success, error)"},
+                },
+            },
+        },
+    },
 ]
 
 
@@ -156,6 +173,14 @@ async def _execute_tool_call(name: str, arguments: Dict[str, Any], token: str, u
         elif name == "search_transactions_nl":
             query = arguments.get("query", "")
             result = await search_transactions_nl(token, user_id, query)
+        elif name == "get_alerts":
+            result = await get_alerts_tool(
+                token,
+                user_id,
+                read=arguments.get("read"),
+                category=arguments.get("category"),
+                type_=arguments.get("type_"),
+            )
         else:
             return json.dumps({"error": f"Unknown tool: {name}"})
         return json.dumps(result)

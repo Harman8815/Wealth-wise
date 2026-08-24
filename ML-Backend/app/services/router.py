@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from app.services.assistants import answer_budget_question, answer_goal_question
+from app.services.alerts_agent import answer_alerts_question
 from app.services.db_agent import answer_database_question
 from app.services.insights_agent import answer_insights_question
 from app.services.intent import Intent
@@ -133,6 +134,13 @@ async def route_intent(
             event="database_question_answered",
             output_data={"answer": answer},
         )
+        return {
+            "intent": intent.value,
+            "response": answer,
+        }
+
+    if intent == Intent.ALERTS:
+        answer = await answer_alerts_question(token, user_id, message)
         return {
             "intent": intent.value,
             "response": answer,

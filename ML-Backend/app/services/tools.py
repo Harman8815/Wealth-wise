@@ -228,3 +228,32 @@ async def search_transactions_nl(token: str, user_id: str, query: str) -> Dict[s
         output_data={"query": query, "filters": filters, "result_count": result_count},
     )
     return {"user_id": user_id, "query": query, "filters": filters, "data": data}
+
+
+async def get_alerts_tool(
+    token: str,
+    user_id: str,
+    *,
+    read: Optional[bool] = None,
+    category: Optional[str] = None,
+    type_: Optional[str] = None,
+) -> Dict[str, Any]:
+    log_agent(
+        request_id="",
+        user_id=user_id,
+        conversation_id=None,
+        agent="tool",
+        event="get_alerts_called",
+        input_data={"read": read, "category": category, "type_": type_},
+    )
+    data = await get_alerts(token, read=read, category=category, type_=type_)
+    result_count = len(data.get("results", [])) if isinstance(data, dict) else 0
+    log_agent(
+        request_id="",
+        user_id=user_id,
+        conversation_id=None,
+        agent="tool",
+        event="get_alerts_result",
+        output_data={"result_count": result_count},
+    )
+    return {"user_id": user_id, "data": data}
