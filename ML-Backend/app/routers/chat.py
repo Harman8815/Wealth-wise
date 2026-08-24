@@ -419,6 +419,9 @@ async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: N
         agent_entry = get_agent(agent_name)
         if not agent_entry:
             raise HTTPException(status_code=400, detail=f"Unknown agent: {agent_name}")
+        slash_command = agent_entry.get("slash_command", f"/{agent_name}")
+        if message.startswith(slash_command):
+            message = message[len(slash_command):].strip()
         intent_value = agent_entry.get("intent", agent_name)
         from app.services.intent import Intent
         try:
