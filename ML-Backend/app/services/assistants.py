@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from app.ollama import DEFAULT_CHAT_MODEL, generate
+from app.ollama import DEFAULT_CHAT_MODEL, generate, OllamaAdapterError
 from app.services.calculations import calculate_budget_variance, calculate_savings_rate, project_goal_timeline
 from app.services.tools import (
     get_balance_tool,
@@ -50,12 +50,15 @@ async def answer_goal_question(token: str, user_id: str, question: str) -> str:
         f"Goals: {goal_summaries}\n"
         f"Question: {question}"
     )
-    result = await generate(
-        [{"role": "system", "content": prompt}],
-        model=DEFAULT_CHAT_MODEL,
-        stream=False,
-    )
-    answer = result.get("message", {}).get("content", "")
+    try:
+        result = await generate(
+            [{"role": "system", "content": prompt}],
+            model=DEFAULT_CHAT_MODEL,
+            stream=False,
+        )
+        answer = result.get("message", {}).get("content", "")
+    except OllamaAdapterError as exc:
+        answer = f"I found {len(goals_data)} goals for you, but I'm having trouble generating a plan right now. Please try again later."
     log_agent(
         request_id="",
         user_id=user_id,
@@ -95,12 +98,15 @@ async def answer_budget_question(token: str, user_id: str, question: str) -> str
         f"Budget Variance: {budget_variance}\n"
         f"Question: {question}"
     )
-    result = await generate(
-        [{"role": "system", "content": prompt}],
-        model=DEFAULT_CHAT_MODEL,
-        stream=False,
-    )
-    answer = result.get("message", {}).get("content", "")
+    try:
+        result = await generate(
+            [{"role": "system", "content": prompt}],
+            model=DEFAULT_CHAT_MODEL,
+            stream=False,
+        )
+        answer = result.get("message", {}).get("content", "")
+    except OllamaAdapterError as exc:
+        answer = f"Budget analysis is temporarily unavailable: {exc}"
     log_agent(
         request_id="",
         user_id=user_id,

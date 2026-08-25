@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from app.ollama import DEFAULT_CHAT_MODEL, generate
+from app.ollama import DEFAULT_CHAT_MODEL, generate, OllamaAdapterError
 from app.services.calculations import calculate_budget_variance, calculate_savings_rate, project_goal_timeline
 from app.services.tools import (
     get_balance_tool,
@@ -76,12 +76,15 @@ async def generate_report_narrative(sections: Dict[str, Any]) -> str:
         "Keep it factual and actionable.\n\n"
         f"Data: {sections}"
     )
-    result = await generate(
-        [{"role": "system", "content": prompt}],
-        model=DEFAULT_CHAT_MODEL,
-        stream=False,
-    )
-    narrative = result.get("message", {}).get("content", "")
+    try:
+        result = await generate(
+            [{"role": "system", "content": prompt}],
+            model=DEFAULT_CHAT_MODEL,
+            stream=False,
+        )
+        narrative = result.get("message", {}).get("content", "")
+    except OllamaAdapterError as exc:
+        narrative = f"Report data is available, but narrative generation failed: {exc}"
     log_agent(
         request_id="",
         user_id=None,
@@ -108,12 +111,15 @@ async def explain_chart_or_alert(data: Dict[str, Any]) -> str:
         "in clear, actionable language. Reference the exact figures.\n\n"
         f"Data: {data}"
     )
-    result = await generate(
-        [{"role": "system", "content": prompt}],
-        model=DEFAULT_CHAT_MODEL,
-        stream=False,
-    )
-    explanation = result.get("message", {}).get("content", "")
+    try:
+        result = await generate(
+            [{"role": "system", "content": prompt}],
+            model=DEFAULT_CHAT_MODEL,
+            stream=False,
+        )
+        explanation = result.get("message", {}).get("content", "")
+    except OllamaAdapterError as exc:
+        explanation = f"Chart/alert explanation is temporarily unavailable: {exc}"
     log_agent(
         request_id="",
         user_id=None,
