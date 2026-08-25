@@ -1,194 +1,53 @@
-# WealthWise AI Response System — Todo List
+## Todo List for AI Agent — Fix Chat Response Quality (Ollama Qwen 4B)
 
-## Architecture & Existing System
+### 1. Audit and rewrite the system prompt
+- [ ] Define agent role, scope, and persona in one clear paragraph (what it is, what it is NOT — e.g. not a general chatbot, only a stock/alert assistant)
+- [ ] Specify the exact output format allowed per use case (plain text vs markdown vs JSON) — never leave format open-ended
+- [ ] Write an explicit banned-phrases list: "I'd be happy to help", "Let's assume", "Here's an example", "Please provide...", "Feel free to...", etc.
+- [ ] Add a rule: no meta-commentary about the AI's own process ("I don't see any data provided" type narration) — either ask one short clarifying question or fail silently to a fallback message
+- [ ] Add 3-5 few-shot examples covering: (a) normal case with full data, (b) missing/partial data case, (c) ambiguous request case, (d) malformed input case — show ideal output for each
+- [ ] Add explicit length constraints in the prompt itself ("respond in under X words/tokens unless asked for detail")
+- [ ] Version the system prompt (e.g. `prompts/system_v1.md`) so changes are trackable and revertible
 
-* [x] Inspect the existing Next.js chat architecture and current message rendering flow.
-* [x] Inspect how the Django backend communicates with the ML/AI backend and Ollama.
-* [x] Review the existing Alerts and Insights tools/agents and how their data is retrieved.
-* [x] Review the current chat/message database models and persistence logic.
-* [x] Review existing logging, error handling, and streaming implementation.
-* [x] Reuse existing APIs, models, utilities, and infrastructure wherever practical instead of creating duplicates.
+### 2. Add a "missing/invalid context" guard in application code
+- [ ] Write a validation function that checks required fields (symbol, price, thresholds, etc.) exist and are well-formed before the model is ever called
+- [ ] Define pre-written fallback messages for each known failure mode (no data, partial data, invalid symbol, stale data) instead of letting the LLM improvise
+- [ ] Log every time the guard triggers a fallback, with the reason, for later analysis of how often this happens in production
+- [ ] Add a unit test for each fallback path to ensure it never silently breaks
 
-## Structured AI Response Pipeline
+### 3. Enforce a single, strict output format
+- [ ] Decide format per endpoint/use case (e.g. chat UI = markdown-lite, alert payloads = strict JSON) and document it
+- [ ] For structured responses, use Ollama's `format: "json"` mode with a defined JSON schema rather than prompting "respond in JSON"
+- [ ] Add schema validation (e.g. via `pydantic` or `zod`) on the model's JSON output before it's used downstream; reject and retry once if invalid
+- [ ] For text responses, strip any stray markdown artifacts (code fences, headers, asterisks) that don't belong in the target format
+- [ ] Reject/re-prompt if the model mixes formats (e.g. JSON inside prose) rather than trying to parse it
 
-* [x] Change the AI pipeline so financial responses are returned as structured data instead of relying primarily on free-form Markdown.
-* [x] Define a consistent response schema that can represent financial insights, metrics, tables, alerts, recommendations, charts, tool results, text, and errors.
-* [x] Validate every structured Ollama response before sending it to the frontend.
-* [x] Keep the schema extensible so new response types can be added without redesigning the whole system.
-* [x] Separate data/content decisions made by the AI from presentation decisions made by Next.js.
-* [x] Ensure Ollama never generates HTML, React components, CSS/Tailwind classes, or chart implementation code.
+### 4. Build a post-processing/normalization layer
+- [ ] Strip common preamble/postamble patterns via regex or a lightweight rules engine (before parsing/rendering)
+- [ ] Truncate to a max character/token count with graceful sentence-boundary cutoff, not mid-word
+- [ ] Deduplicate repeated sentences/phrases if they appear (common small-model failure mode)
+- [ ] Consider an optional lightweight "formatter" LLM pass (cheap, low temperature) that rewrites raw output into final style — only if rules-based cleanup proves insufficient
+- [ ] Add a final sanity check: if cleaned output is empty or under N characters, fall back to a safe default message
 
-## Response Types
+### 5. Tune generation parameters
+- [ ] Set `temperature` to 0.2–0.4 range and A/B test against current setting
+- [ ] Set `num_predict` (max tokens) to a sane cap based on expected use case (e.g. 150-300 for chat, more for reports)
+- [ ] Test `repeat_penalty` and `top_p` adjustments if repetition or rambling persists after temperature fix
+- [ ] Record each parameter combination tested and its qualitative outcome in a short changelog
 
-* [x] Support basic text and Markdown responses.
-* [x] Support headings and structured sections.
-* [x] Support individual metrics and groups of financial metrics.
-* [x] Support general financial tables.
-* [x] Support transaction-specific tables.
-* [x] Support alerts and insights.
-* [x] Support recommendations.
-* [x] Support charts using structured data.
-* [x] Support tool-result components.
-* [x] Support error responses.
-* [x] Keep the response-type system modular so additional components can be introduced later.
+### 6. Build a regression/eval test suite
+- [ ] Create 15-20 representative test prompts covering: full data, missing data, partial data, ambiguous phrasing, malformed JSON input, and edge-case tickers/values
+- [ ] Store expected "good" output characteristics per test (not necessarily exact text, but format + tone + length rules)
+- [ ] Automate running this suite after every prompt/config/code change, and diff outputs against the last known-good baseline
+- [ ] Add a simple scoring rubric (format correctness, tone correctness, no filler phrases, length within bounds) to quantify "better/worse" instead of relying on eyeballing
 
-## Next.js Rendering
+### 7. Benchmark model size/capability
+- [ ] Run the full eval suite against Qwen 7B/14B and Llama 3.1 8B (or similar) using the same prompt and config
+- [ ] Compare latency, resource cost, and quality score across models
+- [ ] Report a clear recommendation: stay on 4B with more scaffolding, upgrade model size, or fine-tune 4B on domain examples
+- [ ] If fine-tuning is chosen, curate a dataset of 50-100+ high-quality input/output pairs from the eval suite and real usage logs
 
-* [x] Create a centralized AI response renderer, such as `AIResponseRenderer.tsx`.
-* [x] Make the renderer determine which UI component should be used for each response type.
-* [x] Create separate reusable components for metrics, tables, transactions, alerts, insights, charts, Markdown, tool results, and errors.
-* [x] Avoid creating one large renderer component containing all UI logic.
-* [x] Make the renderer reusable across both the chat sidebar and dedicated `/chat` page.
-* [x] Ensure structured responses render consistently after page refresh or when loading older conversations.
-
-## Markdown Support
-
-* [x] Add or standardize `react-markdown` with `remark-gfm`.
-* [x] Properly render headings, bold text, italic text, lists, links, code, blockquotes, and tables.
-* [x] Fix the existing Markdown table rendering problem.
-* [x] Keep Markdown as a fallback for normal conversational responses that do not require structured financial components.
-* [x] Prevent raw Markdown/JSON from being displayed when a structured component is available.
-
-## Financial Tables
-
-* [x] Represent financial tables as structured columns and rows rather than raw Markdown whenever possible.
-* [x] Create a reusable responsive table component.
-* [x] Handle currency, percentage, dates, categories, and other financial values consistently.
-* [x] Make tables usable on small screens through horizontal scrolling or another suitable responsive layout.
-* [x] Ensure large values do not break table layouts.
-
-## Charts
-
-* [x] Add a mature Next.js-compatible charting solution such as Recharts.
-* [x] Allow the AI to return chart type and structured data only.
-* [x] Keep chart implementation entirely on the frontend.
-* [x] Create a reusable `ChartRenderer`.
-* [x] Support common financial visualizations such as pie/donut, bar, and line charts where appropriate.
-* [x] Only display charts when the returned data is meaningful for visualization.
-* [x] Handle invalid or incomplete chart data gracefully.
-
-## Number & Financial Formatting
-
-* [x] Create one shared financial number-formatting utility.
-* [x] Support currency, percentage, decimal, integer, and compact-number formats.
-* [x] Support Indian financial notation such as ₹1,25,000, ₹12.5L, and ₹1.25Cr.
-* [x] Define consistent rules for K, L, M, and Cr formatting.
-* [x] Reuse the formatter across metrics, tables, charts, alerts, insights, and transaction views.
-* [x] Avoid implementing separate number-formatting logic inside individual components.
-
-## Database & Persistence
-
-* [x] Review the existing database and determine the cleanest way to persist structured conversations.
-* [x] Avoid storing the entire AI response only as one large text blob.
-* [x] Store chats with user ownership and timestamps.
-* [x] Store messages with role and ordering information.
-* [x] Store individual message parts with their type, order, text, and structured data.
-* [x] Store structured tool execution information separately where appropriate.
-* [x] Prefer the existing project database instead of introducing another database unnecessarily.
-* [x] Use JSON/JSONB for flexible structured AI and tool data where supported.
-* [x] Ensure old conversations can be reconstructed accurately from stored data.
-
-## Tool Execution History
-
-* [x] Persist every AI tool execution.
-* [x] Store tool name, input, output, status, execution duration, timestamp, and errors.
-* [x] Make tool history associated with the relevant chat/message.
-* [x] Ensure tool execution history can be used when reconstructing previous conversations.
-* [x] Make the system ready for future tools such as Transactions, Budgets, Expenses, Income, Forecasts, Categories, and Accounts.
-
-## Existing AI Tools
-
-* [x] Integrate Alerts with the new structured response architecture.
-* [x] Integrate Insights with the new structured response architecture.
-* [x] Ensure the renderer is not hard-coded around Alerts or Insights.
-* [x] Keep the tool layer independent from the UI rendering layer.
-* [x] Standardize how tool results are passed into the AI context and subsequently represented in the response.
-
-## Transaction Support
-
-* [x] Ensure the architecture supports a transaction-query tool.
-* [x] Allow the agent to identify transaction-related requests and call the appropriate tool.
-* [x] Return transaction results in structured form.
-* [x] Create a reusable transaction table renderer.
-* [x] Support fields such as date, merchant, amount, category, and other relevant transaction information.
-* [x] Make transaction results persist and reload correctly with the conversation.
-
-## Logging & Observability
-
-* [x] Add useful logging across the complete AI pipeline.
-* [x] Log major stages such as query reception, agent processing, tool selection, tool execution, Ollama request/response, validation, parsing, rendering, and completion.
-* [x] Include enough information to identify where failures occur.
-* [x] Add appropriate error logs for tool, parsing, validation, database, and Ollama failures.
-* [x] Never log passwords, authentication tokens, API secrets, or private credentials.
-* [x] Keep logs useful for debugging production issues without exposing sensitive financial information unnecessarily.
-
-## Error Handling & Recovery
-
-* [x] Make Ollama response parsing safe and fault tolerant.
-* [x] Validate structured responses against the defined schema.
-* [x] Handle malformed JSON without crashing the chat UI.
-* [x] Add a controlled repair/retry mechanism for recoverable malformed responses.
-* [x] Fall back to safe text/Markdown rendering if structured parsing cannot be recovered.
-* [x] Log the original failure stage and reason.
-* [x] Ensure invalid tool responses or chart/table data cannot crash the frontend.
-
-## Streaming & Performance
-
-* [x] Preserve the existing streaming experience where possible.
-* [x] Avoid blocking the entire chat UI while large AI responses are being processed.
-* [x] Determine how structured responses can be progressively delivered or rendered where practical.
-* [x] Avoid unnecessary API calls, duplicate tool executions, or unnecessary database queries.
-* [x] Keep the response pipeline efficient enough for normal interactive chat usage.
-
-## UI Quality
-
-* [x] Redesign AI responses to feel like a modern financial AI assistant.
-* [x] Replace large walls of text with structured sections where appropriate.
-* [x] Use compact metric cards for important financial numbers.
-* [x] Use readable responsive tables for detailed data.
-* [x] Use charts for useful numerical comparisons and trends.
-* [x] Make tool results expandable rather than dumping raw tool output into the conversation.
-* [x] Maintain consistent typography, spacing, hierarchy, and component behavior.
-* [x] Prevent overflowing numbers, broken tables, excessive blank space, and unnecessarily large paragraphs.
-* [x] Make the experience work well on both desktop and smaller screens.
-
-## Testing
-
-* [x] Test normal conversational questions.
-* [x] Test Markdown responses.
-* [x] Test Markdown tables.
-* [x] Test structured financial tables.
-* [x] Test metrics and metric groups.
-* [x] Test Alerts.
-* [x] Test Insights.
-* [x] Test transaction queries.
-* [x] Test charts with valid data.
-* [x] Test invalid chart/table data.
-* [x] Test malformed Ollama JSON.
-* [x] Test Ollama fallback to Markdown/text.
-* [x] Test very large financial values.
-* [x] Test long AI responses.
-* [x] Test mobile and small-screen layouts.
-* [x] Test chat persistence and page reloads.
-* [x] Test reopening old conversations.
-* [x] Verify old conversations remain readable after the new renderer is introduced.
-* [x] Verify tool execution history is stored correctly.
-* [x] Verify logs are generated for successful and failed requests.
-* [x] Verify no sensitive credentials appear in logs.
-
-## Final Cleanup
-
-* [x] Remove or refactor existing special-case rendering logic that becomes unnecessary.
-* [x] Avoid duplicating APIs, database models, formatting utilities, or tool logic.
-* [x] Keep frontend components independent from Ollama-specific implementation details.
-* [x] Keep backend/AI logic independent from Next.js UI decisions.
-* [x] Document the response schema and component mapping for future development.
-* [x] Ensure the final architecture can easily support additional financial tools and response components.
-
-## Target Flow
-
-* [x] Implement and verify the complete flow:
-
-`User Query → AI Agent → Tool Selection → Database/API → Structured Context → Ollama → Validated Response → AIResponseRenderer → UI Components → Persistent Conversation`
-
-* [x] Confirm the final implementation is modular, extensible, fault tolerant, and production-ready rather than being a collection of fixes for the current chat UI.
+### 8. Documentation and guardrails for future changes
+- [ ] Document final system prompt, output schema, generation params, and post-processing rules in the repo (`docs/agent-behavior.md`)
+- [ ] Note any known limitations of the current model size so future contributors don't "fix" the same issue blindly
+- [ ] Set up an alert/log if fallback messages trigger above a certain rate in production (signals prompt or validation drift)
