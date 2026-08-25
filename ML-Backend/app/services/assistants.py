@@ -19,24 +19,50 @@ from app.services.tools import (
     get_transactions_tool,
 )
 from app.logging_utils import log_agent
+from app.services.validation import validate_goals_context, validate_transactions_context, validate_budget_context, validate_profile_context
+from app.services.fallbacks import get_fallback
 
 
 async def answer_goal_question(token: str, user_id: str, question: str) -> str:
     goals = await get_goals_tool(token, user_id)
     profile = await get_profile_tool(token, user_id)
-    goals_data = goals.get("data", [])
+    goals_data = goals.get("data", {})
     profile_data = profile.get("data", {})
 
+    is_valid, error_key = validate_goals_context(goals_data)
+    if not is_valid:
+        log_agent(
+            request_id="",
+            user_id=user_id,
+            conversation_id=None,
+            agent="goal",
+            event="goal_validation_fallback",
+            input_data={"question": question, "error_key": error_key},
+        )
+        return get_fallback(error_key)
+
+    is_valid_profile, error_key_profile = validate_profile_context(profile_data)
+    if not is_valid_profile:
+        log_agent(
+            request_id="",
+            user_id=user_id,
+            conversation_id=None,
+            agent="goal",
+            event="goal_validation_fallback",
+            input_data={"question": question, "error_key": error_key_profile},
+        )
+        return get_fallback(error_key_profile)
+
     monthly_income = profile_data.get("monthly_income", 0)
-    if not monthly_income and goals_data:
-        monthly_income = sum(goal.get("monthly_contribution", 0) for goal in goals_data)
+    if not monthly_income and goals_data.get("results"):
+        monthly_income = sum(goal.get("monthly_contribution", 0) for goal in goals_data.get("results", []))
 
     goal_summaries = []
-    for goal in goals_data:
+    for goal in goals_data.get("results", []):
         timeline = project_goal_timeline(
             target_amount=goal.get("target_amount", 0),
             current_amount=goal.get("current_amount", 0),
-            monthly_contribution=goal.get("monthly_contribution", monthly_income / max(len(goals_data), 1)),
+            monthly_contribution=goal.get("monthly_contribution", monthly_income / max(len(goals_data.get("results", [])), 1)),
         )
         goal_summaries.append({
             "name": goal.get("name"),
@@ -58,14 +84,14 @@ async def answer_goal_question(token: str, user_id: str, question: str) -> str:
         )
         answer = result.get("message", {}).get("content", "")
     except OllamaAdapterError as exc:
-        answer = f"I found {len(goals_data)} goals for you, but I'm having trouble generating a plan right now. Please try again later."
+        answer = get_fallback("ollama_unavailable")
     log_agent(
         request_id="",
         user_id=user_id,
         conversation_id=None,
         agent="goal",
         event="goal_question_answered",
-        input_data={"question": question, "goal_count": len(goals_data)},
+        input_data={"question": question, "goal_count": len(goals_data.get("results", []))},
         output_data={"answer": answer},
     )
     return answer
@@ -77,12 +103,37 @@ async def answer_budget_question(token: str, user_id: str, question: str) -> str
     profile = await get_profile_tool(token, user_id)
 
     tx_data = transactions.get("data", {})
+    is_valid_tx, error_key_tx = validate_transactions_context(tx_data)
+    if not is_valid_tx:
+        log_agent(
+            request_id="",
+            user_id=user_id,
+            conversation_id=None,
+            agent="budget",
+            event="budget_validation_fallback",
+            input_data={"question": question, "error_key": error_key_tx},
+        )
+        return get_fallback(error_key_tx)
+
+    budget_data = budgets.get("data", {})
+    is_valid_budget, error_key_budget = validate_budget_context(budget_data)
+    if not is_valid_budget:
+        log_agent(
+            request_id="",
+            user_id=user_id,
+            conversation_id=None,
+            agent="budget",
+            event="budget_validation_fallback",
+            input_data={"question": question, "error_key": error_key_budget},
+        )
+        return get_fallback(error_key_budget)
+
     results = tx_data.get("results", [])
     total_expense = sum(item.get("amount", 0) for item in results if item.get("type") == "expense")
     total_income = sum(item.get("amount", 0) for item in results if item.get("type") == "income")
     savings_rate = calculate_savings_rate(total_income, total_expense)
 
-    budget_items = budgets.get("data", [])
+    budget_items = budget_data.get("results", [])
     budget_variance = None
     if budget_items:
         total_budget = sum(item.get("amount", 0) for item in budget_items)
@@ -106,7 +157,7 @@ async def answer_budget_question(token: str, user_id: str, question: str) -> str
         )
         answer = result.get("message", {}).get("content", "")
     except OllamaAdapterError as exc:
-        answer = f"Budget analysis is temporarily unavailable: {exc}"
+        answer = get_fallback("ollama_unavailable")
     log_agent(
         request_id="",
         user_id=user_id,

@@ -12,6 +12,8 @@ from typing import Any, Dict, Optional
 from app.clients import get_alerts
 from app.ollama import DEFAULT_CHAT_MODEL, generate, OllamaAdapterError
 from app.logging_utils import log_agent
+from app.services.validation import validate_alerts_context
+from app.services.fallbacks import get_fallback
 
 
 async def answer_alerts_question(token: str, user_id: str, question: str) -> str:
@@ -19,6 +21,18 @@ async def answer_alerts_question(token: str, user_id: str, question: str) -> str
         alerts_data = await get_alerts(token)
     except Exception:
         alerts_data = {}
+
+    is_valid, error_key = validate_alerts_context(alerts_data)
+    if not is_valid:
+        log_agent(
+            request_id="",
+            user_id=user_id,
+            conversation_id=None,
+            agent="alerts",
+            event="alerts_validation_fallback",
+            input_data={"question": question, "error_key": error_key},
+        )
+        return get_fallback(error_key)
 
     try:
         prompt = (
@@ -55,6 +69,4 @@ async def answer_alerts_question(token: str, user_id: str, question: str) -> str
             input_data={"question": question, "alerts_count": len(alerts_data.get("results", [])) if isinstance(alerts_data, dict) else 0},
             error=str(exc),
         )
-        if alerts_data:
-            return f"I found {len(alerts_data.get('results', []))} alerts for you, but I'm having trouble generating a summary right now. Please try again later."
-        return "I'm unable to check alerts right now. Please try again later."
+        return get_fallback("ollama_unavailable")

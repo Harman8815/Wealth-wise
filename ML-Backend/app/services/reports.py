@@ -19,6 +19,8 @@ from app.services.tools import (
     get_transactions_tool,
 )
 from app.logging_utils import log_agent
+from app.services.validation import validate_transactions_context, validate_budget_context, validate_goals_context
+from app.services.fallbacks import get_fallback
 
 
 async def build_report_sections(token: str, user_id: str) -> Dict[str, Any]:
@@ -34,14 +36,14 @@ async def build_report_sections(token: str, user_id: str) -> Dict[str, Any]:
     total_expense = sum(item.get("amount", 0) for item in results if item.get("type") == "expense")
     savings_rate = calculate_savings_rate(total_income, total_expense)
 
-    budget_items = budgets.get("data", [])
+    budget_items = budgets.get("data", {}).get("results", [])
     budget_variance = None
     if budget_items:
         total_budget = sum(item.get("amount", 0) for item in budget_items)
         budget_variance = calculate_budget_variance(total_budget, total_expense)
 
     goal_progress = []
-    for goal in goals.get("data", []):
+    for goal in goals.get("data", {}).get("results", []):
         goal_progress.append({
             "name": goal.get("name"),
             "target": goal.get("target_amount"),
@@ -97,6 +99,60 @@ async def generate_report_narrative(sections: Dict[str, Any]) -> str:
 
 
 async def build_report(token: str, user_id: str) -> Dict[str, Any]:
+    transactions = await get_transactions_tool(token, user_id, page_size=200)
+    income = await get_income_tool(token, user_id)
+    balance = await get_balance_tool(token, user_id)
+    budgets = await get_budget_tool(token, user_id)
+    goals = await get_goals_tool(token, user_id)
+
+    tx_data = transactions.get("data", {})
+    is_valid, error_key = validate_transactions_context(tx_data)
+    if not is_valid:
+        log_agent(
+            request_id="",
+            user_id=user_id,
+            conversation_id=None,
+            agent="report",
+            event="report_validation_fallback",
+            input_data={"error_key": error_key},
+        )
+        return {
+            "sections": {},
+            "narrative": get_fallback(error_key),
+        }
+
+    budget_data = budgets.get("data", {})
+    is_valid_budget, error_key_budget = validate_budget_context(budget_data)
+    if not is_valid_budget:
+        log_agent(
+            request_id="",
+            user_id=user_id,
+            conversation_id=None,
+            agent="report",
+            event="report_validation_fallback",
+            input_data={"error_key": error_key_budget},
+        )
+        return {
+            "sections": {},
+            "narrative": get_fallback(error_key_budget),
+        }
+
+    goals_data = goals.get("data", {})
+    is_valid_goals, error_key_goals = validate_goals_context(goals_data)
+    if not is_valid_goals:
+        log_agent(
+            request_id="",
+            user_id=user_id,
+            conversation_id=None,
+            agent="report",
+            event="report_validation_fallback",
+            input_data={"error_key": error_key_goals},
+        )
+        return {
+            "sections": {},
+            "narrative": get_fallback(error_key_goals),
+        }
+
     sections = await build_report_sections(token, user_id)
     narrative = await generate_report_narrative(sections)
     return {

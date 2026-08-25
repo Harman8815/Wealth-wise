@@ -11,6 +11,8 @@ from typing import Any, Dict
 from app.clients import get_insights
 from app.ollama import DEFAULT_CHAT_MODEL, generate, OllamaAdapterError
 from app.logging_utils import log_agent
+from app.services.validation import validate_insights_context
+from app.services.fallbacks import get_fallback
 
 
 async def answer_insights_question(token: str, user_id: str, question: str) -> str:
@@ -18,6 +20,18 @@ async def answer_insights_question(token: str, user_id: str, question: str) -> s
         insights_data = await get_insights(token)
     except Exception:
         insights_data = {}
+
+    is_valid, error_key = validate_insights_context(insights_data)
+    if not is_valid:
+        log_agent(
+            request_id="",
+            user_id=user_id,
+            conversation_id=None,
+            agent="insights",
+            event="insights_validation_fallback",
+            input_data={"question": question, "error_key": error_key},
+        )
+        return get_fallback(error_key)
 
     try:
         prompt = (
@@ -40,7 +54,7 @@ async def answer_insights_question(token: str, user_id: str, question: str) -> s
             conversation_id=None,
             agent="insights",
             event="insights_question_answered",
-            input_data={"question": question, "insights_count": len(insights_data) if isinstance(insights_data, list) else 0},
+            input_data={"question": question, "insights_count": len(insights_data.get("results", [])) if isinstance(insights_data, dict) else 0},
             output_data={"answer": answer},
         )
         return answer
@@ -51,9 +65,7 @@ async def answer_insights_question(token: str, user_id: str, question: str) -> s
             conversation_id=None,
             agent="insights",
             event="insights_ollama_fallback",
-            input_data={"question": question, "insights_count": len(insights_data) if isinstance(insights_data, list) else 0},
+            input_data={"question": question, "insights_count": len(insights_data.get("results", [])) if isinstance(insights_data, dict) else 0},
             error=str(exc),
         )
-        if insights_data:
-            return f"I found {len(insights_data)} insights for you, but I'm having trouble generating a summary right now. Please try again later."
-        return "I'm unable to generate insights right now. Please try again later."
+        return get_fallback("ollama_unavailable")
