@@ -84,7 +84,7 @@ def add_message(
     content: str,
     token_count: Optional[int] = None,
     structured_data: Optional[dict] = None,
-    metadata: Optional[dict] = None,
+    extra_data: Optional[dict] = None,
 ) -> Message:
     db = _get_db()
     try:
@@ -95,7 +95,7 @@ def add_message(
             content=content,
             token_count=token_count,
             structured_data=structured_data,
-            metadata=metadata,
+            extra_data=extra_data,
         )
         db.add(msg)
         conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()

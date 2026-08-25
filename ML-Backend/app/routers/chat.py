@@ -418,7 +418,7 @@ async def chat(
             role="assistant",
             content=reply,
             structured_data=structured if structured.get("type") != "text" else None,
-            metadata={"model": body.model or DEFAULT_CHAT_MODEL},
+            extra_data={"model": body.model or DEFAULT_CHAT_MODEL},
         )
         log_chat(
             request_id=request_id,

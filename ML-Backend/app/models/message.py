@@ -28,8 +28,6 @@ class Message(Base):
     role = Column(Enum(MessageRole), nullable=False)
     content = Column(Text, nullable=False)
     structured_data = Column(JSONB, nullable=True)
-    metadata = Column(JSONB, nullable=True)
+    extra_data = Column(JSONB, nullable=True)
     token_count = Column(Integer, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-
-    conversation = relationship("Conversation", back_populates="messages")
