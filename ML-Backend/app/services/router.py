@@ -14,6 +14,7 @@ from app.services.insights_agent import answer_insights_question
 from app.services.intent import Intent
 from app.services.reports import build_report, explain_chart_or_alert
 from app.services.tools import search_transactions_nl, query_transactions_dynamic
+from app.services.pipeline import process_response
 from app.logging_utils import log_agent
 
 
@@ -33,22 +34,24 @@ async def route_intent(
     )
     if intent == Intent.REPORT:
         report = await build_report(token, user_id)
+        narrative = process_response(report.get("narrative", "Report generated."))
         log_agent(
             request_id="",
             user_id=user_id,
             conversation_id=None,
             agent="report",
             event="report_generated",
-            output_data={"narrative": report.get("narrative", ""), "sections": report.get("sections")},
+            output_data={"narrative": narrative, "sections": report.get("sections")},
         )
         return {
             "intent": intent.value,
-            "response": report.get("narrative", "Report generated."),
+            "response": narrative,
             "data": report.get("sections"),
         }
 
     if intent == Intent.CHART_ALERT:
         explanation = await explain_chart_or_alert({"message": message, "context": "chart or alert explanation request"})
+        explanation = process_response(explanation or "No explanation available.")
         log_agent(
             request_id="",
             user_id=user_id,
@@ -59,11 +62,12 @@ async def route_intent(
         )
         return {
             "intent": intent.value,
-            "response": explanation or "No explanation available.",
+            "response": explanation,
         }
 
     if intent == Intent.GOAL:
         answer = await answer_goal_question(token, user_id, message)
+        answer = process_response(answer)
         log_agent(
             request_id="",
             user_id=user_id,
@@ -79,6 +83,7 @@ async def route_intent(
 
     if intent == Intent.BUDGET:
         answer = await answer_budget_question(token, user_id, message)
+        answer = process_response(answer)
         log_agent(
             request_id="",
             user_id=user_id,
@@ -111,6 +116,7 @@ async def route_intent(
 
     if intent == Intent.INSIGHTS:
         answer = await answer_insights_question(token, user_id, message)
+        answer = process_response(answer)
         log_agent(
             request_id="",
             user_id=user_id,
@@ -126,6 +132,7 @@ async def route_intent(
 
     if intent == Intent.DB_CONTEXT:
         answer = await answer_database_question(message)
+        answer = process_response(answer)
         log_agent(
             request_id="",
             user_id=user_id,
@@ -141,6 +148,7 @@ async def route_intent(
 
     if intent == Intent.ALERTS:
         answer = await answer_alerts_question(token, user_id, message)
+        answer = process_response(answer)
         log_agent(
             request_id="",
             user_id=user_id,

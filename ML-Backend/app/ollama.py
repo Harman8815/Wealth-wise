@@ -18,6 +18,13 @@ OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 DEFAULT_CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", "llama3.2")
 DEFAULT_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
 
+DEFAULT_OPTIONS: Dict[str, Any] = {
+    "temperature": float(os.getenv("OLLAMA_TEMPERATURE", "0.3")),
+    "num_predict": int(os.getenv("OLLAMA_NUM_PREDICT", "256")),
+    "top_p": float(os.getenv("OLLAMA_TOP_P", "0.9")),
+    "repeat_penalty": float(os.getenv("OLLAMA_REPEAT_PENALTY", "1.1")),
+}
+
 
 class OllamaAdapterError(Exception):
     """Raised when Ollama returns a non-success response."""
@@ -49,6 +56,7 @@ async def generate(
     model: str = DEFAULT_CHAT_MODEL,
     stream: bool = False,
     options: Optional[Dict[str, Any]] = None,
+    format: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Send a non-streaming chat completion request to Ollama."""
     payload: Dict[str, Any] = {
@@ -58,6 +66,8 @@ async def generate(
     }
     if options:
         payload["options"] = options
+    if format and not stream:
+        payload["format"] = format
     _log_ollama_request("/api/chat", payload)
     async with httpx.AsyncClient(timeout=120.0) as client:
         try:
@@ -151,6 +161,7 @@ async def generate_with_tools(
     *,
     model: str = DEFAULT_CHAT_MODEL,
     options: Optional[Dict[str, Any]] = None,
+    format: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Send a chat completion request with tool definitions."""
     payload: Dict[str, Any] = {
@@ -161,6 +172,8 @@ async def generate_with_tools(
     }
     if options:
         payload["options"] = options
+    if format:
+        payload["format"] = format
     _log_ollama_request("/api/chat", payload)
     async with httpx.AsyncClient(timeout=120.0) as client:
         try:

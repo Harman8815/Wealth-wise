@@ -15,6 +15,7 @@ from enum import Enum
 from typing import Dict
 
 from app.ollama import DEFAULT_CHAT_MODEL, generate
+from app.services.ollama_config import get_options
 from app.logging_utils import log_chat
 
 
@@ -56,6 +57,7 @@ async def classify_intent(message: str) -> Intent:
         ],
         model=DEFAULT_CHAT_MODEL,
         stream=False,
+        options=get_options("intent_classification"),
     )
     content = result.get("message", {}).get("content", "").strip().lower()
     try:

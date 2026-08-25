@@ -19,6 +19,7 @@ from app.context import ContextBudget, get_context_budget
 from app.deps import get_user_id
 from app.ollama import DEFAULT_CHAT_MODEL, OllamaAdapterError, generate_with_tools, stream
 from app.prompt import SYSTEM_PROMPT
+from app.schemas.agent_response import StructuredResponse
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.ollama import generate
 from app.services.context import build_context
@@ -27,6 +28,7 @@ from app.services.summarization import maybe_summarize
 from app.services.assistants import answer_budget_question, answer_goal_question
 from app.services.intent import classify_intent
 from app.services.router import route_intent
+from app.services.pipeline import process_response
 from app.rate_limit import enforce_rate_limit
 from app.logging_utils import get_request_id, log_chat, log_llm_call, log_tool_call, log_validation
 from app.schemas.structured_response import StructuredResponse
@@ -59,8 +61,13 @@ def _parse_structured_response(content: str) -> Dict[str, Any]:
             try:
                 validated = StructuredResponse(**data)
                 return validated.model_dump()
-            except Exception:
-                pass
+            except Exception as exc:
+                from app.logging_utils import logger as chat_logger
+                chat_logger.warning(
+                    "structured_response_validation_failed",
+                    extra={"content": content[:500], "error": str(exc)},
+                )
+                return {"type": "markdown", "markdown": content}
         return {"type": "markdown", "markdown": content}
     except Exception:
         return {"type": "text", "text": content}
@@ -262,7 +269,7 @@ async def _chat_with_tools(
     current_messages = messages[:]
     for _ in range(5):
         start = time.perf_counter()
-        result = await generate_with_tools(current_messages, FINANCIAL_TOOLS, model=model)
+        result = await generate_with_tools(current_messages, FINANCIAL_TOOLS, model=model, format="json")
         latency = (time.perf_counter() - start) * 1000
         log_llm_call(
             request_id=get_request_id(request),
@@ -405,6 +412,8 @@ async def chat(
         )
         structured = _parse_structured_response(raw_reply)
         reply = structured.get("text") or structured.get("markdown") or raw_reply
+        if structured.get("type") in ("text", "markdown"):
+            reply = process_response(reply)
         add_message(
             user_id=user_id,
             conversation_id=conversation_id,

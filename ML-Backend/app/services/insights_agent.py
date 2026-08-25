@@ -13,6 +13,7 @@ from app.ollama import DEFAULT_CHAT_MODEL, generate, OllamaAdapterError
 from app.logging_utils import log_agent
 from app.services.validation import validate_insights_context
 from app.services.fallbacks import get_fallback
+from app.services.ollama_config import get_options
 
 
 async def answer_insights_question(token: str, user_id: str, question: str) -> str:
@@ -46,6 +47,7 @@ async def answer_insights_question(token: str, user_id: str, question: str) -> s
             [{"role": "system", "content": prompt}],
             model=DEFAULT_CHAT_MODEL,
             stream=False,
+            options=get_options("insights"),
         )
         answer = result.get("message", {}).get("content", "")
         log_agent(

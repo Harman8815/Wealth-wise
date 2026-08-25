@@ -17,9 +17,21 @@ from app.services.fallbacks import get_fallback, FALLBACKS
 
 
 class TestValidateInsightsContext:
-    def test_valid_insights(self):
-        data = {"results": [{"title": "Test", "description": "Desc"}]}
+    def test_valid_insights_list(self):
+        data = [{"title": "Test", "description": "Desc"}]
         assert validate_insights_context(data) == (True, "")
+
+    def test_valid_insights_dict_with_results(self):
+        data = {"results": [{"title": "Test"}]}
+        assert validate_insights_context(data) == (True, "")
+
+    def test_valid_insights_dict_with_data(self):
+        data = {"data": [{"title": "Test"}]}
+        assert validate_insights_context(data) == (True, "")
+
+    def test_empty_list(self):
+        data = []
+        assert validate_insights_context(data) == (False, "no_insights_data")
 
     def test_empty_results(self):
         data = {"results": []}
@@ -27,15 +39,19 @@ class TestValidateInsightsContext:
 
     def test_missing_results(self):
         data = {"other": "value"}
-        assert validate_insights_context(data) == (False, "no_insights_data")
+        assert validate_insights_context(data) == (False, "malformed_insights_data")
 
-    def test_not_dict(self):
-        assert validate_insights_context([]) == (False, "malformed_insights_data")
+    def test_not_dict_or_list(self):
         assert validate_insights_context(None) == (False, "malformed_insights_data")
+        assert validate_insights_context("string") == (False, "malformed_insights_data")
 
 
 class TestValidateAlertsContext:
-    def test_valid_alerts(self):
+    def test_valid_alerts_list(self):
+        data = [{"title": "Alert"}]
+        assert validate_alerts_context(data) == (True, "")
+
+    def test_valid_alerts_dict_with_results(self):
         data = {"results": [{"title": "Alert"}]}
         assert validate_alerts_context(data) == (True, "")
 
@@ -45,8 +61,12 @@ class TestValidateAlertsContext:
 
 
 class TestValidateTransactionsContext:
-    def test_valid_transactions(self):
+    def test_valid_transactions_dict_with_results(self):
         data = {"results": [{"date": "2026-08-25", "amount": 100}]}
+        assert validate_transactions_context(data) == (True, "")
+
+    def test_valid_transactions_list(self):
+        data = [{"date": "2026-08-25", "amount": 100}]
         assert validate_transactions_context(data) == (True, "")
 
     def test_empty_results(self):
@@ -59,7 +79,11 @@ class TestValidateTransactionsContext:
 
 
 class TestValidateBudgetContext:
-    def test_valid_budget(self):
+    def test_valid_budget_list(self):
+        data = [{"category": "food", "amount": 5000}]
+        assert validate_budget_context(data) == (True, "")
+
+    def test_valid_budget_dict_with_results(self):
         data = {"results": [{"category": "food", "amount": 5000}]}
         assert validate_budget_context(data) == (True, "")
 
@@ -69,7 +93,11 @@ class TestValidateBudgetContext:
 
 
 class TestValidateGoalsContext:
-    def test_valid_goals(self):
+    def test_valid_goals_list(self):
+        data = [{"name": "Emergency Fund", "target_amount": 100000}]
+        assert validate_goals_context(data) == (True, "")
+
+    def test_valid_goals_dict_with_results(self):
         data = {"results": [{"name": "Emergency Fund", "target_amount": 100000}]}
         assert validate_goals_context(data) == (True, "")
 
@@ -86,6 +114,10 @@ class TestValidateProfileContext:
     def test_missing_fields(self):
         data = {"name": "John"}
         assert validate_profile_context(data) == (False, "partial_profile_data")
+
+    def test_not_dict(self):
+        assert validate_profile_context([]) == (False, "malformed_profile_data")
+        assert validate_profile_context(None) == (False, "malformed_profile_data")
 
 
 class TestFallbacks:

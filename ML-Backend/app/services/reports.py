@@ -21,6 +21,7 @@ from app.services.tools import (
 from app.logging_utils import log_agent
 from app.services.validation import validate_transactions_context, validate_budget_context, validate_goals_context
 from app.services.fallbacks import get_fallback
+from app.services.ollama_config import get_options
 
 
 async def build_report_sections(token: str, user_id: str) -> Dict[str, Any]:
@@ -83,6 +84,7 @@ async def generate_report_narrative(sections: Dict[str, Any]) -> str:
             [{"role": "system", "content": prompt}],
             model=DEFAULT_CHAT_MODEL,
             stream=False,
+            options=get_options("report"),
         )
         narrative = result.get("message", {}).get("content", "")
     except OllamaAdapterError as exc:

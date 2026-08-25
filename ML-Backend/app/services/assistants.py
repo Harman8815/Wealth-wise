@@ -21,12 +21,13 @@ from app.services.tools import (
 from app.logging_utils import log_agent
 from app.services.validation import validate_goals_context, validate_transactions_context, validate_budget_context, validate_profile_context
 from app.services.fallbacks import get_fallback
+from app.services.ollama_config import get_options
 
 
 async def answer_goal_question(token: str, user_id: str, question: str) -> str:
     goals = await get_goals_tool(token, user_id)
     profile = await get_profile_tool(token, user_id)
-    goals_data = goals.get("data", {})
+    goals_data = goals.get("data", [])
     profile_data = profile.get("data", {})
 
     is_valid, error_key = validate_goals_context(goals_data)
@@ -54,15 +55,15 @@ async def answer_goal_question(token: str, user_id: str, question: str) -> str:
         return get_fallback(error_key_profile)
 
     monthly_income = profile_data.get("monthly_income", 0)
-    if not monthly_income and goals_data.get("results"):
-        monthly_income = sum(goal.get("monthly_contribution", 0) for goal in goals_data.get("results", []))
+    if not monthly_income and goals_data:
+        monthly_income = sum(goal.get("monthly_contribution", 0) for goal in goals_data)
 
     goal_summaries = []
-    for goal in goals_data.get("results", []):
+    for goal in goals_data:
         timeline = project_goal_timeline(
             target_amount=goal.get("target_amount", 0),
             current_amount=goal.get("current_amount", 0),
-            monthly_contribution=goal.get("monthly_contribution", monthly_income / max(len(goals_data.get("results", [])), 1)),
+            monthly_contribution=goal.get("monthly_contribution", monthly_income / max(len(goals_data), 1)),
         )
         goal_summaries.append({
             "name": goal.get("name"),
@@ -81,6 +82,7 @@ async def answer_goal_question(token: str, user_id: str, question: str) -> str:
             [{"role": "system", "content": prompt}],
             model=DEFAULT_CHAT_MODEL,
             stream=False,
+            options=get_options("goal"),
         )
         answer = result.get("message", {}).get("content", "")
     except OllamaAdapterError as exc:
@@ -91,7 +93,7 @@ async def answer_goal_question(token: str, user_id: str, question: str) -> str:
         conversation_id=None,
         agent="goal",
         event="goal_question_answered",
-        input_data={"question": question, "goal_count": len(goals_data.get("results", []))},
+        input_data={"question": question, "goal_count": len(goals_data)},
         output_data={"answer": answer},
     )
     return answer
@@ -115,7 +117,7 @@ async def answer_budget_question(token: str, user_id: str, question: str) -> str
         )
         return get_fallback(error_key_tx)
 
-    budget_data = budgets.get("data", {})
+    budget_data = budgets.get("data", [])
     is_valid_budget, error_key_budget = validate_budget_context(budget_data)
     if not is_valid_budget:
         log_agent(
@@ -133,7 +135,7 @@ async def answer_budget_question(token: str, user_id: str, question: str) -> str
     total_income = sum(item.get("amount", 0) for item in results if item.get("type") == "income")
     savings_rate = calculate_savings_rate(total_income, total_expense)
 
-    budget_items = budget_data.get("results", [])
+    budget_items = budget_data
     budget_variance = None
     if budget_items:
         total_budget = sum(item.get("amount", 0) for item in budget_items)
@@ -154,6 +156,7 @@ async def answer_budget_question(token: str, user_id: str, question: str) -> str
             [{"role": "system", "content": prompt}],
             model=DEFAULT_CHAT_MODEL,
             stream=False,
+            options=get_options("budget"),
         )
         answer = result.get("message", {}).get("content", "")
     except OllamaAdapterError as exc:
