@@ -14,9 +14,11 @@ request body.
 
 ```bash
 cd ML-Backend
-python -m venv .venv && source .venv/bin/activate   # or .venv\Scripts\activate on Windows
-pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8100
+python -m venv .venv
+.venv\Scripts\activate
+python -m pip --version
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8100
 ```
 
 Health check:
