@@ -1,0 +1,7 @@
+{
+  "results": [
+    {"id": 1, "title": "High dining spend", "description": "You spent 40% more on dining this month compared to last month.", "impact": "medium", "category": "expense", "generated_at": "2026-08-25"},
+    {"id": 2, "title": "Savings rate improved", "description": "Your savings rate increased by 5% this month.", "impact": "high", "category": "income", "generated_at": "2026-08-25"},
+    {"id": 3, "title": "Subscription alert", "description": "You have 3 active subscriptions totaling ₹1,500/month.", "impact": "low", "category": "expense", "generated_at": "2026-08-25"}
+  ]
+}

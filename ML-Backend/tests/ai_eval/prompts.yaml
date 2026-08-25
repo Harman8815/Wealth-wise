@@ -1,0 +1,91 @@
+cases:
+  - name: "insights_normal"
+    prompt: "What are my top insights?"
+    expected_intent: "insights"
+    expected_type: "insights"
+    context:
+      insights_count: 3
+
+  - name: "insights_missing_data"
+    prompt: "Show my insights"
+    expected_intent: "insights"
+    context:
+      insights_count: 0
+
+  - name: "alerts_normal"
+    prompt: "Do I have any alerts?"
+    expected_intent: "alerts"
+    expected_type: "alerts"
+    context:
+      alerts_count: 2
+
+  - name: "alerts_no_data"
+    prompt: "Check my alerts"
+    expected_intent: "alerts"
+    context:
+      alerts_count: 0
+
+  - name: "budget_normal"
+    prompt: "How is my budget this month?"
+    expected_intent: "budget"
+    expected_type: "text"
+    context:
+      total_income: 58000
+      total_expense: 30250
+
+  - name: "goal_normal"
+    prompt: "When will I reach my savings goal?"
+    expected_intent: "goal"
+    expected_type: "text"
+    context:
+      goal_count: 2
+
+  - name: "transaction_search"
+    prompt: "Find my grocery transactions"
+    expected_intent: "transaction_search"
+    context:
+      result_count: 5
+
+  - name: "transaction_query"
+    prompt: "Show transactions over ₹1000"
+    expected_intent: "transaction_query"
+    context:
+      result_count: 3
+
+  - name: "db_context"
+    prompt: "What tables are in the database?"
+    expected_intent: "db_context"
+    expected_type: "markdown"
+    context: {}
+
+  - name: "chart_alert"
+    prompt: "Explain my spending chart"
+    expected_intent: "chart_alert"
+    expected_type: "text"
+    context: {}
+
+  - name: "general_chat_fallback"
+    prompt: "Tell me a joke"
+    expected_intent: "general_chat"
+    expected_type: "text"
+    context: {}
+
+  - name: "ambiguous_query"
+    prompt: "How much did I spend?"
+    expected_intent: "general_chat"
+    expected_type: "text"
+    context: {}
+
+  - name: "malformed_input"
+    prompt: "asdfghjkl"
+    expected_intent: "general_chat"
+    expected_type: "text"
+    context: {}
+
+  - name: "report_generation"
+    prompt: "Generate my financial report"
+    expected_intent: "report"
+    expected_type: "markdown"
+    context:
+      total_income: 58000
+      total_expense: 30250

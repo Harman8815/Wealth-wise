@@ -1,0 +1,7 @@
+{
+  "results": [
+    {"id": 1, "name": "Food", "budgeted": 10000, "spent": 8500, "remaining": 1500, "percentage_used": 85},
+    {"id": 2, "name": "Transport", "budgeted": 5000, "spent": 4200, "remaining": 800, "percentage_used": 84},
+    {"id": 3, "name": "Utilities", "budgeted": 3000, "spent": 1200, "remaining": 1800, "percentage_used": 40}
+  ]
+}

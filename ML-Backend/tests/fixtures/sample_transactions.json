@@ -1,0 +1,9 @@
+{
+  "results": [
+    {"id": 1, "date": "2026-08-25", "description": "Grocery store", "category": "food", "amount": 2500, "type": "expense", "merchant": "BigBasket"},
+    {"id": 2, "date": "2026-08-24", "description": "Salary", "category": "income", "amount": 50000, "type": "income", "merchant": "Employer"},
+    {"id": 3, "date": "2026-08-23", "description": "Electricity bill", "category": "utilities", "amount": 1200, "type": "expense", "merchant": "Electricity Board"},
+    {"id": 4, "date": "2026-08-22", "description": "Uber ride", "category": "transport", "amount": 350, "type": "expense", "merchant": "Uber"},
+    {"id": 5, "date": "2026-08-21", "description": "Freelance payment", "category": "income", "amount": 8000, "type": "income", "merchant": "Client"}
+  ]
+}

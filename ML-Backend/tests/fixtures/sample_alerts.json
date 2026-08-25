@@ -1,0 +1,6 @@
+{
+  "results": [
+    {"id": 1, "title": "Budget exceeded", "type": "warning", "category": "food", "message": "You have exceeded your food budget by ₹2,000.", "created_at": "2026-08-25"},
+    {"id": 2, "title": "Large transaction", "type": "info", "category": "shopping", "message": "A transaction of ₹15,000 was detected in shopping.", "created_at": "2026-08-25"}
+  ]
+}
