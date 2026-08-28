@@ -1,419 +1,718 @@
-# WealthWise AI — Chat Debug Mode TODO
-
-## Commit 1 — Audit Current AI Chat Flow
-
-* [x] Trace normal chat request from frontend → Django → ML backend → Ollama → frontend.
-* [x] Trace `/insights`, `/report`, `/explain`, `/alert`, `/goal`, `/budget`.
-* [x] Identify every backend route called by each capability.
-* [x] Identify where authentication/token is added to each request.
-* [x] Identify where `500`, `401`, and other errors are generated.
-* [x] Identify where backend responses are parsed before reaching the chat UI.
-* [x] Document the current request/response flow before modifying it.
+Use this as the **new implementation prompt**. It is deliberately technical and tells the coding agent to stop making superficial UI changes and prove the entire pipeline works.
 
 ---
 
-## Commit 2 — Add Request/Trace ID System
+## Prompt — Rebuild WealthWise AI Debugging System at the Technical Level
 
-* [x] Generate a unique `request_id` for every AI chat request.
-* [x] Pass the `request_id` from frontend → Django → ML backend → Ollama pipeline.
-* [x] Include `request_id` in backend logs.
-* [x] Include `request_id` in API error responses.
-* [x] Ensure every backend call belonging to one chat request can be correlated.
-* [x] Ensure multiple simultaneous chat requests get different IDs.
+The current Chat Debug implementation is **not functional enough**. The UI shows requests such as `/report` and `/insights`, but the debug panel only contains the initial `User Request` event and the chat displays generic failures like:
 
----
+```text
+The AI assistant is temporarily unavailable.
+I couldn't generate a response.
+```
 
-## Commit 3 — Create Structured AI Debug Events
+Do **not** make another UI-only fix. We need to diagnose and rebuild the debugging pipeline so it captures the **real backend execution lifecycle**.
 
-* [x] Create a standard debug-event structure.
-* [x] Add `stage` to every event.
-* [x] Add service/backend name.
-* [x] Add route/method where applicable.
-* [x] Add HTTP status.
-* [x] Add execution duration.
-* [x] Add timestamp.
-* [x] Add success/error status.
-* [x] Add request/response payload where safe.
-* [x] Add error type and message when a stage fails.
-* [x] Define stages:
+### Primary goal
 
-  * [x] `user_request`
-  * [x] `intent_detection`
-  * [x] `agent_selection`
-  * [x] `backend_request`
-  * [x] `data_retrieval`
-  * [x] `data_processing`
-  * [x] `ollama_request`
-  * [x] `ollama_response`
-  * [x] `response_parsing`
-  * [x] `frontend_render`
-  * [x] `error`
+For every AI request, the system must provide a **real-time, request-scoped execution trace**:
 
----
+```text
+USER MESSAGE
+    ↓
+FRONTEND REQUEST
+    ↓
+DJANGO ROUTE
+    ↓
+AUTHENTICATION
+    ↓
+INTENT / AGENT
+    ↓
+AGENT TOOL
+    ↓
+API / DATABASE CALL
+    ↓
+DATA RETRIEVED
+    ↓
+CONTEXT/PROMPT BUILT
+    ↓
+OLLAMA REQUEST
+    ↓
+OLLAMA RAW RESPONSE
+    ↓
+RESPONSE PARSING
+    ↓
+DJANGO RESPONSE
+    ↓
+FRONTEND RESPONSE
+    ↓
+CHAT RENDER
+```
 
-## Commit 4 — Fix Backend Error Reporting
-
-* [x] Stop returning useless bare `500 Internal Server Error` responses.
-* [x] Return structured error information for AI routes.
-* [x] Include `request_id`.
-* [x] Include failing `stage`.
-* [x] Include service name.
-* [x] Include route.
-* [x] Include HTTP status.
-* [x] Include useful error message.
-* [x] Include exception type where appropriate.
-* [x] Preserve useful upstream errors instead of replacing them with generic errors.
-* [x] Make sure frontend receives the actual error response body.
-* [x] Prevent raw internal stack traces from being exposed in production.
-* [x] Keep detailed stack traces available in development/debug logs.
+Every stage must generate a real debug event.
 
 ---
 
-## Commit 5 — Fix Authentication/Token Debugging
+# Phase 1 — Stop and Audit the Existing System
 
-* [x] Trace the source of the current `Invalid or expired token` error.
-* [x] Verify frontend token retrieval.
-* [x] Verify `Authorization` header.
-* [x] Verify Bearer token format.
-* [x] Verify Django authentication.
-* [x] Verify Django → ML backend authentication.
-* [x] Verify token expiration handling.
-* [x] Ensure every AI endpoint uses the correct authenticated user.
-* [x] Add authentication failure information to debug events.
-* [x] Ensure authentication errors are distinguishable from backend `500` errors.
+Before changing code:
 
----
+* [x] Identify the exact frontend chat request function.
+* [x] Identify the exact Django endpoint handling chat.
+* [x] Identify the ML Backend endpoint.
+* [x] Identify the agent/router implementation.
+* [x] Identify every tool/API called by `/insights`, `/report`, `/alert`, `/explain`, `/goal`, and `/budget`.
+* [x] Identify the Ollama integration.
+* [x] Identify where the generic `"Couldn't generate a response"` message is generated.
+* [x] Identify where `"AI assistant is temporarily unavailable"` is generated.
+* [x] Identify why only `User Request` appears in the current debug trace.
+* [x] Determine whether debug events are actually being emitted by the backend or are currently generated only by the frontend.
 
-# Commit 6 — Build Chat Debug UI
-
-### New page
-
-* [x] Create dedicated Chat Debug page/route.
-* [x] Create two-pane layout.
-* [x] Make debug pane independently scrollable.
-* [x] Make chat pane independently scrollable.
-* [x] Keep existing WealthWise styling/theme.
-
-### Left pane — Debug
-
-* [x] Display request ID.
-* [x] Display user query.
-* [x] Display request timestamp.
-* [x] Display pipeline stages.
-* [x] Display stage status.
-* [x] Display API routes.
-* [x] Display HTTP status.
-* [x] Display duration.
-* [x] Display retrieved data.
-* [x] Display Ollama prompt.
-* [x] Display Ollama raw response.
-* [x] Display parsed response.
-* [x] Display final frontend response.
-* [x] Display errors.
-
-### Right pane — Real Chat
-
-* [x] Reuse the existing production chat component.
-* [x] Show exactly what the normal user sees.
-* [x] Keep normal chat input.
-* [x] Keep existing message styling.
-* [x] Keep existing AI loading state.
-* [x] Keep existing markdown/rendering behavior.
+**Do not proceed with UI changes until this audit is complete.**
 
 ---
 
-# Commit 7 — Interactive Debug Timeline
+# Phase 2 — Prove Every Backend Route Independently
 
-* [x] Create expandable pipeline stages.
-* [x] Add success/error/running indicators.
-* [x] Allow clicking a stage to inspect details.
-* [x] Add expandable JSON viewer.
-* [x] Add copy-to-clipboard for JSON.
-* [x] Add copy-to-clipboard for prompts.
-* [x] Add raw/parsed response views.
-* [x] Highlight the exact stage where a request failed.
-* [x] Automatically expand the failed stage.
-* [x] Show downstream stages as `NOT EXECUTED` when an earlier stage stops the pipeline.
+Before integrating the debug UI, test the backend independently.
 
----
+For each route:
 
-# Commit 8 — Connect Real Backend Events to Debug UI
+```text
+/insights
+/report
+/alert
+/explain
+/goal
+/budget
+```
 
-* [x] Connect frontend debug UI to actual request lifecycle.
-* [x] Do not use hardcoded/mock debug events.
-* [x] Record every backend call.
-* [x] Record every response.
-* [x] Record every error.
-* [x] Associate all events with `request_id`.
-* [x] Preserve event ordering.
-* [x] Update the UI as stages execute.
-* [x] Show `RUNNING` while a stage is executing.
-* [x] Show `SUCCESS` when completed.
-* [x] Show `ERROR` when failed.
+create repeatable API tests.
 
----
+For every test verify:
 
-# Commit 9 — Debug Data Retrieval
+```text
+HTTP status
+response body
+response time
+authentication
+database/API calls
+agent execution
+Ollama execution
+final response
+```
 
-For every AI capability:
-
-* [x] Show which endpoint was called.
-* [x] Show request parameters/body.
-* [x] Show response status.
-* [x] Show response duration.
-* [x] Show actual data retrieved.
-* [x] Show number of records retrieved.
-* [x] Show processed/filtered data passed to the AI layer.
-* [x] Verify the correct user's data is being retrieved.
-
-### Specifically test
-
-* [x] Alerts data.
-* [x] Insights data.
-* [x] Budget data.
-* [x] Goal data.
-* [x] Transaction data.
-* [x] Report data.
-* [x] Chart data.
-
----
-
-# Commit 10 — Debug Ollama Pipeline
-
-* [x] Show Ollama model.
-* [x] Show Ollama endpoint.
-* [x] Show exact system prompt.
-* [x] Show exact user prompt.
-* [x] Show context/data supplied to Ollama.
-* [x] Show final assembled prompt.
-* [x] Show Ollama HTTP status.
-* [x] Show Ollama duration.
-* [x] Show raw Ollama JSON response.
-* [x] Show extracted assistant content.
-* [x] Show parsing failures.
-* [x] Verify Ollama is actually receiving WealthWise data.
-* [x] Verify Ollama isn't inventing data when no data was supplied.
-
----
-
-# Commit 11 — Automatic AI Capability Execution
-
-* [x] Make every AI capability card clickable.
-* [x] Clicking a capability should automatically create its query.
-* [x] Automatically add the query to the chat.
-* [x] Automatically send the query to the backend.
-* [x] Do not require Enter.
-* [x] Do not require clicking Send.
-* [x] Reuse the existing chat submission function.
-* [x] Prevent duplicate requests from one click.
-* [x] Show loading state immediately.
-* [x] Create a debug trace automatically.
-* [x] Associate the capability request with its `request_id`.
-
-### Test
-
-* [x] Insights.
-* [x] Report.
-* [x] Chart & Alerts.
-* [x] Alerts.
-* [x] Goal.
-* [x] Budget.
-* [x] Search.
-
----
-
-# Commit 12 — Fix AI Capability Responses
-
-### `/insights`
-
-* [x] Verify route.
-* [x] Verify retrieved insight data.
-* [x] Verify data reaches Ollama.
-* [x] Verify Ollama response.
-* [x] Verify final UI response.
-
-### `/report`
-
-* [x] Find cause of `"I couldn't generate a response"`.
-* [x] Verify report data.
-* [x] Verify Ollama prompt.
-* [x] Verify response parsing.
-
-### `/explain`
-
-* [x] Verify actual chart/alert data is passed.
-* [x] Prevent generic/fabricated market information.
-* [x] Ensure explanation is based on WealthWise data.
-
-### `/alert`
-
-* [x] Verify actual user alerts are retrieved.
-* [x] Prevent unrelated market-trend responses.
-* [x] Verify alert data reaches Ollama.
-
-### `/goal`
-
-* [x] Verify goals are retrieved.
-* [x] Verify goal context reaches Ollama.
-* [x] Verify response.
-
-### `/budget`
-
-* [x] Verify budgets are retrieved.
-* [x] Verify budget context reaches Ollama.
-* [x] Verify response.
-
----
-
-# Commit 13 — Fix Chat Rendering
-
-* [x] Find why `svg` is appearing as visible chat content.
-* [x] Inspect backend response for SVG artifacts.
-* [x] Inspect frontend Markdown/HTML parser.
-* [x] Inspect icon rendering.
-* [x] Remove raw SVG text from messages.
-* [x] Ensure legitimate UI icons still render correctly.
-* [x] Handle malformed AI responses safely.
-* [x] Ensure empty AI messages are never rendered.
-
----
-
-# Commit 14 — Improve Chat Error UI
-
-* [x] Replace raw JSON errors with readable error cards.
-* [x] Show HTTP status.
-* [x] Show failing endpoint.
-* [x] Show request ID.
-* [x] Show useful error message.
-* [x] Add `View Debug Details` action.
-* [x] Link the error directly to the failed debug stage.
-* [x] Keep sensitive backend information hidden from normal users.
+Run each endpoint **multiple times**, not just once.
 
 Example:
 
 ```text
-┌─────────────────────────────────────┐
-│ ✕ AI Request Failed                 │
-│                                     │
-│ Endpoint: /api/ai/alert             │
-│ Status: 500                         │
-│ Request: REQ-8F31A2                 │
-│                                     │
-│ Unable to retrieve alert data.      │
-│                                     │
-│ [View Debug Details]                │
-└─────────────────────────────────────┘
+Test /report
+Attempt 1 → ?
+Attempt 2 → ?
+Attempt 3 → ?
+Attempt 4 → ?
+Attempt 5 → ?
 ```
 
----
+This is necessary to determine whether failures are:
 
-# Commit 15 — Debug Mode Controls
+* deterministic
+* intermittent
+* authentication-related
+* timeout-related
+* Ollama-related
+* data-related
+* frontend-only
 
-* [x] Add Debug Mode ON/OFF.
-* [x] Keep normal production chat unchanged when OFF.
-* [x] Show debug UI when ON.
-* [x] Add clear Debug Mode indicator.
-* [x] Add `Clear Trace`.
-* [x] Add `Copy Trace`.
-* [x] Add `Copy JSON`.
-* [x] Add `Expand All`.
-* [x] Add `Collapse All`.
+Add automated backend tests where appropriate.
 
 ---
 
-# Commit 16 — End-to-End Testing
+# Phase 3 — Create a Real Trace Architecture
 
-### Normal chat
+Implement a request-scoped trace system.
 
-* [x] `hi`
-* [x] `hello`
-* [x] normal finance question
-* [x] transaction question
-* [x] budget question
-* [x] goal question
-
-### Capability buttons
-
-* [x] Insights.
-* [x] Report.
-* [x] Explain.
-* [x] Alert.
-* [x] Goal.
-* [x] Budget.
-* [x] Search.
-
-### Failure scenarios
-
-* [x] Invalid token.
-* [x] Expired token.
-* [x] Backend unavailable.
-* [x] Backend 400.
-* [x] Backend 401.
-* [x] Backend 403.
-* [x] Backend 404.
-* [x] Backend 500.
-* [x] ML backend failure.
-* [x] Ollama unavailable.
-* [x] Ollama malformed response.
-* [x] Empty database result.
-* [x] Invalid backend JSON.
-
-### Verify
-
-* [x] Every failure identifies the failing stage.
-* [x] Every request has a request ID.
-* [x] Every API call is visible.
-* [x] Retrieved data is visible.
-* [x] Ollama prompt is visible.
-* [x] Ollama response is visible.
-* [x] Final rendered response is visible.
-* [x] No `svg` artifacts.
-* [x] No empty AI bubbles.
-* [x] Capability clicks automatically execute.
-* [x] No Enter key required.
-
----
-
-# Final Definition of Done
-
-A request like:
-
-> **"Show me my alerts"**
-
-should become visibly traceable as:
+Every request gets:
 
 ```text
-✓ USER REQUEST
-        ↓
-✓ INTENT: ALERTS
-        ↓
-✓ AGENT: AlertAgent
-        ↓
-✓ GET /api/alerts
-        ↓
-✓ 3 ALERTS RETRIEVED
-        ↓
-✓ DATA PROCESSED
-        ↓
-✓ OLLAMA PROMPT CREATED
-        ↓
-✓ OLLAMA RESPONSE
-        ↓
-✓ RESPONSE PARSED
-        ↓
-✓ CHAT UI RENDERED
+request_id
+trace_id
 ```
 
-And if something fails:
+Example:
 
 ```text
-✓ USER REQUEST
-✓ INTENT
-✓ AGENT
-✓ /api/alerts
-✗ /api/alerts → 500
+REQ-20260828-A81F42
 ```
 
-with the debug panel immediately showing **why it failed, what request was made, what response came back, and which stage stopped the pipeline**.
+Create a backend trace object/event structure containing:
 
-**We should implement this commit-by-commit rather than trying to change the entire AI system in one commit.**
+```text
+request_id
+event_id
+sequence
+stage
+service
+status
+timestamp
+duration_ms
+method
+endpoint
+status_code
+input
+output
+error
+metadata
+```
+
+Do **not** put JWTs, passwords, secrets, or sensitive credentials into the trace.
+
+---
+
+# Phase 4 — Instrument the Actual Backend
+
+Instrument the real code paths.
+
+For example:
+
+```text
+chat request
+    ↓ emit USER_REQUEST
+router
+    ↓ emit INTENT_DETECTION
+agent
+    ↓ emit AGENT_SELECTION
+tool
+    ↓ emit TOOL_START
+API
+    ↓ emit API_REQUEST
+API response
+    ↓ emit API_RESPONSE
+data
+    ↓ emit DATA_RETRIEVED
+context builder
+    ↓ emit CONTEXT_BUILT
+Ollama
+    ↓ emit OLLAMA_REQUEST
+Ollama response
+    ↓ emit OLLAMA_RESPONSE
+parser
+    ↓ emit RESPONSE_PARSED
+final API
+    ↓ emit FINAL_RESPONSE
+```
+
+**Do not fabricate these events from the frontend.**
+
+The backend must generate them from actual execution.
+
+---
+
+# Phase 5 — Implement Real-Time Event Transport
+
+The debug UI currently receives almost nothing.
+
+Fix the communication architecture.
+
+Evaluate the existing project architecture and implement **SSE or WebSocket** for real-time debug events.
+
+Preferred flow:
+
+```text
+Frontend
+   │
+   ├──── POST /chat ────────────────► Backend
+   │
+   │       request_id
+   │
+   └──── SSE/WebSocket connection ──► Debug event stream
+                                      │
+                                      ├─ USER_REQUEST
+                                      ├─ AGENT
+                                      ├─ API_REQUEST
+                                      ├─ DATA
+                                      ├─ OLLAMA
+                                      ├─ RESPONSE
+                                      └─ ERROR
+```
+
+The debug stream must be associated with the same `request_id`.
+
+### Important
+
+Do not simply add a WebSocket because it sounds appropriate.
+
+First verify:
+
+* [x] backend supports the selected transport
+* [x] frontend can establish the connection
+* [x] events actually arrive
+* [x] events are associated with the correct request
+* [x] connection survives the entire AI request
+* [x] connection closes cleanly after completion
+* [x] errors are delivered through the stream
+
+If SSE is simpler and sufficient for this architecture, use SSE.
+
+---
+
+# Phase 6 — Create Debug Test Endpoint
+
+Create a development/debug endpoint that proves the event infrastructure works independently of Ollama.
+
+Example concept:
+
+```text
+POST /api/ai/debug/test
+```
+
+It should intentionally generate:
+
+```text
+USER_REQUEST
+    ↓
+TEST_API_CALL
+    ↓
+TEST_DATA
+    ↓
+TEST_PROCESSING
+    ↓
+TEST_OLLAMA_SIMULATION
+    ↓
+TEST_RESPONSE
+```
+
+with delays between stages.
+
+For example:
+
+```text
+Event 1 → immediately
+Event 2 → +500ms
+Event 3 → +500ms
+Event 4 → +500ms
+Event 5 → +500ms
+```
+
+The Debug UI must visibly receive these events **one by one in real time**.
+
+This proves the debugging infrastructure works independently of the AI system.
+
+---
+
+# Phase 7 — Create Failure Simulation Tests
+
+Create development-only test scenarios for:
+
+```text
+AUTH_FAILURE
+API_400
+API_401
+API_403
+API_404
+API_500
+DATABASE_FAILURE
+ML_BACKEND_FAILURE
+OLLAMA_TIMEOUT
+OLLAMA_ERROR
+INVALID_OLLAMA_JSON
+PARSER_ERROR
+```
+
+Example:
+
+```text
+✓ USER_REQUEST
+✓ AGENT_SELECTION
+✓ API_REQUEST
+✗ API_RESPONSE
+    HTTP 500
+    error: Database connection failed
+○ OLLAMA_REQUEST
+○ OLLAMA_RESPONSE
+○ RESPONSE_PARSING
+```
+
+The frontend must receive the error event immediately.
+
+---
+
+# Phase 8 — Fix 500 Error Propagation
+
+A `500` must **never become only**:
+
+```text
+Couldn't generate a response.
+```
+
+Instead return structured information:
+
+```json
+{
+  "success": false,
+  "request_id": "REQ-A81F42",
+  "stage": "DATA_RETRIEVAL",
+  "service": "django",
+  "endpoint": "/api/alerts",
+  "status_code": 500,
+  "error": {
+    "type": "DatabaseError",
+    "message": "Unable to retrieve alerts"
+  }
+}
+```
+
+The frontend debug panel must display this information.
+
+The normal user chat can display:
+
+```text
+I couldn't retrieve your alerts right now.
+```
+
+But Debug Mode must show the actual diagnostic information.
+
+---
+
+# Phase 9 — Debug the Actual AI Commands
+
+Once the infrastructure is proven, connect real commands.
+
+Test:
+
+### `/insights`
+
+Verify:
+
+```text
+request
+→ route
+→ agent
+→ insight API
+→ actual insight data
+→ prompt
+→ Ollama
+→ response
+→ frontend
+```
+
+### `/report`
+
+Verify the complete pipeline and specifically determine why it currently returns:
+
+```text
+I couldn't generate a response.
+```
+
+### `/alert`
+
+Verify the AI receives **actual WealthWise alerts**, not unrelated/fabricated market information.
+
+### `/explain`
+
+Verify the actual chart/alert data reaches Ollama.
+
+### `/goal`
+
+Verify actual goals reach the AI.
+
+### `/budget`
+
+Verify actual budgets reach the AI.
+
+---
+
+# Phase 10 — Build the Debug UI From the Real Events
+
+Only after the backend event system works, build/update the UI.
+
+Left side:
+
+```text
+DEBUG TRACE
+
+REQ-A81F42
+/report
+
+● User Request             ✓
+   ↓
+● Intent Detection         ✓
+   ↓
+● Agent Selection          ✓
+   ↓
+● API Request              ✓
+   ↓
+● Data Retrieved            ✓
+   ↓
+● Context Built             ✓
+   ↓
+● Ollama Request            ●
+   ↓
+● Ollama Response           ○
+   ↓
+● Response Parsing          ○
+   ↓
+● Final Response            ○
+```
+
+Each node must be populated from the **real backend event**.
+
+Clicking a node should expose:
+
+```text
+Timestamp
+Duration
+Service
+Endpoint
+Request
+Response
+Status
+Data
+Error
+```
+
+---
+
+# Phase 11 — Show Exact AI Context
+
+For the Ollama stage provide expandable sections:
+
+```text
+SYSTEM PROMPT
+USER PROMPT
+RETRIEVED DATA
+CONTEXT
+FINAL PROMPT
+RAW OLLAMA JSON
+PARSED RESPONSE
+```
+
+This is critical because we need to determine whether the AI problem is:
+
+```text
+No data retrieved
+        OR
+Data retrieved but not passed to Ollama
+        OR
+Incorrect prompt
+        OR
+Ollama failure
+        OR
+Ollama hallucination
+        OR
+Response parser failure
+        OR
+Frontend rendering failure
+```
+
+---
+
+# Phase 12 — Automated End-to-End Tests
+
+Create tests that execute the complete pipeline.
+
+For each capability:
+
+```text
+send request
+↓
+wait for trace completion
+↓
+verify expected stages
+↓
+verify API calls
+↓
+verify data
+↓
+verify Ollama
+↓
+verify final response
+```
+
+Run each important request multiple times.
+
+Example:
+
+```text
+/report × 5
+/insights × 5
+/alert × 5
+/explain × 5
+/goal × 5
+/budget × 5
+```
+
+Record:
+
+```text
+success rate
+failure rate
+average duration
+failure stage
+HTTP status
+```
+
+---
+
+# Phase 13 — Frontend Capability Auto-Execution
+
+When clicking:
+
+```text
+Insights
+Report
+Chart & Alerts
+Alerts
+Goal
+Budget
+Search
+```
+
+the capability must:
+
+```text
+CLICK
+ ↓
+CREATE MESSAGE
+ ↓
+CREATE request_id
+ ↓
+OPEN DEBUG STREAM
+ ↓
+SEND BACKEND REQUEST
+ ↓
+RECEIVE LIVE EVENTS
+ ↓
+RENDER RESPONSE
+```
+
+No Enter key.
+
+No second Send click.
+
+No fake frontend-only message.
+
+---
+
+# Phase 14 — Final Acceptance Tests
+
+The implementation is **not complete** until these scenarios work.
+
+### Successful request
+
+```text
+User → "Show my alerts"
+
+Debug:
+
+✓ Request
+✓ Intent
+✓ Agent
+✓ API
+✓ Data
+✓ Context
+✓ Ollama request
+✓ Ollama response
+✓ Parser
+✓ Final response
+```
+
+### Backend failure
+
+```text
+User → "Show my alerts"
+
+Debug:
+
+✓ Request
+✓ Intent
+✓ Agent
+✗ API → 500
+
+Error:
+DatabaseError
+Endpoint:
+/api/alerts
+Request ID:
+REQ-A81F42
+```
+
+### Ollama failure
+
+```text
+✓ API
+✓ Data
+✓ Context
+✗ Ollama → timeout
+```
+
+### Frontend parsing failure
+
+```text
+✓ Ollama
+✗ Response Parser
+```
+
+### Debug infrastructure test
+
+The artificial debug test must visibly stream:
+
+```text
+Event 1
+   ↓
+Event 2
+   ↓
+Event 3
+   ↓
+Event 4
+   ↓
+Event 5
+```
+
+**without refreshing the page.**
+
+---
+
+## Commit Strategy
+
+Do this as separate commits and **test each commit before moving forward**:
+
+```text
+1. audit-current-ai-flow
+2. add-request-trace-id
+3. add-debug-event-contract
+4. instrument-django-ai-flow
+5. instrument-ml-ollama-flow
+6. fix-structured-error-propagation
+7. add-sse-or-websocket-debug-stream
+8. add-debug-stream-test-endpoint
+9. add-debug-failure-scenarios
+10. build-live-debug-pipeline-ui
+11. connect-real-events-to-debug-ui
+12. expose-ollama-context-and-response
+13. fix-insights-report-alert-flows
+14. fix-goal-budget-explain-flows
+15. fix-chat-rendering
+16. auto-execute-ai-capabilities
+17. add-end-to-end-ai-tests
+18. final-debug-mode-cleanup
+```
+
+### Hard requirement
+
+**Do not mark a commit complete just because the code compiles or the UI appears.**
+
+For every commit, actually run the relevant API/test and verify the expected behavior.
+
+The most important milestone is **Commit 8**: the artificial debug-stream test must prove that the frontend can receive multiple backend events in real time. If that does not work, **stop there and fix the transport before touching the AI agents**.
+
+This separates the problem into two independently testable systems:
+
+```text
+DEBUG INFRASTRUCTURE
+        +
+ACTUAL AI PIPELINE
+```
+
+Once the infrastructure itself is proven to work, we can reliably diagnose why `/report`, `/insights`, etc. are failing instead of repeatedly changing the UI and hoping the problem disappears.
