@@ -54,6 +54,21 @@ async function mlFetch(
   return res;
 }
 
+async function sendDebugEvent(requestId: string, event: Record<string, unknown>) {
+  try {
+    await fetch(`${ML_BACKEND_URL}/debug/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await getAuthHeader()),
+      },
+      body: JSON.stringify({ ...event, request_id: requestId }),
+    });
+  } catch {
+    // ignore debug event failures
+  }
+}
+
 function extractErrorMessage(status: number, text: string): string {
   if (!text) {
     if (status === 401) return "Your session has expired. Please log in again.";

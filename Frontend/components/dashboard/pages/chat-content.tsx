@@ -36,6 +36,7 @@ import {
   sendChatMessageStream,
   sendChatMessage,
   sendAgentMessage,
+  sendDebugEvent,
   type ChatMessage,
   type AgentMessageRequest,
   type StructuredResponse,
@@ -174,6 +175,10 @@ export function ChatPageContent({ conversationId, externalAgentId, onAgentHandle
       });
       debug.appendEvent({ stage: "agent_selection", status: "success", service: "frontend", output: { agent: agentId ?? null } });
       debug.appendEvent({ stage: "backend_request", status: "running", service: "ml-backend", route: agentId ? "/chat/agent" : "/chat/stream", method: "POST" });
+      await sendDebugEvent(requestId, { stage: "user_request", status: "success", service: "frontend", input: { message: trimmed } });
+      await sendDebugEvent(requestId, { stage: "intent_detection", status: "success", service: "frontend", output: { intent: agentId ?? "general_chat" } });
+      await sendDebugEvent(requestId, { stage: "agent_selection", status: "success", service: "frontend", output: { agent: agentId ?? null } });
+      await sendDebugEvent(requestId, { stage: "backend_request", status: "running", service: "ml-backend", route: agentId ? "/chat/agent" : "/chat/stream", method: "POST" });
     }
 
     try {
@@ -206,6 +211,7 @@ export function ChatPageContent({ conversationId, externalAgentId, onAgentHandle
             }
             if (requestId) {
               debug.appendEvent({ stage: "error", status: "error", service: "ml-backend", error: err.message, errorType: err.name });
+              sendDebugEvent(requestId, { stage: "error", status: "error", service: "ml-backend", error: err.message, error_type: err.name });
             }
           },
           abortControllerRef.current.signal,
@@ -228,6 +234,7 @@ export function ChatPageContent({ conversationId, externalAgentId, onAgentHandle
             }
             if (requestId) {
               debug.appendEvent({ stage: "error", status: "error", service: "ml-backend", error: err.message, errorType: err.name });
+              sendDebugEvent(requestId, { stage: "error", status: "error", service: "ml-backend", error: err.message, error_type: err.name });
             }
           },
           (structured) => {
@@ -249,6 +256,7 @@ export function ChatPageContent({ conversationId, externalAgentId, onAgentHandle
       }
       if (requestId) {
         debug.appendEvent({ stage: "frontend_render", status: "success", service: "frontend", output: { reply: fullReply || "empty" } });
+        await sendDebugEvent(requestId, { stage: "frontend_render", status: "success", service: "frontend", output: { reply: fullReply || "empty" } });
       }
       if (!fullReply && !structuredRef.current) {
         updateLastAssistant("I couldn't generate a response. Please try rephrasing your question.");
@@ -259,10 +267,12 @@ export function ChatPageContent({ conversationId, externalAgentId, onAgentHandle
       toast.error(message);
       if (requestId) {
         debug.appendEvent({ stage: "error", status: "error", service: "frontend", error: message, errorType: err instanceof Error ? err.name : "unknown" });
+        await sendDebugEvent(requestId, { stage: "error", status: "error", service: "frontend", error: message, error_type: err instanceof Error ? err.name : "unknown" });
       }
     } finally {
       if (requestId) {
         debug.appendEvent({ stage: "backend_request", status: "success", service: "ml-backend" });
+        await sendDebugEvent(requestId, { stage: "backend_request", status: "success", service: "ml-backend" });
         debug.finishTrace();
       }
       clearTimer();

@@ -83,6 +83,29 @@ async def list_traces(request: Request, user_id: str = Depends(get_user_id)):
     return {"traces": traces}
 
 
+@router.post("/events")
+async def receive_event(request: Request, user_id: str = Depends(get_user_id)):
+    body = await request.json()
+    store = get_debug_store()
+    store.append_event(
+        DebugEvent(
+            request_id=body.get("request_id", ""),
+            stage=body.get("stage", "error"),
+            status=body.get("status", "success"),
+            service=body.get("service"),
+            route=body.get("route"),
+            method=body.get("method"),
+            http_status=body.get("http_status"),
+            duration_ms=body.get("duration_ms"),
+            input_data=body.get("input"),
+            output_data=body.get("output"),
+            error=body.get("error"),
+            error_type=body.get("error_type"),
+        )
+    )
+    return {"status": "ok"}
+
+
 @router.delete("/traces")
 async def clear_traces(request: Request, user_id: str = Depends(get_user_id)):
     store = get_debug_store()
