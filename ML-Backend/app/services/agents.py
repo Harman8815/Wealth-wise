@@ -161,7 +161,23 @@ AGENT_REGISTRY: Dict[str, Dict[str, Any]] = {
 
 
 def get_agent(name: str) -> Optional[Dict[str, Any]]:
-    return AGENT_REGISTRY.get(name)
+    if name in AGENT_REGISTRY:
+        return AGENT_REGISTRY[name]
+    alias = {
+        "search": "transaction_search",
+        "insights": "insights",
+        "report": "report",
+        "alert": "alert",
+        "chart_alert": "chart_alert",
+        "goal": "goal",
+        "budget": "budget",
+        "chat": "general_chat",
+        "db": "db_context",
+    }
+    resolved = alias.get(name)
+    if resolved and resolved in AGENT_REGISTRY:
+        return AGENT_REGISTRY[resolved]
+    return None
 
 
 def list_agents() -> list[Dict[str, Any]]:

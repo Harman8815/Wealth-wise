@@ -18,6 +18,7 @@ from app.debug_events import DebugEvent, DebugStage, StageStatus, get_debug_stor
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 DEFAULT_CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", "llama3.2")
 DEFAULT_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
+OLLAMA_BYPASS = os.getenv("OLLAMA_BYPASS", "false").lower() in {"1", "true", "yes"}
 
 DEFAULT_OPTIONS: Dict[str, Any] = {
     "temperature": float(os.getenv("OLLAMA_TEMPERATURE", "0.3")),
@@ -70,6 +71,23 @@ def _log_ollama_response(endpoint: str, response: Dict[str, Any]) -> None:
     )
 
 
+def _ollama_bypass_response(payload: Dict[str, Any], request_id: Optional[str] = None) -> Dict[str, Any]:
+    """Return a synthetic Ollama response without making an HTTP call."""
+    return {
+        "model": payload.get("model", DEFAULT_CHAT_MODEL),
+        "created_at": "2026-01-01T00:00:00.000000000Z",
+        "message": {
+            "role": "assistant",
+            "content": "[OLLAMA BYPASS] No model call was made. Inspect the payload below.",
+        },
+        "done": True,
+        "ollama_bypass": True,
+        "ollama_call_skipped": True,
+        "request_id": request_id,
+        "payload": payload,
+    }
+
+
 async def generate(
     messages: List[Dict[str, str]],
     *,
@@ -91,6 +109,11 @@ async def generate(
         payload["format"] = format
     _emit_ollama_debug(request_id, DebugStage.OLLAMA_REQUEST, StageStatus.RUNNING, input_data={"model": model, "message_count": len(messages)})
     _log_ollama_request("/api/chat", payload)
+    if OLLAMA_BYPASS:
+        _emit_ollama_debug(request_id, DebugStage.OLLAMA_RESPONSE, StageStatus.SUCCESS, output_data={"bypass": True})
+        response = _ollama_bypass_response(payload, request_id=request_id)
+        _log_ollama_response("/api/chat", response)
+        return response
     async with httpx.AsyncClient(timeout=120.0) as client:
         try:
             resp = await client.post(
@@ -128,6 +151,14 @@ async def stream(
         payload["options"] = options
     _emit_ollama_debug(request_id, DebugStage.OLLAMA_REQUEST, StageStatus.RUNNING, input_data={"model": model, "message_count": len(messages)})
     _log_ollama_request("/api/chat", payload)
+    if OLLAMA_BYPASS:
+        _emit_ollama_debug(request_id, DebugStage.OLLAMA_RESPONSE, StageStatus.SUCCESS, output_data={"bypass": True})
+        response = _ollama_bypass_response(payload, request_id=request_id)
+        _log_ollama_response("/api/chat", response)
+        content = response.get("message", {}).get("content", "")
+        for chunk in [content[i : i + 4] for i in range(0, len(content), 4)]:
+            yield chunk
+        return
     async with httpx.AsyncClient(timeout=120.0) as client:
         try:
             async with client.stream(
@@ -206,6 +237,11 @@ async def generate_with_tools(
         payload["format"] = format
     _emit_ollama_debug(request_id, DebugStage.OLLAMA_REQUEST, StageStatus.RUNNING, input_data={"model": model, "message_count": len(messages), "tool_count": len(tools)})
     _log_ollama_request("/api/chat", payload)
+    if OLLAMA_BYPASS:
+        _emit_ollama_debug(request_id, DebugStage.OLLAMA_RESPONSE, StageStatus.SUCCESS, output_data={"bypass": True})
+        response = _ollama_bypass_response(payload, request_id=request_id)
+        _log_ollama_response("/api/chat", response)
+        return response
     async with httpx.AsyncClient(timeout=120.0) as client:
         try:
             resp = await client.post(
