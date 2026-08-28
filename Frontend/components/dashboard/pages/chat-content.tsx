@@ -87,7 +87,7 @@ type MessageMeta = {
   agentId?: string;
 };
 
-export function ChatPageContent({ conversationId }: { conversationId?: string }) {
+export function ChatPageContent({ conversationId, externalAgentId, onAgentHandled }: { conversationId?: string; externalAgentId?: string; onAgentHandled?: () => void }) {
   const searchParams = useSearchParams();
   const urlConversationId = searchParams.get("conversation") || undefined;
   const activeConversationId = conversationId || urlConversationId;
@@ -109,6 +109,18 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, processingTime]);
+
+  const handleSendWithAgentRef = useRef(handleSendWithAgent);
+  handleSendWithAgentRef.current = handleSendWithAgent;
+
+  useEffect(() => {
+    if (!externalAgentId) return;
+    handleSendWithAgentRef.current(
+      agents.find((a) => a.id === externalAgentId)?.slashCommand ?? externalAgentId,
+      agents.find((a) => a.id === externalAgentId),
+    );
+    onAgentHandled?.();
+  }, [externalAgentId, onAgentHandled]);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
