@@ -13,6 +13,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional
 import httpx
 
 from app.logging_utils import logger as ollama_logger
+from app.debug_events import DebugEvent, DebugStage, StageStatus, get_debug_store
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 DEFAULT_CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", "llama3.2")
@@ -28,6 +29,25 @@ DEFAULT_OPTIONS: Dict[str, Any] = {
 
 class OllamaAdapterError(Exception):
     """Raised when Ollama returns a non-success response."""
+
+
+def _emit_ollama_debug(request_id: Optional[str], stage: DebugStage, status: StageStatus, **kwargs: Any) -> None:
+    try:
+        if not request_id:
+            return
+        store = get_debug_store()
+        store.append_event(
+            DebugEvent(
+                request_id=request_id,
+                stage=stage,
+                status=status,
+                service="ollama",
+                route="/api/chat",
+                **kwargs,
+            )
+        )
+    except Exception:
+        pass
 
 
 def _log_ollama_request(endpoint: str, payload: Dict[str, Any]) -> None:
@@ -57,6 +77,7 @@ async def generate(
     stream: bool = False,
     options: Optional[Dict[str, Any]] = None,
     format: Optional[str] = None,
+    request_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Send a non-streaming chat completion request to Ollama."""
     payload: Dict[str, Any] = {
@@ -68,6 +89,7 @@ async def generate(
         payload["options"] = options
     if format and not stream:
         payload["format"] = format
+    _emit_ollama_debug(request_id, DebugStage.OLLAMA_REQUEST, StageStatus.RUNNING, input_data={"model": model, "message_count": len(messages)})
     _log_ollama_request("/api/chat", payload)
     async with httpx.AsyncClient(timeout=120.0) as client:
         try:
@@ -76,12 +98,15 @@ async def generate(
                 json=payload,
             )
         except httpx.RequestError as exc:
+            _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, error=str(exc), error_type="RequestError")
             raise OllamaAdapterError(f"Ollama chat failed: {exc}") from exc
         if resp.status_code != 200:
+            _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, http_status=resp.status_code, error=resp.text)
             raise OllamaAdapterError(
                 f"Ollama chat failed ({resp.status_code}): {resp.text}"
             )
         data = resp.json()
+        _emit_ollama_debug(request_id, DebugStage.OLLAMA_RESPONSE, StageStatus.SUCCESS, output_data={"model": data.get("model"), "done": data.get("done")})
         _log_ollama_response("/api/chat", data)
         return data
 
@@ -91,6 +116,7 @@ async def stream(
     *,
     model: str = DEFAULT_CHAT_MODEL,
     options: Optional[Dict[str, Any]] = None,
+    request_id: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
     """Stream chat completion tokens from Ollama."""
     payload: Dict[str, Any] = {
@@ -100,6 +126,7 @@ async def stream(
     }
     if options:
         payload["options"] = options
+    _emit_ollama_debug(request_id, DebugStage.OLLAMA_REQUEST, StageStatus.RUNNING, input_data={"model": model, "message_count": len(messages)})
     _log_ollama_request("/api/chat", payload)
     async with httpx.AsyncClient(timeout=120.0) as client:
         try:
@@ -110,6 +137,7 @@ async def stream(
             ) as resp:
                 if resp.status_code != 200:
                     text = await resp.aread()
+                    _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, http_status=resp.status_code, error=text.decode())
                     raise OllamaAdapterError(
                         f"Ollama stream failed ({resp.status_code}): {text.decode()}"
                     )
@@ -128,6 +156,7 @@ async def stream(
                     except Exception:
                         continue
         except httpx.RequestError as exc:
+            _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, error=str(exc), error_type="RequestError")
             raise OllamaAdapterError(f"Ollama stream failed: {exc}") from exc
 
 
@@ -162,6 +191,7 @@ async def generate_with_tools(
     model: str = DEFAULT_CHAT_MODEL,
     options: Optional[Dict[str, Any]] = None,
     format: Optional[str] = None,
+    request_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Send a chat completion request with tool definitions."""
     payload: Dict[str, Any] = {
@@ -174,6 +204,7 @@ async def generate_with_tools(
         payload["options"] = options
     if format:
         payload["format"] = format
+    _emit_ollama_debug(request_id, DebugStage.OLLAMA_REQUEST, StageStatus.RUNNING, input_data={"model": model, "message_count": len(messages), "tool_count": len(tools)})
     _log_ollama_request("/api/chat", payload)
     async with httpx.AsyncClient(timeout=120.0) as client:
         try:
@@ -182,11 +213,14 @@ async def generate_with_tools(
                 json=payload,
             )
         except httpx.RequestError as exc:
+            _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, error=str(exc), error_type="RequestError")
             raise OllamaAdapterError(f"Ollama chat failed: {exc}") from exc
         if resp.status_code != 200:
+            _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, http_status=resp.status_code, error=resp.text)
             raise OllamaAdapterError(
                 f"Ollama chat failed ({resp.status_code}): {resp.text}"
             )
         data = resp.json()
+        _emit_ollama_debug(request_id, DebugStage.OLLAMA_RESPONSE, StageStatus.SUCCESS, output_data={"model": data.get("model"), "done": data.get("done")})
         _log_ollama_response("/api/chat", data)
         return data

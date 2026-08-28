@@ -302,14 +302,15 @@ async def _chat_with_tools(
     model: str = DEFAULT_CHAT_MODEL,
     conversation_id: Optional[str] = None,
     request: Optional[Request] = None,
+    request_id: Optional[str] = None,
 ) -> str:
     current_messages = messages[:]
     for _ in range(5):
         start = time.perf_counter()
-        result = await generate_with_tools(current_messages, FINANCIAL_TOOLS, model=model, format="json")
+        result = await generate_with_tools(current_messages, FINANCIAL_TOOLS, model=model, format="json", request_id=request_id)
         latency = (time.perf_counter() - start) * 1000
         log_llm_call(
-            request_id=get_request_id(request),
+            request_id=get_request_id(request) if request else request_id or "",
             user_id=user_id,
             conversation_id=conversation_id,
             model=model,
@@ -360,10 +361,11 @@ async def _ollama_stream_to_sse(
     user_id: str,
     conversation_id: str,
     token: str,
+    request_id: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
     full_reply = ""
     try:
-        async for token in stream(messages, model=model):
+        async for token in stream(messages, model=model, request_id=request_id):
             full_reply += token
             payload = json.dumps({"token": token})
             yield _sse_pack("token", payload)
@@ -441,6 +443,7 @@ async def chat(
     )
     _emit_debug_event(request_id, DebugStage.DATA_PROCESSING, StageStatus.SUCCESS, service="backend", output_data={"context_messages": len(context_messages)})
     token = _get_token(request)
+    _emit_debug_event(request_id, DebugStage.OLLAMA_REQUEST, StageStatus.RUNNING, service="backend", route="/chat", method="POST", input_data={"model": body.model or DEFAULT_CHAT_MODEL})
     try:
         raw_reply = await _chat_with_tools(
             context_messages,
@@ -449,6 +452,7 @@ async def chat(
             model=body.model or DEFAULT_CHAT_MODEL,
             conversation_id=conversation_id,
             request=request,
+            request_id=request_id,
         )
         _emit_debug_event(request_id, DebugStage.OLLAMA_RESPONSE, StageStatus.SUCCESS, service="backend", output_data={"reply_length": len(raw_reply)})
         structured = _parse_structured_response(raw_reply)
@@ -534,8 +538,9 @@ async def chat_stream(
         budget=get_context_budget(),
     )
     token = _get_token(request)
+    _emit_debug_event(request_id, DebugStage.OLLAMA_REQUEST, StageStatus.RUNNING, service="backend", route="/chat/stream", method="POST", input_data={"model": body.model or DEFAULT_CHAT_MODEL})
     return StreamingResponse(
-        _ollama_stream_to_sse(context_messages, model=body.model or DEFAULT_CHAT_MODEL, user_id=user_id, conversation_id=conversation_id, token=token),
+        _ollama_stream_to_sse(context_messages, model=body.model or DEFAULT_CHAT_MODEL, user_id=user_id, conversation_id=conversation_id, token=token, request_id=request_id),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -663,7 +668,7 @@ async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: N
         intent=intent.value,
     )
     _emit_debug_event(request_id, DebugStage.BACKEND_REQUEST, StageStatus.SUCCESS, service="backend", route="/chat/agent", http_status=200)
-    routed = await route_intent(intent, token, user_id, message)
+    routed = await route_intent(intent, token, user_id, message, request_id=request_id)
     response = routed.get("response") or ""
     if not response.strip():
         response = "I'm not sure how to help with that. Could you rephrase?"
