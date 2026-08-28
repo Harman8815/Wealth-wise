@@ -96,7 +96,6 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
   const [messageMeta, setMessageMeta] = useState<Record<number, MessageMeta>>({});
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [processingTime, setProcessingTime] = useState(0);
   const [processingMessage, setProcessingMessage] = useState("");
   const [slashQuery, setSlashQuery] = useState("");
@@ -162,7 +161,6 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
     if (!trimmed || isStreaming) return;
     setInput("");
     setSlashQuery("");
-    setError(null);
     const agentId = agent?.id;
     appendMessage("user", trimmed, agentId);
 
@@ -191,7 +189,7 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
               updateLastAssistant(fullReply ? fullReply + " [cancelled]" : "[cancelled]");
               toast.info("Generation stopped");
             } else {
-              setError(err.message);
+              updateLastAssistant(`Sorry, something went wrong: ${err.message}`);
               toast.error(err.message);
             }
           },
@@ -209,7 +207,7 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
               updateLastAssistant(fullReply ? fullReply + " [cancelled]" : "[cancelled]");
               toast.info("Generation stopped");
             } else {
-              setError(err.message);
+              updateLastAssistant(`Sorry, something went wrong: ${err.message}`);
               toast.error(err.message);
             }
           },
@@ -229,9 +227,12 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
           });
         }
       }
+      if (!fullReply && !structuredRef.current) {
+        updateLastAssistant("I couldn't generate a response. Please try rephrasing your question.");
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to send message";
-      setError(message);
+      updateLastAssistant(`Sorry, something went wrong: ${message}`);
       toast.error(message);
     } finally {
       clearTimer();
@@ -467,18 +468,6 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
                     {processingMessage} {formatTime(processingTime)}
                   </span>
                 )}
-              </div>
-            </div>
-          )}
-          {error && (
-            <div className="flex gap-3 justify-start">
-              <Avatar className="h-8 w-8 shrink-0">
-                <AvatarFallback className="bg-red-600 text-white">
-                  <AlertCircle className="h-4 w-4" />
-                </AvatarFallback>
-              </Avatar>
-              <div className="max-w-[80%] rounded-2xl rounded-bl-sm px-4 py-3 text-sm bg-red-950/50 text-red-200 border border-red-800/50">
-                {error}
               </div>
             </div>
           )}
