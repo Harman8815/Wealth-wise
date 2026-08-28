@@ -7,8 +7,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import relationship
 
 from app.db import Base
@@ -28,8 +27,8 @@ class ToolExecution(Base):
     user_id = Column(String(255), nullable=False, index=True)
     tool_name = Column(String(100), nullable=False)
     status = Column(Enum(ToolExecutionStatus), nullable=False, default=ToolExecutionStatus.success)
-    input_data = Column(JSONB, nullable=True)
-    output_data = Column(JSONB, nullable=True)
+    input_data = Column(JSON, nullable=True)
+    output_data = Column(JSON, nullable=True)
     error = Column(Text, nullable=True)
     latency_ms = Column(Float, nullable=True)
     executed_at = Column(DateTime, nullable=False, default=datetime.utcnow)

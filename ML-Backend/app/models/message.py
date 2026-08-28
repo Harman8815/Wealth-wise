@@ -7,8 +7,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import relationship
 from app.db import Base
 
@@ -27,7 +26,10 @@ class Message(Base):
     user_id = Column(String(255), nullable=False, index=True)
     role = Column(Enum(MessageRole), nullable=False)
     content = Column(Text, nullable=False)
-    structured_data = Column(JSONB, nullable=True)
-    extra_data = Column(JSONB, nullable=True)
+    structured_data = Column(JSON, nullable=True)
+    extra_data = Column(JSON, nullable=True)
     token_count = Column(Integer, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    conversation = relationship("Conversation", back_populates="messages")
+    tool_executions = relationship("ToolExecution", back_populates="message")
