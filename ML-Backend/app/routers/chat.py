@@ -608,12 +608,12 @@ async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: N
         intent=intent.value,
     )
     routed = await route_intent(intent, token, user_id, message)
-    if routed.get("response") is None:
-        return {
-            "intent": routed["intent"],
-            "response": "I'm not sure how to help with that. Could you rephrase?",
-            "fallback": True,
-        }
+    response = routed.get("response") or ""
+    if not response.strip():
+        response = "I'm not sure how to help with that. Could you rephrase?"
+        fallback = True
+    else:
+        fallback = routed.get("fallback", False)
     log_chat(
         request_id=request_id,
         user_id=user_id,
@@ -621,11 +621,12 @@ async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: N
         event="agent_response_generated",
         agent=agent_name or "auto",
         intent=intent.value,
-        response=routed.get("response"),
+        response=response,
     )
     return {
         "intent": routed["intent"],
-        "response": routed["response"],
+        "response": response,
         "data": routed.get("data"),
         "filters": routed.get("filters"),
+        "fallback": fallback,
     }

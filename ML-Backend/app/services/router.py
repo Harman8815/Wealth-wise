@@ -34,7 +34,9 @@ async def route_intent(
     )
     if intent == Intent.REPORT:
         report = await build_report(token, user_id)
-        narrative = process_response(report.get("narrative", "Report generated."))
+        narrative = process_response(report.get("narrative") or "Report generated successfully.")
+        if not narrative:
+            narrative = "Report generated successfully. I couldn't create a narrative summary, but the data is ready."
         log_agent(
             request_id="",
             user_id=user_id,
@@ -52,6 +54,8 @@ async def route_intent(
     if intent == Intent.CHART_ALERT:
         explanation = await explain_chart_or_alert({"message": message, "context": "chart or alert explanation request"})
         explanation = process_response(explanation or "No explanation available.")
+        if not explanation:
+            explanation = "I couldn't generate an explanation right now. Please try again."
         log_agent(
             request_id="",
             user_id=user_id,
@@ -68,6 +72,8 @@ async def route_intent(
     if intent == Intent.GOAL:
         answer = await answer_goal_question(token, user_id, message)
         answer = process_response(answer)
+        if not answer:
+            answer = "I couldn't generate a goal plan right now. Please try again."
         log_agent(
             request_id="",
             user_id=user_id,
@@ -84,6 +90,8 @@ async def route_intent(
     if intent == Intent.BUDGET:
         answer = await answer_budget_question(token, user_id, message)
         answer = process_response(answer)
+        if not answer:
+            answer = "I couldn't generate a budget analysis right now. Please try again."
         log_agent(
             request_id="",
             user_id=user_id,
@@ -117,6 +125,8 @@ async def route_intent(
     if intent == Intent.INSIGHTS:
         answer = await answer_insights_question(token, user_id, message)
         answer = process_response(answer)
+        if not answer:
+            answer = "I couldn't generate insights right now. Please try again."
         log_agent(
             request_id="",
             user_id=user_id,
@@ -133,6 +143,8 @@ async def route_intent(
     if intent == Intent.DB_CONTEXT:
         answer = await answer_database_question(message)
         answer = process_response(answer)
+        if not answer:
+            answer = "I couldn't answer that database question right now. Please try again."
         log_agent(
             request_id="",
             user_id=user_id,
@@ -149,6 +161,8 @@ async def route_intent(
     if intent == Intent.ALERTS:
         answer = await answer_alerts_question(token, user_id, message)
         answer = process_response(answer)
+        if not answer:
+            answer = "I couldn't analyze your alerts right now. Please try again."
         log_agent(
             request_id="",
             user_id=user_id,
@@ -182,6 +196,6 @@ async def route_intent(
     # general_chat fallback
     return {
         "intent": Intent.GENERAL_CHAT.value,
-        "response": None,
+        "response": "I'm not sure how to help with that. Could you rephrase?",
         "fallback": True,
     }
