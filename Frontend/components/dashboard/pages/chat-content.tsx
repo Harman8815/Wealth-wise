@@ -163,23 +163,21 @@ export function ChatPageContent({ conversationId, externalAgentId, onAgentHandle
     setInput("");
     setSlashQuery("");
     const agentId = agent?.id;
-    const requestId = debug.enabled ? debug.startTrace(trimmed) : undefined;
+    const requestId = debug.startTrace(trimmed);
     appendMessage("user", trimmed, agentId);
-    if (requestId) {
-      debug.appendEvent({ stage: "intent_detection", status: "running", service: "frontend" });
-      debug.appendEvent({
-        stage: "intent_detection",
-        status: "success",
-        service: "frontend",
-        output: { intent: agentId ?? "general_chat", agent: agentId ?? null },
-      });
-      debug.appendEvent({ stage: "agent_selection", status: "success", service: "frontend", output: { agent: agentId ?? null } });
-      debug.appendEvent({ stage: "backend_request", status: "running", service: "ml-backend", route: agentId ? "/chat/agent" : "/chat/stream", method: "POST" });
-      await sendDebugEvent(requestId, { stage: "user_request", status: "success", service: "frontend", input: { message: trimmed } });
-      await sendDebugEvent(requestId, { stage: "intent_detection", status: "success", service: "frontend", output: { intent: agentId ?? "general_chat" } });
-      await sendDebugEvent(requestId, { stage: "agent_selection", status: "success", service: "frontend", output: { agent: agentId ?? null } });
-      await sendDebugEvent(requestId, { stage: "backend_request", status: "running", service: "ml-backend", route: agentId ? "/chat/agent" : "/chat/stream", method: "POST" });
-    }
+    debug.appendEvent({ stage: "intent_detection", status: "running", service: "frontend" });
+    debug.appendEvent({
+      stage: "intent_detection",
+      status: "success",
+      service: "frontend",
+      output: { intent: agentId ?? "general_chat", agent: agentId ?? null },
+    });
+    debug.appendEvent({ stage: "agent_selection", status: "success", service: "frontend", output: { agent: agentId ?? null } });
+    debug.appendEvent({ stage: "backend_request", status: "running", service: "ml-backend", route: agentId ? "/chat/agent" : "/chat/stream", method: "POST" });
+    await sendDebugEvent(requestId, { stage: "user_request", status: "success", service: "frontend", input: { message: trimmed } });
+    await sendDebugEvent(requestId, { stage: "intent_detection", status: "success", service: "frontend", output: { intent: agentId ?? "general_chat" } });
+    await sendDebugEvent(requestId, { stage: "agent_selection", status: "success", service: "frontend", output: { agent: agentId ?? null } });
+    await sendDebugEvent(requestId, { stage: "backend_request", status: "running", service: "ml-backend", route: agentId ? "/chat/agent" : "/chat/stream", method: "POST" });
 
     try {
       setIsStreaming(true);
@@ -260,21 +258,21 @@ export function ChatPageContent({ conversationId, externalAgentId, onAgentHandle
       }
       if (!fullReply && !structuredRef.current) {
         updateLastAssistant("I couldn't generate a response. Please try rephrasing your question.");
+        if (requestId) {
+          debug.appendEvent({ stage: "error", status: "error", service: "ml-backend", error: "Empty response", errorType: "EmptyResponse" });
+          await sendDebugEvent(requestId, { stage: "error", status: "error", service: "ml-backend", error: "Empty response", error_type: "EmptyResponse" });
+        }
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to send message";
       updateLastAssistant(`Sorry, something went wrong: ${message}`);
       toast.error(message);
-      if (requestId) {
-        debug.appendEvent({ stage: "error", status: "error", service: "frontend", error: message, errorType: err instanceof Error ? err.name : "unknown" });
-        await sendDebugEvent(requestId, { stage: "error", status: "error", service: "frontend", error: message, error_type: err instanceof Error ? err.name : "unknown" });
-      }
+      debug.appendEvent({ stage: "error", status: "error", service: "frontend", error: message, errorType: err instanceof Error ? err.name : "unknown" });
+      await sendDebugEvent(requestId, { stage: "error", status: "error", service: "frontend", error: message, error_type: err instanceof Error ? err.name : "unknown" });
     } finally {
-      if (requestId) {
-        debug.appendEvent({ stage: "backend_request", status: "success", service: "ml-backend" });
-        await sendDebugEvent(requestId, { stage: "backend_request", status: "success", service: "ml-backend" });
-        debug.finishTrace();
-      }
+      debug.appendEvent({ stage: "backend_request", status: "success", service: "ml-backend" });
+      await sendDebugEvent(requestId, { stage: "backend_request", status: "success", service: "ml-backend" });
+      debug.finishTrace();
       clearTimer();
       setIsStreaming(false);
       abortControllerRef.current = null;

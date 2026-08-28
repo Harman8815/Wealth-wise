@@ -1,12 +1,13 @@
 "use client";
 
-import React, { Suspense } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DebugTimeline } from "@/components/debug/debug-timeline";
 import { useDebug } from "@/components/debug/debug-context";
 import { ChatPageContent } from "@/components/dashboard/pages/chat-content";
 
 const ML_BACKEND_URL = process.env.NEXT_PUBLIC_ML_BACKEND_URL || "http://localhost:8100";
+const OLLAMA_URL = process.env.NEXT_PUBLIC_OLLAMA_URL || "http://localhost:11434";
 
 function getAuthHeader(): Record<string, string> {
   const token = localStorage.getItem("access_token");
@@ -38,6 +39,17 @@ async function clearTraces() {
   return res.json();
 }
 
+async function checkOllamaHealth(): Promise<{ ok: boolean; latencyMs?: number }> {
+  const start = Date.now();
+  try {
+    const res = await fetch(`${OLLAMA_URL}/`, { method: "GET", signal: AbortSignal.timeout(3000) });
+    const latencyMs = Date.now() - start;
+    return { ok: res.ok, latencyMs };
+  } catch {
+    return { ok: false };
+  }
+}
+
 function ChatPane() {
   return <ChatPageContent />;
 }
@@ -46,11 +58,13 @@ export default function DebugPage() {
   const { traces: localTraces, clearTraces: clearLocal, enabled } = useDebug();
   const queryClient = useQueryClient();
   const [selectedTraceId, setSelectedTraceId] = React.useState<string | null>(null);
+  const [ollamaStatus, setOllamaStatus] = useState<{ ok: boolean; latencyMs?: number }>({ ok: false });
 
   const { data: backendTraces, refetch } = useQuery({
     queryKey: ["debug-traces"],
     queryFn: fetchTraces,
-    enabled: false,
+    enabled: true,
+    refetchInterval: 2000,
   });
 
   const clearMutation = useMutation({
@@ -61,12 +75,13 @@ export default function DebugPage() {
     },
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
+    checkOllamaHealth().then(setOllamaStatus);
     const interval = setInterval(() => {
-      refetch();
-    }, 2000);
+      checkOllamaHealth().then(setOllamaStatus);
+    }, 3000);
     return () => clearInterval(interval);
-  }, [refetch]);
+  }, []);
 
   const traces = selectedTraceId
     ? localTraces.filter((t) => t.requestId === selectedTraceId)
@@ -89,6 +104,11 @@ export default function DebugPage() {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <span className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] ${ollamaStatus.ok ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
+                <span className={`h-2 w-2 rounded-full ${ollamaStatus.ok ? "bg-emerald-400" : "bg-red-400"}`} />
+                Ollama {ollamaStatus.ok ? "online" : "offline"}
+                {ollamaStatus.latencyMs != null && ` · ${ollamaStatus.latencyMs}ms`}
+              </span>
               <button
                 type="button"
                 onClick={() => refetch()}
