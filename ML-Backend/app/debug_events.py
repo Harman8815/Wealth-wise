@@ -1,13 +1,17 @@
 """
-Debug event schema for ML-Backend.
+Debug event schema and in-memory store for ML-Backend.
 
 Defines the structure for structured debug events emitted during
-AI chat pipeline execution.
+AI chat pipeline execution, plus the shared event store used by
+both the API routers and the Ollama adapter.
 """
 from __future__ import annotations
 
+import asyncio
+import time
+from typing import Any, Dict, List, Optional
+
 from enum import Enum
-from typing import Any, Dict, Optional
 
 
 class DebugStage(str, Enum):
@@ -74,5 +78,63 @@ class DebugEvent:
             "output": self.output_data,
             "error": self.error,
             "error_type": self.error_type,
-            "timestamp": __import__("time").time(),
+            "timestamp": time.time(),
         }
+
+
+class InMemoryDebugStore:
+    def __init__(self) -> None:
+        self.traces: Dict[str, List[DebugEvent]] = {}
+        self.user_messages: Dict[str, str] = {}
+        self._subscribers: List[asyncio.Queue] = []
+
+    def start_trace(self, request_id: str, user_message: str) -> None:
+        self.traces.setdefault(request_id, [])
+        self.user_messages[request_id] = user_message
+        self.traces[request_id].append(
+            DebugEvent(
+                request_id=request_id,
+                stage=DebugStage.USER_REQUEST,
+                status=StageStatus.SUCCESS,
+                service="backend",
+                input_data={"message": user_message},
+            )
+        )
+
+    def append_event(self, event: DebugEvent) -> None:
+        self.traces.setdefault(event.request_id, []).append(event)
+        for q in list(self._subscribers):
+            try:
+                q.put_nowait(event)
+            except asyncio.QueueFull:
+                pass
+
+    def get_trace(self, request_id: str) -> Optional[Dict[str, Any]]:
+        events = self.traces.get(request_id)
+        if not events:
+            return None
+        return {
+            "request_id": request_id,
+            "user_message": self.user_messages.get(request_id, ""),
+            "events": [e.to_dict() for e in events],
+        }
+
+    def clear(self) -> None:
+        self.traces.clear()
+        self.user_messages.clear()
+
+    def subscribe(self) -> asyncio.Queue:
+        q: asyncio.Queue = asyncio.Queue(maxsize=100)
+        self._subscribers.append(q)
+        return q
+
+    def unsubscribe(self, q: asyncio.Queue) -> None:
+        if q in self._subscribers:
+            self._subscribers.remove(q)
+
+
+debug_store = InMemoryDebugStore()
+
+
+def get_debug_store() -> InMemoryDebugStore:
+    return debug_store
