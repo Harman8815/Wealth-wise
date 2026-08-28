@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { DebugEvent, DebugTrace, StageStatus } from "./debug-context";
 import { ChevronDown, ChevronRight, CheckCircle2, XCircle, Loader2, Clock } from "lucide-react";
 
@@ -101,9 +101,18 @@ function StageRow({ event, defaultExpanded }: { event: DebugEvent; defaultExpand
 }
 
 export function DebugTimeline({ traces }: { traces: DebugTrace[] }) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const latestTraceCount = traces.reduce((sum, t) => sum + t.events.length, 0);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [latestTraceCount]);
+
+  const sorted = [...traces].sort((a, b) => b.startedAt - a.startedAt);
+
   return (
     <div className="space-y-3">
-      {traces.map((trace) => (
+      {sorted.map((trace) => (
         <div key={trace.requestId} className="rounded-xl border border-white/5 bg-white/5 p-3">
           <div className="flex items-center justify-between">
             <div>
@@ -124,9 +133,10 @@ export function DebugTimeline({ traces }: { traces: DebugTrace[] }) {
       ))}
       {traces.length === 0 && (
         <div className="rounded-xl border border-dashed border-white/10 p-6 text-center text-xs text-slate-400">
-          No debug traces yet. Enable debug mode and send a message.
+          No debug traces yet. Send a message from the chat pane.
         </div>
       )}
+      <div ref={bottomRef} />
     </div>
   );
 }

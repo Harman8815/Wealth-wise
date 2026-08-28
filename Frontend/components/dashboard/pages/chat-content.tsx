@@ -257,10 +257,11 @@ export function ChatPageContent({ conversationId, externalAgentId, onAgentHandle
         await sendDebugEvent(requestId, { stage: "frontend_render", status: "success", service: "frontend", output: { reply: fullReply || "empty" } });
       }
       if (!fullReply && !structuredRef.current) {
-        updateLastAssistant("I couldn't generate a response. Please try rephrasing your question.");
+        const emptyMessage = "I couldn't generate a response. Please try rephrasing your question.";
+        updateLastAssistant(emptyMessage);
         if (requestId) {
-          debug.appendEvent({ stage: "error", status: "error", service: "ml-backend", error: "Empty response", errorType: "EmptyResponse" });
-          await sendDebugEvent(requestId, { stage: "error", status: "error", service: "ml-backend", error: "Empty response", error_type: "EmptyResponse" });
+          debug.appendEvent({ stage: "error", status: "error", service: "ml-backend", error: emptyMessage, errorType: "EmptyResponse" });
+          await sendDebugEvent(requestId, { stage: "error", status: "error", service: "ml-backend", error: emptyMessage, error_type: "EmptyResponse" });
         }
       }
     } catch (err) {

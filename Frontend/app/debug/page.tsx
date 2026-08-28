@@ -85,7 +85,7 @@ export default function DebugPage() {
 
   const traces = selectedTraceId
     ? localTraces.filter((t) => t.requestId === selectedTraceId)
-    : localTraces;
+    : [...localTraces].sort((a, b) => b.startedAt - a.startedAt);
 
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-[#0B0F19]">
