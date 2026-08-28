@@ -44,8 +44,45 @@ from app.services.tools import (
     query_transactions_dynamic,
 )
 from app.services.alerts_agent import answer_alerts_question
+from app.debug_events import DebugEvent, DebugStage, StageStatus, get_debug_store
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+
+def _emit_debug_event(
+    request_id: str,
+    stage: DebugStage,
+    status: StageStatus,
+    service: str = "backend",
+    route: Optional[str] = None,
+    method: Optional[str] = None,
+    http_status: Optional[int] = None,
+    duration_ms: Optional[float] = None,
+    input_data: Optional[Dict[str, Any]] = None,
+    output_data: Optional[Dict[str, Any]] = None,
+    error: Optional[str] = None,
+    error_type: Optional[str] = None,
+) -> None:
+    try:
+        store = get_debug_store()
+        store.append_event(
+            DebugEvent(
+                request_id=request_id,
+                stage=stage,
+                status=status,
+                service=service,
+                route=route,
+                method=method,
+                http_status=http_status,
+                duration_ms=duration_ms,
+                input_data=input_data,
+                output_data=output_data,
+                error=error,
+                error_type=error_type,
+            )
+        )
+    except Exception:
+        pass
 
 
 def _sse_pack(event: str, data: str) -> str:
@@ -378,6 +415,7 @@ async def chat(
     _: None = Depends(enforce_rate_limit),
 ) -> ChatResponse:
     request_id = get_request_id(request)
+    _emit_debug_event(request_id, DebugStage.BACKEND_REQUEST, StageStatus.RUNNING, service="backend", route="/chat", method="POST", input_data={"message": body.message})
     log_chat(
         request_id=request_id,
         user_id=user_id,
@@ -389,6 +427,7 @@ async def chat(
     if conversation_id:
         conv = get_conversation(user_id, conversation_id)
         if not conv:
+            _emit_debug_event(request_id, DebugStage.ERROR, StageStatus.ERROR, service="backend", route="/chat", http_status=404, error="Conversation not found")
             raise HTTPException(status_code=404, detail="Conversation not found.")
     else:
         conv = create_conversation(user_id=user_id)
@@ -400,6 +439,7 @@ async def chat(
         question=body.message,
         budget=get_context_budget(),
     )
+    _emit_debug_event(request_id, DebugStage.DATA_PROCESSING, StageStatus.SUCCESS, service="backend", output_data={"context_messages": len(context_messages)})
     token = _get_token(request)
     try:
         raw_reply = await _chat_with_tools(
@@ -410,7 +450,9 @@ async def chat(
             conversation_id=conversation_id,
             request=request,
         )
+        _emit_debug_event(request_id, DebugStage.OLLAMA_RESPONSE, StageStatus.SUCCESS, service="backend", output_data={"reply_length": len(raw_reply)})
         structured = _parse_structured_response(raw_reply)
+        _emit_debug_event(request_id, DebugStage.RESPONSE_PARSING, StageStatus.SUCCESS, service="backend", output_data={"type": structured.get("type")})
         reply = structured.get("text") or structured.get("markdown") or raw_reply
         if structured.get("type") in ("text", "markdown"):
             reply = process_response(reply)
@@ -429,6 +471,7 @@ async def chat(
             structured_data=structured if structured.get("type") != "text" else None,
             extra_data={"model": body.model or DEFAULT_CHAT_MODEL},
         )
+        _emit_debug_event(request_id, DebugStage.FRONTEND_RENDER, StageStatus.SUCCESS, service="backend", output_data={"reply": reply})
         log_chat(
             request_id=request_id,
             user_id=user_id,
@@ -436,8 +479,10 @@ async def chat(
             event="response_generated",
             response=reply,
         )
+        _emit_debug_event(request_id, DebugStage.BACKEND_REQUEST, StageStatus.SUCCESS, service="backend", route="/chat", http_status=200)
         return ChatResponse(reply=reply, model=body.model or DEFAULT_CHAT_MODEL, conversation_id=conversation_id, structured=structured)
     except OllamaAdapterError as exc:
+        _emit_debug_event(request_id, DebugStage.ERROR, StageStatus.ERROR, service="backend", route="/chat", http_status=502, error=str(exc), error_type="OllamaAdapterError")
         log_chat(
             request_id=request_id,
             user_id=user_id,
@@ -446,6 +491,9 @@ async def chat(
             error=str(exc),
         )
         raise HTTPException(status_code=502, detail=str(exc))
+    except Exception as exc:
+        _emit_debug_event(request_id, DebugStage.ERROR, StageStatus.ERROR, service="backend", route="/chat", http_status=500, error=str(exc), error_type=type(exc).__name__)
+        raise
 
 
 @router.post("/stream")
@@ -567,6 +615,7 @@ async def refresh_db_context():
 @router.post("/agent")
 async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: None = Depends(enforce_rate_limit)):
     request_id = get_request_id(request)
+    _emit_debug_event(request_id, DebugStage.BACKEND_REQUEST, StageStatus.RUNNING, service="backend", route="/chat/agent", method="POST", input_data={"message": body.get("message"), "agent": body.get("agent")})
     log_chat(
         request_id=request_id,
         user_id=user_id,
@@ -576,17 +625,20 @@ async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: N
     )
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):
+        _emit_debug_event(request_id, DebugStage.ERROR, StageStatus.ERROR, service="backend", route="/chat/agent", http_status=401, error="Missing or invalid Authorization header")
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header.")
     token = auth_header.split(" ")[1]
     body = await request.json()
     message = body.get("message", "")
     if not message:
+        _emit_debug_event(request_id, DebugStage.ERROR, StageStatus.ERROR, service="backend", route="/chat/agent", http_status=400, error="Missing message")
         raise HTTPException(status_code=400, detail="Missing message.")
     agent_name = body.get("agent")
     if agent_name:
         from app.services.agents import get_agent
         agent_entry = get_agent(agent_name)
         if not agent_entry:
+            _emit_debug_event(request_id, DebugStage.ERROR, StageStatus.ERROR, service="backend", route="/chat/agent", http_status=400, error=f"Unknown agent: {agent_name}")
             raise HTTPException(status_code=400, detail=f"Unknown agent: {agent_name}")
         slash_command = agent_entry.get("slash_command", f"/{agent_name}")
         if message.startswith(slash_command):
@@ -598,7 +650,10 @@ async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: N
         except ValueError:
             intent = Intent.GENERAL_CHAT
     else:
+        _emit_debug_event(request_id, DebugStage.INTENT_DETECTION, StageStatus.RUNNING, service="backend")
         intent = await classify_intent(message)
+        _emit_debug_event(request_id, DebugStage.INTENT_DETECTION, StageStatus.SUCCESS, service="backend", output_data={"intent": intent.value})
+    _emit_debug_event(request_id, DebugStage.AGENT_SELECTION, StageStatus.SUCCESS, service="backend", output_data={"agent": agent_name or "auto", "intent": intent.value})
     log_chat(
         request_id=request_id,
         user_id=user_id,
@@ -607,6 +662,7 @@ async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: N
         agent=agent_name or "auto",
         intent=intent.value,
     )
+    _emit_debug_event(request_id, DebugStage.BACKEND_REQUEST, StageStatus.SUCCESS, service="backend", route="/chat/agent", http_status=200)
     routed = await route_intent(intent, token, user_id, message)
     response = routed.get("response") or ""
     if not response.strip():
@@ -614,6 +670,7 @@ async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: N
         fallback = True
     else:
         fallback = routed.get("fallback", False)
+    _emit_debug_event(request_id, DebugStage.FRONTEND_RENDER, StageStatus.SUCCESS, service="backend", output_data={"response": response})
     log_chat(
         request_id=request_id,
         user_id=user_id,
