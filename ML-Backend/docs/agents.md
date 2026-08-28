@@ -1,106 +1,179 @@
-# Agent Reference
+# Agent Test Reference
 
-## Registered Agents
+Base endpoint: `POST /chat/agent`
 
-| Agent key | Slash command | Intent | Handler | Description |
-|-----------|---------------|--------|---------|-------------|
-| `report` | `/report` | `report` | `route_intent` | Generate a comprehensive financial report with income, expenses, savings rate, and goal progress. |
-| `chart_alert` | `/explain` | `chart_alert` | `route_intent` | Explain charts, alerts, or financial visualizations in plain language. |
-| `alert` | `/alert` | `chart_alert` | `route_intent` | Explain financial alerts in plain language. |
-| `goal` | `/goal` | `goal` | `route_intent` | Get help with financial goal planning, tracking progress, and projections. |
-| `budget` | `/budget` | `budget` | `route_intent` | Get budget analysis, variance reports, and actionable budget recommendations. |
-| `transaction_search` | `/search` | `transaction_search` | `route_intent` | Search transactions using natural language queries. |
-| `insights` | `/insights` | `insights` | `answer_insights_question` | Get AI-generated financial insights and analysis based on your spending patterns. |
-| `general_chat` | `/chat` | `general_chat` | `fallback` | General financial assistant chat without specialized tools. |
-| `db_context` | `/db` | `db_context` | `answer_database_question` | Inspect the database schema, tables, columns, and relationships. |
-
-## Friendly Aliases
-
-The `/chat/agent` endpoint accepts these short aliases and maps them to the real agent keys:
-
-- `search` → `transaction_search`
-- `insights` → `insights`
-- `report` → `report`
-- `alert` → `alert`
-- `chart_alert` → `chart_alert`
-- `goal` → `goal`
-- `budget` → `budget`
-- `chat` → `general_chat`
-- `db` → `db_context`
-
-## How Agents Are Selected
-
-When calling `POST /chat/agent`:
-
-1. Send `"agent": "<agent_key_or_alias>"` in the JSON body.
-2. Send `"message": "<user message>"`.
-3. The backend resolves the agent via `get_agent()`.
-4. If the message starts with the agent's slash command, the slash command prefix is stripped before routing.
-5. The `intent` field from the registry is used for routing.
-6. If no `agent` field is provided, intent is auto-classified from the message.
-
-## Example API Call
-
-```bash
-curl -X POST http://localhost:8100/chat/agent \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "agent": "search",
-    "message": "Show me all transactions over $100 last month"
-  }'
+Common headers:
+```
+Authorization: Bearer <token>
+Content-Type: application/json
 ```
 
-## Testing Checklist
+Common body fields:
+- `agent`: agent key or alias
+- `message`: user message
 
-Use this checklist to verify each agent works end-to-end.
+---
 
-### 1. `transaction_search` (`/search`, alias: `search`)
-- [ ] Agent resolves without `Unknown agent` error.
-- [ ] Natural language query returns transaction results.
-- [ ] Slash command `/search` prefix is stripped correctly.
+## 1. `transaction_search` (`/search`, alias: `search`)
 
-### 2. `report` (`/report`)
-- [ ] Returns a financial report structure.
-- [ ] Handles missing data gracefully.
+Handler: `search_transactions_nl(token, user_id, message)`
 
-### 3. `chart_alert` (`/explain`)
-- [ ] Accepts questions about charts/alerts.
-- [ ] Returns plain-language explanation.
+Request body:
+```json
+{
+  "agent": "search",
+  "message": "Show me all Starbucks transactions over $50 in the last 30 days"
+}
+```
 
-### 4. `alert` (`/alert`)
-- [ ] Accepts questions about alerts.
-- [ ] Returns alert explanation.
+Expected response keys: `intent`, `response`, `data`, `filters`
 
-### 5. `goal` (`/goal`)
-- [ ] Accepts goal-related questions.
-- [ ] Returns planning/projection info.
+---
 
-### 6. `budget` (`/budget`)
-- [ ] Accepts budget questions.
-- [ ] Returns analysis and recommendations.
+## 2. `report` (`/report`)
 
-### 7. `insights` (`/insights`)
-- [ ] Returns AI-generated insights.
-- [ ] Uses `answer_insights_question` handler directly.
+Handler: `build_report(token, user_id)`
 
-### 8. `general_chat` (`/chat`, alias: `chat`)
-- [ ] Falls back for general queries.
-- [ ] Returns a conversational response.
+Request body:
+```json
+{
+  "agent": "report",
+  "message": "Generate my monthly financial report"
+}
+```
 
-### 9. `db_context` (`/db`, alias: `db`)
-- [ ] Accepts database schema questions.
-- [ ] Returns schema/table/column info.
+Expected response keys: `intent`, `response`, `data`
 
-## Subagent Testing
+---
 
-Subagents are additional specialized handlers that can be invoked through the main agents or directly via the routing layer. To test subagents:
+## 3. `chart_alert` (`/explain`)
 
-1. Check `app/services/router.py` for how intents are dispatched to handlers.
-2. Check `app/services/assistants.py` for `answer_budget_question` and `answer_goal_question`.
-3. Check `app/services/insights_agent.py` for `answer_insights_question`.
-4. Check `app/services/reports.py` for `build_report`.
-5. Check `app/services/tools.py` for `search_transactions_nl`.
-6. Check `app/services/db_agent.py` for `answer_database_question`.
+Handler: `explain_chart_or_alert({"message": message, "context": "chart or alert explanation request"})`
 
-Each subagent can be tested by sending a request with the corresponding `agent` field and verifying the response matches the expected structure for that domain.
+Request body:
+```json
+{
+  "agent": "chart_alert",
+  "message": "Explain the spending trend chart for this month"
+}
+```
+
+Expected response keys: `intent`, `response`
+
+---
+
+## 4. `alert` (`/alert`)
+
+Handler: `answer_alerts_question(token, user_id, message)`
+
+Request body:
+```json
+{
+  "agent": "alert",
+  "message": "Why did I get an overspending alert?"
+}
+```
+
+Expected response keys: `intent`, `response`
+
+---
+
+## 5. `goal` (`/goal`)
+
+Handler: `answer_goal_question(token, user_id, message)`
+
+Request body:
+```json
+{
+  "agent": "goal",
+  "message": "How much do I need to save monthly to reach my vacation goal?"
+}
+```
+
+Expected response keys: `intent`, `response`
+
+---
+
+## 6. `budget` (`/budget`)
+
+Handler: `answer_budget_question(token, user_id, message)`
+
+Request body:
+```json
+{
+  "agent": "budget",
+  "message": "Am I overspending on dining this month?"
+}
+```
+
+Expected response keys: `intent`, `response`
+
+---
+
+## 7. `insights` (`/insights`)
+
+Handler: `answer_insights_question(token, user_id, message)`
+
+Request body:
+```json
+{
+  "agent": "insights",
+  "message": "What are my top spending categories this quarter?"
+}
+```
+
+Expected response keys: `intent`, `response`
+
+---
+
+## 8. `general_chat` (`/chat`, alias: `chat`)
+
+Handler: fallback
+
+Request body:
+```json
+{
+  "agent": "chat",
+  "message": "Hello, how are you?"
+}
+```
+
+Expected response keys: `intent`, `response`, `fallback`
+
+---
+
+## 9. `db_context` (`/db`, alias: `db`)
+
+Handler: `answer_database_question(message)`
+
+Request body:
+```json
+{
+  "agent": "db",
+  "message": "What tables are in the database?"
+}
+```
+
+Expected response keys: `intent`, `response`
+
+---
+
+## Subagents
+
+Subagents are the actual implementation functions called by the router. You can test them indirectly through the agents above, or directly by calling the handler functions from a Python shell or test script.
+
+| Subagent | File | Function |
+|----------|------|----------|
+| Budget analysis | `app/services/assistants.py` | `answer_budget_question(token, user_id, question)` |
+| Goal planning | `app/services/assistants.py` | `answer_goal_question(token, user_id, question)` |
+| Insights | `app/services/insights_agent.py` | `answer_insights_question(token, user_id, question)` |
+| Report | `app/services/reports.py` | `build_report(token, user_id)` |
+| Transaction search | `app/services/tools.py` | `search_transactions_nl(token, user_id, query)` |
+| Database schema | `app/services/db_agent.py` | `answer_database_question(question)` |
+
+To test a subagent directly:
+```python
+from app.services.assistants import answer_budget_question
+answer = await answer_budget_question(token="<token>", user_id="<user_id>", question="Am I overspending on groceries?")
+print(answer)
+```
