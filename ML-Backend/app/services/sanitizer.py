@@ -25,12 +25,18 @@ BANNED_PATTERNS: List[tuple[re.Pattern, str]] = [
     (re.compile(r"[\s\n]+$", re.IGNORECASE), ""),
 ]
 
+_HTML_TAG_RE = re.compile(r"<[^>]+>")
+
 
 def strip_preamble(text: str) -> str:
     cleaned = text
     for pattern, replacement in BANNED_PATTERNS:
         cleaned = pattern.sub(replacement, cleaned).strip()
     return cleaned.strip()
+
+
+def strip_html_tags(text: str) -> str:
+    return _HTML_TAG_RE.sub("", text)
 
 
 def truncate(text: str, max_chars: int = 500) -> str:
@@ -68,7 +74,8 @@ def post_process(
     max_chars: int = 500,
     fallback: str = "I couldn't generate a response. Please try again.",
 ) -> str:
-    cleaned = strip_preamble(text)
+    cleaned = strip_html_tags(text)
+    cleaned = strip_preamble(cleaned)
     cleaned = deduplicate_sentences(cleaned)
     cleaned = truncate(cleaned, max_chars=max_chars)
     cleaned = sanity_check(cleaned, fallback=fallback)

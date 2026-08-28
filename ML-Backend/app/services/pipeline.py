@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from app.services.sanitizer import deduplicate_sentences, strip_preamble, truncate
+from app.services.sanitizer import deduplicate_sentences, strip_html_tags, strip_preamble, truncate
 
 
 def process_response(
@@ -19,7 +19,8 @@ def process_response(
     fallback: str = "I couldn't generate a response. Please try again.",
 ) -> str:
     """Run the full post-processing pipeline on a raw model response."""
-    cleaned = strip_preamble(text)
+    cleaned = strip_html_tags(text)
+    cleaned = strip_preamble(cleaned)
     cleaned = deduplicate_sentences(cleaned)
     cleaned = truncate(cleaned, max_chars=max_chars)
     if len(cleaned.strip()) < min_chars:
