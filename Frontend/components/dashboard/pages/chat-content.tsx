@@ -164,6 +164,9 @@ export function ChatPageContent({ conversationId, externalAgentId, onAgentHandle
     setSlashQuery("");
     const agentId = agent?.id;
     const requestId = debug.startTrace(trimmed);
+    if (debug.enabled) {
+      debug.connectStream(requestId);
+    }
     appendMessage("user", trimmed, agentId);
     debug.appendEvent({ stage: "intent_detection", status: "running", service: "frontend" });
     debug.appendEvent({

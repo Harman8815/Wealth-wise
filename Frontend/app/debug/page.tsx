@@ -1,43 +1,11 @@
 "use client";
 
 import React, { Suspense, useEffect, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DebugTimeline } from "@/components/debug/debug-timeline";
 import { useDebug } from "@/components/debug/debug-context";
 import { ChatPageContent } from "@/components/dashboard/pages/chat-content";
 
-const ML_BACKEND_URL = process.env.NEXT_PUBLIC_ML_BACKEND_URL || "http://localhost:8100";
 const OLLAMA_URL = process.env.NEXT_PUBLIC_OLLAMA_URL || "http://localhost:11434";
-
-function getAuthHeader(): Record<string, string> {
-  const token = localStorage.getItem("access_token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-async function fetchTraces() {
-  const res = await fetch(`${ML_BACKEND_URL}/debug/traces`, {
-    headers: getAuthHeader(),
-  });
-  if (!res.ok) throw new Error("Failed to load debug traces");
-  return res.json();
-}
-
-async function fetchTrace(requestId: string) {
-  const res = await fetch(`${ML_BACKEND_URL}/debug/traces/${requestId}`, {
-    headers: getAuthHeader(),
-  });
-  if (!res.ok) throw new Error("Failed to load trace");
-  return res.json();
-}
-
-async function clearTraces() {
-  const res = await fetch(`${ML_BACKEND_URL}/debug/traces`, {
-    method: "DELETE",
-    headers: getAuthHeader(),
-  });
-  if (!res.ok) throw new Error("Failed to clear traces");
-  return res.json();
-}
 
 async function checkOllamaHealth(): Promise<{ ok: boolean; latencyMs?: number }> {
   const start = Date.now();
@@ -55,25 +23,9 @@ function ChatPane() {
 }
 
 export default function DebugPage() {
-  const { traces: localTraces, clearTraces: clearLocal, enabled } = useDebug();
-  const queryClient = useQueryClient();
+  const { traces, clearTraces: clearLocal, enabled, connectStream } = useDebug();
   const [selectedTraceId, setSelectedTraceId] = React.useState<string | null>(null);
   const [ollamaStatus, setOllamaStatus] = useState<{ ok: boolean; latencyMs?: number }>({ ok: false });
-
-  const { data: backendTraces, refetch } = useQuery({
-    queryKey: ["debug-traces"],
-    queryFn: fetchTraces,
-    enabled: true,
-    refetchInterval: 2000,
-  });
-
-  const clearMutation = useMutation({
-    mutationFn: clearTraces,
-    onSuccess: () => {
-      clearLocal();
-      queryClient.invalidateQueries({ queryKey: ["debug-traces"] });
-    },
-  });
 
   useEffect(() => {
     checkOllamaHealth().then(setOllamaStatus);
@@ -83,9 +35,10 @@ export default function DebugPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const traces = selectedTraceId
-    ? localTraces.filter((t) => t.requestId === selectedTraceId)
-    : [...localTraces].sort((a, b) => b.startedAt - a.startedAt);
+  const sorted = [...traces].sort((a, b) => b.startedAt - a.startedAt);
+  const tracesToShow = selectedTraceId
+    ? sorted.filter((t) => t.requestId === selectedTraceId)
+    : sorted;
 
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-[#0B0F19]">
@@ -100,7 +53,7 @@ export default function DebugPage() {
             <div>
               <h2 className="text-xs font-semibold text-white">Debug Trace</h2>
               <p className="text-[11px] text-slate-400">
-                {enabled ? "Debug mode is ON" : "Enable debug mode to capture traces."}
+                {enabled ? "Debug mode is ON — receiving live events" : "Enable debug mode to capture traces."}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -111,42 +64,35 @@ export default function DebugPage() {
               </span>
               <button
                 type="button"
-                onClick={() => refetch()}
-                className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] text-white hover:bg-white/10"
-              >
-                Refresh
-              </button>
-              <button
-                type="button"
-                onClick={() => clearMutation.mutate()}
+                onClick={clearLocal}
                 className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] text-white hover:bg-white/10"
               >
                 Clear
               </button>
             </div>
           </div>
-          {backendTraces?.traces?.length > 0 && (
+          {traces.length > 0 && (
             <div className="mt-2 flex gap-2 overflow-x-auto">
-              {backendTraces.traces.map((trace: any) => (
+              {sorted.map((trace) => (
                 <button
-                  key={trace.request_id}
+                  key={trace.requestId}
                   type="button"
-                  onClick={() => setSelectedTraceId(trace.request_id)}
+                  onClick={() => setSelectedTraceId(trace.requestId)}
                   className={`shrink-0 rounded-lg border px-2.5 py-1 text-left text-[11px] ${
-                    selectedTraceId === trace.request_id
+                    selectedTraceId === trace.requestId
                       ? "border-blue-500 bg-blue-500/10 text-blue-300"
                       : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"
                   }`}
                 >
-                  <div className="font-medium">{trace.request_id}</div>
-                  <div className="text-slate-400">{trace.user_message}</div>
+                  <div className="font-medium">{trace.requestId}</div>
+                  <div className="text-slate-400">{trace.userMessage}</div>
                 </button>
               ))}
             </div>
           )}
         </div>
         <div className="flex-1 overflow-auto px-4 py-3">
-          <DebugTimeline traces={traces} />
+          <DebugTimeline traces={tracesToShow} />
         </div>
       </div>
     </div>

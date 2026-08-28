@@ -376,18 +376,28 @@ async def _ollama_stream_to_sse(
             role="assistant",
             content="Request cancelled by user.",
         )
+        if request_id:
+            _emit_debug_event(request_id, DebugStage.ERROR, StageStatus.ERROR, service="backend", route="/chat/stream", error="Client disconnected", error_type="ClientDisconnect")
         return
     except OllamaAdapterError as exc:
+        if request_id:
+            _emit_debug_event(request_id, DebugStage.ERROR, StageStatus.ERROR, service="backend", route="/chat/stream", http_status=502, error=str(exc), error_type="OllamaAdapterError")
         payload = json.dumps({"error": str(exc)})
         yield _sse_pack("error", payload)
         return
     structured = _parse_structured_response(full_reply)
+    if request_id:
+        _emit_debug_event(request_id, DebugStage.OLLAMA_RESPONSE, StageStatus.SUCCESS, service="backend", output_data={"reply_length": len(full_reply)})
+        _emit_debug_event(request_id, DebugStage.RESPONSE_PARSING, StageStatus.SUCCESS, service="backend", output_data={"type": structured.get("type")})
     add_message(
         user_id=user_id,
         conversation_id=conversation_id,
         role="assistant",
         content=structured.get("text") or structured.get("markdown") or full_reply,
     )
+    if request_id:
+        _emit_debug_event(request_id, DebugStage.FRONTEND_RENDER, StageStatus.SUCCESS, service="backend", output_data={"reply": structured.get("text") or structured.get("markdown") or full_reply})
+        _emit_debug_event(request_id, DebugStage.BACKEND_REQUEST, StageStatus.SUCCESS, service="backend", route="/chat/stream", http_status=200)
     yield _sse_pack("done", json.dumps({"conversation_id": conversation_id, "structured": structured}))
 
 
@@ -508,6 +518,7 @@ async def chat_stream(
     _: None = Depends(enforce_rate_limit),
 ) -> StreamingResponse:
     request_id = get_request_id(request)
+    _emit_debug_event(request_id, DebugStage.BACKEND_REQUEST, StageStatus.RUNNING, service="backend", route="/chat/stream", method="POST", input_data={"message": body.message, "model": body.model or DEFAULT_CHAT_MODEL})
     log_chat(
         request_id=request_id,
         user_id=user_id,
@@ -519,6 +530,7 @@ async def chat_stream(
     if conversation_id:
         conv = get_conversation(user_id, conversation_id)
         if not conv:
+            _emit_debug_event(request_id, DebugStage.ERROR, StageStatus.ERROR, service="backend", route="/chat/stream", http_status=404, error="Conversation not found")
             raise HTTPException(status_code=404, detail="Conversation not found.")
     else:
         conv = create_conversation(user_id=user_id)
@@ -537,6 +549,7 @@ async def chat_stream(
         question=body.message,
         budget=get_context_budget(),
     )
+    _emit_debug_event(request_id, DebugStage.DATA_PROCESSING, StageStatus.SUCCESS, service="backend", output_data={"context_messages": len(context_messages)})
     token = _get_token(request)
     _emit_debug_event(request_id, DebugStage.OLLAMA_REQUEST, StageStatus.RUNNING, service="backend", route="/chat/stream", method="POST", input_data={"model": body.model or DEFAULT_CHAT_MODEL})
     return StreamingResponse(
@@ -620,20 +633,20 @@ async def refresh_db_context():
 @router.post("/agent")
 async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: None = Depends(enforce_rate_limit)):
     request_id = get_request_id(request)
+    body = await request.json()
     _emit_debug_event(request_id, DebugStage.BACKEND_REQUEST, StageStatus.RUNNING, service="backend", route="/chat/agent", method="POST", input_data={"message": body.get("message"), "agent": body.get("agent")})
     log_chat(
         request_id=request_id,
         user_id=user_id,
         conversation_id=None,
         event="agent_request_received",
-        message=None,
+        message=body.get("message"),
     )
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):
         _emit_debug_event(request_id, DebugStage.ERROR, StageStatus.ERROR, service="backend", route="/chat/agent", http_status=401, error="Missing or invalid Authorization header")
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header.")
     token = auth_header.split(" ")[1]
-    body = await request.json()
     message = body.get("message", "")
     if not message:
         _emit_debug_event(request_id, DebugStage.ERROR, StageStatus.ERROR, service="backend", route="/chat/agent", http_status=400, error="Missing message")

@@ -1,6 +1,13 @@
 "use client";
 
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useEffect, useRef } from "react";
+
+const ML_BACKEND_URL = process.env.NEXT_PUBLIC_ML_BACKEND_URL || "http://localhost:8100";
+
+function getAuthHeader(): Record<string, string> {
+  const token = localStorage.getItem("access_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 export type DebugStage =
   | "user_request"
@@ -51,6 +58,7 @@ interface DebugContextValue {
   appendEvent: (event: Omit<DebugEvent, "id" | "requestId" | "timestamp">) => void;
   finishTrace: () => void;
   clearTraces: () => void;
+  connectStream: (requestId: string) => void;
 }
 
 const DebugContext = createContext<DebugContextValue | null>(null);
@@ -63,9 +71,14 @@ export function DebugProvider({ children }: { children: React.ReactNode }) {
   const [enabled, setEnabled] = React.useState(false);
   const [traces, setTraces] = React.useState<DebugTrace[]>([]);
   const [currentRequestId, setCurrentRequestId] = React.useState<string | null>(null);
+  const streamsRef = useRef<Map<string, EventSource>>(new Map());
 
   const toggle = React.useCallback(() => setEnabled((prev) => !prev), []);
-  const clearTraces = React.useCallback(() => setTraces([]), []);
+  const clearTraces = React.useCallback(() => {
+    setTraces([]);
+    streamsRef.current.forEach((es) => es.close());
+    streamsRef.current.clear();
+  }, []);
 
   const startTrace = React.useCallback((userMessage: string) => {
     const requestId = uid();
@@ -125,9 +138,54 @@ export function DebugProvider({ children }: { children: React.ReactNode }) {
     setCurrentRequestId(null);
   }, [currentRequestId]);
 
+  const connectStream = React.useCallback((requestId: string) => {
+    if (!enabled) return;
+    if (streamsRef.current.has(requestId)) return;
+    const es = new EventSource(`${ML_BACKEND_URL}/debug/stream?request_id=${encodeURIComponent(requestId)}`, {
+      withCredentials: false,
+    });
+    es.addEventListener("debug", (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        setTraces((prev) =>
+          prev.map((trace) =>
+            trace.requestId === requestId
+              ? {
+                  ...trace,
+                  events: [
+                    ...trace.events,
+                    {
+                      ...data,
+                      id: data.id || uid(),
+                      requestId: data.request_id || requestId,
+                      timestamp: data.timestamp || Date.now(),
+                    } as DebugEvent,
+                  ],
+                }
+              : trace,
+          ),
+        );
+      } catch {
+        // ignore malformed debug event
+      }
+    });
+    es.onerror = () => {
+      es.close();
+      streamsRef.current.delete(requestId);
+    };
+    streamsRef.current.set(requestId, es);
+  }, [enabled]);
+
+  useEffect(() => {
+    return () => {
+      streamsRef.current.forEach((es) => es.close());
+      streamsRef.current.clear();
+    };
+  }, []);
+
   return (
     <DebugContext.Provider
-      value={{ enabled, toggle, traces, currentRequestId, startTrace, appendEvent, finishTrace, clearTraces }}
+      value={{ enabled, toggle, traces, currentRequestId, startTrace, appendEvent, finishTrace, clearTraces, connectStream }}
     >
       {children}
     </DebugContext.Provider>
