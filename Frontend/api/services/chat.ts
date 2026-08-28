@@ -33,10 +33,14 @@ async function mlFetch(
   path: string,
   init: RequestInit = {},
   signal?: AbortSignal,
+  requestId?: string,
 ): Promise<Response> {
   const headers = new Headers(init.headers);
   const auth = await getAuthHeader();
   for (const [k, v] of Object.entries(auth)) headers.set(k, v);
+  if (requestId) {
+    headers.set("X-Request-Id", requestId);
+  }
 
   let res = await fetch(`${ML_BACKEND_URL}${path}`, { ...init, headers, signal });
 
@@ -134,12 +138,12 @@ export interface ChatResponse {
   structured?: StructuredResponse;
 }
 
-export async function sendChatMessage(data: ChatRequest): Promise<ChatResponse> {
+export async function sendChatMessage(data: ChatRequest, requestId?: string): Promise<ChatResponse> {
   const res = await mlFetch("/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
-  });
+  }, undefined, requestId);
   if (!res.ok) {
     const text = await res.text();
     throw new Error(extractErrorMessage(res.status, text));
@@ -153,6 +157,7 @@ export async function sendChatMessageStream(
   onError: (error: Error) => void,
   onStructured?: (structured: StructuredResponse) => void,
   signal?: AbortSignal,
+  requestId?: string,
 ): Promise<void> {
   try {
     const res = await mlFetch("/chat/stream", {
@@ -160,7 +165,7 @@ export async function sendChatMessageStream(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
       signal,
-    });
+    }, undefined, requestId);
     if (!res.ok) {
       const text = await res.text();
       throw new Error(extractErrorMessage(res.status, text));
@@ -222,6 +227,7 @@ export async function sendAgentMessage(
   onToken: (token: string) => void,
   onError: (error: Error) => void,
   signal?: AbortSignal,
+  requestId?: string,
 ): Promise<void> {
   try {
     const res = await mlFetch("/chat/agent", {
@@ -229,7 +235,7 @@ export async function sendAgentMessage(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
       signal,
-    });
+    }, undefined, requestId);
     if (!res.ok) {
       const text = await res.text();
       throw new Error(extractErrorMessage(res.status, text));

@@ -89,7 +89,8 @@ async def _get_user_id_from_django(token: str) -> Optional[str]:
 
 async def verify_jwt(request: Request, call_next):
     try:
-        request.state.request_id = str(uuid.uuid4())
+        incoming_request_id = request.headers.get("x-request-id")
+        request.state.request_id = incoming_request_id or str(uuid.uuid4())
 
         # CORS preflight requests are browser-generated and never carry an
         # Authorization header.  Pass them through so CORSMiddleware (the
@@ -104,7 +105,10 @@ async def verify_jwt(request: Request, call_next):
         if not auth_header or not auth_header.startswith("Bearer "):
             return JSONResponse(
                 status_code=401,
-                content={"detail": "Missing or invalid Authorization header."},
+                content={
+                    "detail": "Missing or invalid Authorization header.",
+                    "request_id": request.state.request_id,
+                },
             )
 
         token = auth_header.split(" ", 1)[1]
@@ -119,7 +123,10 @@ async def verify_jwt(request: Request, call_next):
         if not user_id:
             return JSONResponse(
                 status_code=401,
-                content={"detail": "Invalid or expired token."},
+                content={
+                    "detail": "Invalid or expired token.",
+                    "request_id": request.state.request_id,
+                },
             )
 
         request.state.user_id = user_id
@@ -127,5 +134,8 @@ async def verify_jwt(request: Request, call_next):
     except Exception:
         return JSONResponse(
             status_code=500,
-            content={"detail": "An internal server error occurred."},
+            content={
+                "detail": "An internal server error occurred.",
+                "request_id": getattr(request.state, "request_id", None),
+            },
         )

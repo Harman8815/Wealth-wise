@@ -64,6 +64,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useDebug } from "@/components/debug/debug-context";
 
 const INITIAL_MESSAGE: ChatMessage = {
   role: "assistant",
@@ -101,24 +102,13 @@ export function ChatPageContent({ conversationId, externalAgentId, onAgentHandle
   const abortControllerRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const messageIndexRef = useRef(0);
+  const debug = useDebug();
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, processingTime]);
-
-  const handleSendWithAgentRef = useRef(handleSendWithAgent);
-  handleSendWithAgentRef.current = handleSendWithAgent;
-
-  useEffect(() => {
-    if (!externalAgentId) return;
-    handleSendWithAgentRef.current(
-      agents.find((a) => a.id === externalAgentId)?.slashCommand ?? externalAgentId,
-      agents.find((a) => a.id === externalAgentId),
-    );
-    onAgentHandled?.();
-  }, [externalAgentId, onAgentHandled]);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -172,7 +162,19 @@ export function ChatPageContent({ conversationId, externalAgentId, onAgentHandle
     setInput("");
     setSlashQuery("");
     const agentId = agent?.id;
+    const requestId = debug.enabled ? debug.startTrace(trimmed) : undefined;
     appendMessage("user", trimmed, agentId);
+    if (requestId) {
+      debug.appendEvent({ stage: "intent_detection", status: "running", service: "frontend" });
+      debug.appendEvent({
+        stage: "intent_detection",
+        status: "success",
+        service: "frontend",
+        output: { intent: agentId ?? "general_chat", agent: agentId ?? null },
+      });
+      debug.appendEvent({ stage: "agent_selection", status: "success", service: "frontend", output: { agent: agentId ?? null } });
+      debug.appendEvent({ stage: "backend_request", status: "running", service: "ml-backend", route: agentId ? "/chat/agent" : "/chat/stream", method: "POST" });
+    }
 
     try {
       setIsStreaming(true);
@@ -202,8 +204,12 @@ export function ChatPageContent({ conversationId, externalAgentId, onAgentHandle
               updateLastAssistant(`Sorry, something went wrong: ${err.message}`);
               toast.error(err.message);
             }
+            if (requestId) {
+              debug.appendEvent({ stage: "error", status: "error", service: "ml-backend", error: err.message, errorType: err.name });
+            }
           },
           abortControllerRef.current.signal,
+          requestId,
         );
       } else {
         await sendChatMessageStream(
@@ -220,11 +226,15 @@ export function ChatPageContent({ conversationId, externalAgentId, onAgentHandle
               updateLastAssistant(`Sorry, something went wrong: ${err.message}`);
               toast.error(err.message);
             }
+            if (requestId) {
+              debug.appendEvent({ stage: "error", status: "error", service: "ml-backend", error: err.message, errorType: err.name });
+            }
           },
           (structured) => {
             structuredRef.current = structured;
           },
           abortControllerRef.current.signal,
+          requestId,
         );
         if (structuredRef.current) {
           setMessages((prev) => {
@@ -237,6 +247,9 @@ export function ChatPageContent({ conversationId, externalAgentId, onAgentHandle
           });
         }
       }
+      if (requestId) {
+        debug.appendEvent({ stage: "frontend_render", status: "success", service: "frontend", output: { reply: fullReply || "empty" } });
+      }
       if (!fullReply && !structuredRef.current) {
         updateLastAssistant("I couldn't generate a response. Please try rephrasing your question.");
       }
@@ -244,7 +257,14 @@ export function ChatPageContent({ conversationId, externalAgentId, onAgentHandle
       const message = err instanceof Error ? err.message : "Failed to send message";
       updateLastAssistant(`Sorry, something went wrong: ${message}`);
       toast.error(message);
+      if (requestId) {
+        debug.appendEvent({ stage: "error", status: "error", service: "frontend", error: message, errorType: err instanceof Error ? err.name : "unknown" });
+      }
     } finally {
+      if (requestId) {
+        debug.appendEvent({ stage: "backend_request", status: "success", service: "ml-backend" });
+        debug.finishTrace();
+      }
       clearTimer();
       setIsStreaming(false);
       abortControllerRef.current = null;
@@ -291,6 +311,18 @@ export function ChatPageContent({ conversationId, externalAgentId, onAgentHandle
       handleSend();
     }
   };
+
+  const handleSendWithAgentRef = useRef(handleSendWithAgent);
+  handleSendWithAgentRef.current = handleSendWithAgent;
+
+  useEffect(() => {
+    if (!externalAgentId) return;
+    handleSendWithAgentRef.current(
+      agents.find((a) => a.id === externalAgentId)?.slashCommand ?? externalAgentId,
+      agents.find((a) => a.id === externalAgentId),
+    );
+    onAgentHandled?.();
+  }, [externalAgentId, onAgentHandled]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)

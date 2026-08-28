@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { ApiProvider } from "@/api/provider"
 import { ProjectProvider } from "@/components/project/project-context"
 import { ToasterProvider } from "@/components/ui/toaster-provider"
+import { DebugProvider } from "@/components/debug/debug-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -33,7 +34,9 @@ export default function RootLayout({
           <ProjectProvider>
             <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
               <ToasterProvider />
-              {children}
+              <DebugProvider>
+                {children}
+              </DebugProvider>
             </ThemeProvider>
           </ProjectProvider>
         </ApiProvider>

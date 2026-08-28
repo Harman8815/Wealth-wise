@@ -18,7 +18,7 @@ from fastapi.responses import JSONResponse
 from .logging_utils import get_request_id, log_error, log_request
 from .middleware import verify_jwt
 from .ollama import OllamaAdapterError
-from .routers import chat_router, conversations_router, duplicates_router, memory_router, reports_router
+from .routers import chat_router, conversations_router, debug_router, duplicates_router, memory_router, reports_router
 
 logger = logging.getLogger("ml_backend")
 
@@ -33,6 +33,7 @@ app.include_router(conversations_router)
 app.include_router(chat_router)
 app.include_router(memory_router)
 app.include_router(reports_router)
+app.include_router(debug_router)
 
 app.middleware("http")(verify_jwt)
 
@@ -78,25 +79,33 @@ def health():
 
 @app.exception_handler(OllamaAdapterError)
 async def ollama_error_handler(request: Request, exc: OllamaAdapterError):
+    request_id = get_request_id(request)
     log_error(
-        request_id=get_request_id(request),
+        request_id=request_id,
         user_id=getattr(request.state, "user_id", None),
         error=str(exc),
     )
     return JSONResponse(
         status_code=502,
-        content={"detail": "The AI service is temporarily unavailable. Please try again."},
+        content={
+            "detail": "The AI service is temporarily unavailable. Please try again.",
+            "request_id": request_id,
+        },
     )
 
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
+    request_id = get_request_id(request)
     log_error(
-        request_id=get_request_id(request),
+        request_id=request_id,
         user_id=getattr(request.state, "user_id", None),
         error=str(exc),
     )
     return JSONResponse(
         status_code=500,
-        content={"detail": "An internal server error occurred."},
+        content={
+            "detail": "An internal server error occurred.",
+            "request_id": request_id,
+        },
     )
