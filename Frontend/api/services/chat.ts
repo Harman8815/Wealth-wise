@@ -50,6 +50,25 @@ async function mlFetch(
   return res;
 }
 
+function extractErrorMessage(status: number, text: string): string {
+  if (!text) {
+    if (status === 401) return "Your session has expired. Please log in again.";
+    if (status === 403) return "You don't have permission to access this resource.";
+    if (status === 404) return "The requested resource was not found.";
+    if (status >= 500) return "The AI service is temporarily unavailable. Please try again later.";
+    return `Request failed (${status})`;
+  }
+  try {
+    const parsed = JSON.parse(text);
+    if (typeof parsed.detail === "string") return parsed.detail;
+    if (typeof parsed.error === "string") return parsed.error;
+    if (typeof parsed.message === "string") return parsed.message;
+  } catch {
+    // not JSON, return as-is
+  }
+  return text;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
@@ -123,7 +142,7 @@ export async function sendChatMessage(data: ChatRequest): Promise<ChatResponse> 
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || `Chat failed (${res.status})`);
+    throw new Error(extractErrorMessage(res.status, text));
   }
   return res.json();
 }
@@ -143,7 +162,8 @@ export async function sendChatMessageStream(
       signal,
     });
     if (!res.ok) {
-      throw new Error(`Stream failed (${res.status})`);
+      const text = await res.text();
+      throw new Error(extractErrorMessage(res.status, text));
     }
     const reader = res.body?.getReader();
     if (!reader) {
@@ -212,7 +232,7 @@ export async function sendAgentMessage(
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(text || `Agent request failed (${res.status})`);
+      throw new Error(extractErrorMessage(res.status, text));
     }
     const result: { response?: string; error?: string } = await res.json();
     if (result.error) {
