@@ -2,6 +2,53 @@
  * Chat API — thin wrapper around ML-Backend chat endpoints.
  */
 const ML_BACKEND_URL = process.env.NEXT_PUBLIC_ML_BACKEND_URL || "http://localhost:8100";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = localStorage.getItem("refresh_token");
+  if (!refreshToken) return null;
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/refresh/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh: refreshToken }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const access = data.access as string | undefined;
+    if (!access) return null;
+    localStorage.setItem("access_token", access);
+    return access;
+  } catch {
+    return null;
+  }
+}
+
+async function getAuthHeader(): Promise<Record<string, string>> {
+  const token = localStorage.getItem("access_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function mlFetch(
+  path: string,
+  init: RequestInit = {},
+  signal?: AbortSignal,
+): Promise<Response> {
+  const headers = new Headers(init.headers);
+  const auth = await getAuthHeader();
+  for (const [k, v] of Object.entries(auth)) headers.set(k, v);
+
+  let res = await fetch(`${ML_BACKEND_URL}${path}`, { ...init, headers, signal });
+
+  if (res.status === 401) {
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      headers.set("Authorization", `Bearer ${newToken}`);
+      res = await fetch(`${ML_BACKEND_URL}${path}`, { ...init, headers, signal });
+    }
+  }
+  return res;
+}
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -68,18 +115,10 @@ export interface ChatResponse {
   structured?: StructuredResponse;
 }
 
-function getAuthHeader(): Record<string, string> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 export async function sendChatMessage(data: ChatRequest): Promise<ChatResponse> {
-  const res = await fetch(`${ML_BACKEND_URL}/chat`, {
+  const res = await mlFetch("/chat", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeader(),
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   if (!res.ok) {
@@ -97,12 +136,9 @@ export async function sendChatMessageStream(
   signal?: AbortSignal,
 ): Promise<void> {
   try {
-    const res = await fetch(`${ML_BACKEND_URL}/chat/stream`, {
+    const res = await mlFetch("/chat/stream", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeader(),
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
       signal,
     });
@@ -168,12 +204,9 @@ export async function sendAgentMessage(
   signal?: AbortSignal,
 ): Promise<void> {
   try {
-    const res = await fetch(`${ML_BACKEND_URL}/chat/agent`, {
+    const res = await mlFetch("/chat/agent", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeader(),
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
       signal,
     });
@@ -186,18 +219,21 @@ export async function sendAgentMessage(
       onError(new Error(result.error));
       return;
     }
-    if (result.response) {
-      const tokens = result.response.match(/.{1,4}/g) || [result.response];
-      let idx = 0;
-      const interval = setInterval(() => {
-        if (idx < tokens.length) {
-          onToken(tokens[idx]);
-          idx++;
-        } else {
-          clearInterval(interval);
-        }
-      }, 10);
+    const reply = (result.response || "").trim();
+    if (!reply) {
+      onError(new Error("The AI assistant returned an empty response. Please try again."));
+      return;
     }
+    const tokens = reply.match(/.{1,4}/g) || [reply];
+    let idx = 0;
+    const interval = setInterval(() => {
+      if (idx < tokens.length) {
+        onToken(tokens[idx]);
+        idx++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 10);
   } catch (err) {
     if ((err as Error).name === "AbortError") {
       onError(new Error("Request cancelled by user."));
