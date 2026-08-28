@@ -54,7 +54,7 @@ async function mlFetch(
   return res;
 }
 
-async function sendDebugEvent(requestId: string, event: Record<string, unknown>) {
+export async function sendDebugEvent(requestId: string, event: Record<string, unknown>) {
   try {
     await fetch(`${ML_BACKEND_URL}/debug/events`, {
       method: "POST",
