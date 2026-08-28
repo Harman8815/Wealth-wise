@@ -37,6 +37,7 @@ ALGORITHM = "HS256"
 _PUBLIC_PATHS = {
     "/health",
     "/duplicates",
+    "/debug",
 }
 
 
