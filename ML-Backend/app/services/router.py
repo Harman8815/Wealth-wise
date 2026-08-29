@@ -5,7 +5,7 @@ Routes classified intents to the matching Phase 5/6 handler.
 """
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from app.services.assistants import answer_budget_question, answer_goal_question
 from app.services.alerts_agent import answer_alerts_question
@@ -267,6 +267,24 @@ async def route_intent(
             "response": f"Found {len(result.get('data', {}).get('results', [])) if isinstance(result.get('data'), dict) else 0} transactions matching your query.",
             "data": result.get("data"),
             "filters": result.get("filters"),
+        }
+
+    if intent == Intent.GENERAL_CHAT:
+        # Provide helpful information about available agents
+        available_agents = [
+            "transaction_search - Search transactions with natural language",
+            "report - Generate comprehensive financial reports", 
+            "budget - Get budget analysis and recommendations",
+            "goal - Get help with financial goal planning",
+            "insights - Get AI-generated financial insights",
+            "alert - Explain financial alerts",
+            "db - Inspect database schema"
+        ]
+        agent_list = "\n".join(f"- {agent}" for agent in available_agents)
+        return {
+            "intent": intent.value,
+            "response": f"I can help you with various financial tasks. Here are the available agents:\n\n{agent_list}\n\nYou can specify an agent in your request, or I can try to auto-detect the best agent for your question.",
+            "fallback": False,
         }
 
     # general_chat fallback

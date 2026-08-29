@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from app.clients import (
     get_accounts,
+    get_alerts,
     get_budgets,
     get_goals,
     get_transactions,

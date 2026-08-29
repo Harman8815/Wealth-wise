@@ -130,7 +130,7 @@ AGENT_REGISTRY: Dict[str, Dict[str, Any]] = {
     "general_chat": {
         "name": "general_chat",
         "slash_command": "/chat",
-        "description": "General financial assistant chat without specialized tools.",
+        "description": "General financial assistant chat with access to financial tools.",
         "intent": "general_chat",
         "input_schema": {
             "type": "object",
@@ -140,7 +140,7 @@ AGENT_REGISTRY: Dict[str, Dict[str, Any]] = {
             },
             "required": ["message"],
         },
-        "handler": "fallback",
+        "handler": "route_intent",
     },
     "db_context": {
         "name": "db_context",
