@@ -58,6 +58,7 @@ async def classify_intent(message: str) -> Intent:
         model=DEFAULT_CHAT_MODEL,
         stream=False,
         options=get_options("intent_classification"),
+        num_predict=20,
     )
     content = result.get("message", {}).get("content", "").strip().lower()
     try:

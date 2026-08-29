@@ -49,6 +49,7 @@ async def answer_alerts_question(token: str, user_id: str, question: str) -> str
             model=DEFAULT_CHAT_MODEL,
             stream=False,
             options=get_options("alerts"),
+            num_predict=150,
         )
         answer = result.get("message", {}).get("content", "")
         log_agent(

@@ -85,6 +85,7 @@ async def generate_report_narrative(sections: Dict[str, Any]) -> str:
             model=DEFAULT_CHAT_MODEL,
             stream=False,
             options=get_options("report"),
+            num_predict=256,
         )
         narrative = result.get("message", {}).get("content", "")
     except OllamaAdapterError as exc:
@@ -188,6 +189,7 @@ async def explain_chart_or_alert(data: Dict[str, Any]) -> str:
             [{"role": "system", "content": prompt}],
             model=DEFAULT_CHAT_MODEL,
             stream=False,
+            num_predict=150,
         )
         explanation = result.get("message", {}).get("content", "")
     except OllamaAdapterError as exc:

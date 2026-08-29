@@ -36,6 +36,7 @@ async def _extract_transaction_filters(query: str) -> Dict[str, Optional[str]]:
             ],
             model=DEFAULT_CHAT_MODEL,
             stream=False,
+            num_predict=60,
         )
         content = result.get("message", {}).get("content", "").strip()
         if not content:
@@ -285,6 +286,7 @@ async def query_transactions_dynamic(token: str, user_id: str, query: str) -> Di
             ],
             model=DEFAULT_CHAT_MODEL,
             stream=False,
+            num_predict=100,
         )
         content = result.get("message", {}).get("content", "").strip()
         if not content:

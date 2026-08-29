@@ -30,5 +30,6 @@ async def answer_database_question(question: str) -> str:
         model=DEFAULT_CHAT_MODEL,
         stream=False,
         options=get_options("db_context"),
+        num_predict=100,
     )
     return result.get("message", {}).get("content", "")

@@ -84,6 +84,7 @@ async def answer_goal_question(token: str, user_id: str, question: str) -> str:
                 model=DEFAULT_CHAT_MODEL,
                 stream=False,
                 options=get_options("goal"),
+                num_predict=200,
             )
             answer = result.get("message", {}).get("content", "")
         except OllamaAdapterError as exc:
@@ -169,6 +170,7 @@ async def answer_budget_question(token: str, user_id: str, question: str) -> str
                 model=DEFAULT_CHAT_MODEL,
                 stream=False,
                 options=get_options("budget"),
+                num_predict=200,
             )
             answer = result.get("message", {}).get("content", "")
         except OllamaAdapterError as exc:

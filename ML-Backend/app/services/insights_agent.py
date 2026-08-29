@@ -49,6 +49,7 @@ async def answer_insights_question(token: str, user_id: str, question: str) -> s
                 model=DEFAULT_CHAT_MODEL,
                 stream=False,
                 options=get_options("insights"),
+                num_predict=200,
             )
             answer = result.get("message", {}).get("content", "")
             log_agent(

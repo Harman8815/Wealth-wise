@@ -16,9 +16,10 @@ from app.logging_utils import logger as ollama_logger
 from app.debug_events import DebugEvent, DebugStage, StageStatus, get_debug_store
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
-DEFAULT_CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", "llama3.2")
+DEFAULT_CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", "llama3.2:1b")
 DEFAULT_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
 OLLAMA_BYPASS = os.getenv("OLLAMA_BYPASS", "false").lower() in {"1", "true", "yes"}
+OLLAMA_NUM_PARALLEL = int(os.getenv("OLLAMA_NUM_PARALLEL", "1"))
 
 DEFAULT_OPTIONS: Dict[str, Any] = {
     "temperature": float(os.getenv("OLLAMA_TEMPERATURE", "0.3")),
@@ -71,6 +72,15 @@ def _log_ollama_response(endpoint: str, response: Dict[str, Any]) -> None:
     )
 
 
+def _build_options(options: Optional[Dict[str, Any]], num_predict: Optional[int] = None) -> Dict[str, Any]:
+    merged = dict(DEFAULT_OPTIONS)
+    if options:
+        merged.update(options)
+    if num_predict is not None:
+        merged["num_predict"] = num_predict
+    return merged
+
+
 def _ollama_bypass_response(payload: Dict[str, Any], request_id: Optional[str] = None) -> Dict[str, Any]:
     """Return a synthetic Ollama response without making an HTTP call."""
     return {
@@ -95,6 +105,7 @@ async def generate(
     stream: bool = False,
     options: Optional[Dict[str, Any]] = None,
     format: Optional[str] = None,
+    num_predict: Optional[int] = None,
     request_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Send a non-streaming chat completion request to Ollama."""
@@ -103,8 +114,9 @@ async def generate(
         "messages": messages,
         "stream": stream,
     }
-    if options:
-        payload["options"] = options
+    merged_options = _build_options(options, num_predict)
+    if merged_options:
+        payload["options"] = merged_options
     if format and not stream:
         payload["format"] = format
     _emit_ollama_debug(request_id, DebugStage.OLLAMA_REQUEST, StageStatus.RUNNING, input_data={"model": model, "message_count": len(messages)})
@@ -139,6 +151,7 @@ async def stream(
     *,
     model: str = DEFAULT_CHAT_MODEL,
     options: Optional[Dict[str, Any]] = None,
+    num_predict: Optional[int] = None,
     request_id: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
     """Stream chat completion tokens from Ollama."""
@@ -147,8 +160,9 @@ async def stream(
         "messages": messages,
         "stream": True,
     }
-    if options:
-        payload["options"] = options
+    merged_options = _build_options(options, num_predict)
+    if merged_options:
+        payload["options"] = merged_options
     _emit_ollama_debug(request_id, DebugStage.OLLAMA_REQUEST, StageStatus.RUNNING, input_data={"model": model, "message_count": len(messages)})
     _log_ollama_request("/api/chat", payload)
     if OLLAMA_BYPASS:
@@ -222,6 +236,7 @@ async def generate_with_tools(
     model: str = DEFAULT_CHAT_MODEL,
     options: Optional[Dict[str, Any]] = None,
     format: Optional[str] = None,
+    num_predict: Optional[int] = None,
     request_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Send a chat completion request with tool definitions."""
@@ -231,8 +246,9 @@ async def generate_with_tools(
         "stream": False,
         "tools": tools,
     }
-    if options:
-        payload["options"] = options
+    merged_options = _build_options(options, num_predict)
+    if merged_options:
+        payload["options"] = merged_options
     if format:
         payload["format"] = format
     _emit_ollama_debug(request_id, DebugStage.OLLAMA_REQUEST, StageStatus.RUNNING, input_data={"model": model, "message_count": len(messages), "tool_count": len(tools)})

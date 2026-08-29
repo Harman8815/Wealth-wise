@@ -307,7 +307,7 @@ async def _chat_with_tools(
     current_messages = messages[:]
     for _ in range(5):
         start = time.perf_counter()
-        result = await generate_with_tools(current_messages, FINANCIAL_TOOLS, model=model, format="json", request_id=request_id)
+        result = await generate_with_tools(current_messages, FINANCIAL_TOOLS, model=model, format="json", request_id=request_id, num_predict=256)
         latency = (time.perf_counter() - start) * 1000
         log_llm_call(
             request_id=get_request_id(request) if request else request_id or "",

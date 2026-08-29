@@ -202,7 +202,7 @@ async def generate_title(user_message: str) -> str:
         {"role": "user", "content": user_message},
     ]
     try:
-        result = await generate(messages, stream=False)
+        result = await generate(messages, stream=False, num_predict=20)
         title = result.get("message", {}).get("content", "").strip()
         return title[:255] if title else "New Chat"
     except Exception:
