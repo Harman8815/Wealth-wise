@@ -6,13 +6,14 @@ single place to change if the Ollama API surface moves.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 import httpx
 
-from app.logging_utils import logger as ollama_logger
+from app.logging_utils import logger as ollama_logger, log_llm_call
 from app.debug_events import DebugEvent, DebugStage, StageStatus, get_debug_store
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
@@ -20,6 +21,8 @@ DEFAULT_CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", "llama3.2:1b")
 DEFAULT_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
 OLLAMA_BYPASS = os.getenv("OLLAMA_BYPASS", "false").lower() in {"1", "true", "yes"}
 OLLAMA_NUM_PARALLEL = int(os.getenv("OLLAMA_NUM_PARALLEL", "1"))
+MEASURED_TOK_PER_SEC = float(os.getenv("OLLAMA_MEASURED_TOK_PER_SEC", "9.0"))
+TIMEOUT_BUFFER = float(os.getenv("OLLAMA_TIMEOUT_BUFFER", "1.5"))
 
 DEFAULT_OPTIONS: Dict[str, Any] = {
     "temperature": float(os.getenv("OLLAMA_TEMPERATURE", "0.3")),
@@ -27,6 +30,8 @@ DEFAULT_OPTIONS: Dict[str, Any] = {
     "top_p": float(os.getenv("OLLAMA_TOP_P", "0.9")),
     "repeat_penalty": float(os.getenv("OLLAMA_REPEAT_PENALTY", "1.1")),
 }
+
+_ollama_semaphore = asyncio.Semaphore(OLLAMA_NUM_PARALLEL)
 
 
 class OllamaAdapterError(Exception):
@@ -81,6 +86,12 @@ def _build_options(options: Optional[Dict[str, Any]], num_predict: Optional[int]
     return merged
 
 
+def calculate_ollama_timeout(num_predict: int, measured_tok_per_sec: float = MEASURED_TOK_PER_SEC, buffer: float = TIMEOUT_BUFFER) -> float:
+    prompt_buffer = 10.0
+    estimated_generation_time = (num_predict / measured_tok_per_sec) * buffer
+    return max(30.0, prompt_buffer + estimated_generation_time)
+
+
 def _ollama_bypass_response(payload: Dict[str, Any], request_id: Optional[str] = None) -> Dict[str, Any]:
     """Return a synthetic Ollama response without making an HTTP call."""
     return {
@@ -126,24 +137,37 @@ async def generate(
         response = _ollama_bypass_response(payload, request_id=request_id)
         _log_ollama_response("/api/chat", response)
         return response
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        try:
-            resp = await client.post(
-                f"{OLLAMA_URL}/api/chat",
-                json=payload,
+    timeout = calculate_ollama_timeout(merged_options.get("num_predict", DEFAULT_OPTIONS["num_predict"]))
+    async with _ollama_semaphore:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            try:
+                resp = await client.post(
+                    f"{OLLAMA_URL}/api/chat",
+                    json=payload,
+                )
+            except httpx.RequestError as exc:
+                _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, error=str(exc), error_type="RequestError")
+                raise OllamaAdapterError(f"Ollama chat failed: {exc}") from exc
+            if resp.status_code != 200:
+                _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, http_status=resp.status_code, error=resp.text)
+                raise OllamaAdapterError(
+                    f"Ollama chat failed ({resp.status_code}): {resp.text}"
+                )
+            data = resp.json()
+            _emit_ollama_debug(request_id, DebugStage.OLLAMA_RESPONSE, StageStatus.SUCCESS, output_data={"model": data.get("model"), "done": data.get("done")})
+            _log_ollama_response("/api/chat", data)
+            log_llm_call(
+                request_id=request_id or "",
+                user_id=None,
+                conversation_id=None,
+                model=model,
+                latency_ms=0,
+                eval_count=data.get("eval_count"),
+                prompt_eval_count=data.get("prompt_eval_count"),
+                eval_duration_ns=data.get("eval_duration"),
+                prompt_eval_duration_ns=data.get("prompt_eval_duration"),
             )
-        except httpx.RequestError as exc:
-            _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, error=str(exc), error_type="RequestError")
-            raise OllamaAdapterError(f"Ollama chat failed: {exc}") from exc
-        if resp.status_code != 200:
-            _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, http_status=resp.status_code, error=resp.text)
-            raise OllamaAdapterError(
-                f"Ollama chat failed ({resp.status_code}): {resp.text}"
-            )
-        data = resp.json()
-        _emit_ollama_debug(request_id, DebugStage.OLLAMA_RESPONSE, StageStatus.SUCCESS, output_data={"model": data.get("model"), "done": data.get("done")})
-        _log_ollama_response("/api/chat", data)
-        return data
+            return data
 
 
 async def stream(
@@ -173,36 +197,49 @@ async def stream(
         for chunk in [content[i : i + 4] for i in range(0, len(content), 4)]:
             yield chunk
         return
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        try:
-            async with client.stream(
-                "POST",
-                f"{OLLAMA_URL}/api/chat",
-                json=payload,
-            ) as resp:
-                if resp.status_code != 200:
-                    text = await resp.aread()
-                    _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, http_status=resp.status_code, error=text.decode())
-                    raise OllamaAdapterError(
-                        f"Ollama stream failed ({resp.status_code}): {text.decode()}"
-                    )
-                async for line in resp.aiter_lines():
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        chunk = json.loads(line)
-                        if "done" in chunk and chunk["done"]:
-                            break
-                        message = chunk.get("message", {})
-                        content = message.get("content", "")
-                        if content:
-                            yield content
-                    except Exception:
-                        continue
-        except httpx.RequestError as exc:
-            _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, error=str(exc), error_type="RequestError")
-            raise OllamaAdapterError(f"Ollama stream failed: {exc}") from exc
+    timeout = calculate_ollama_timeout(merged_options.get("num_predict", DEFAULT_OPTIONS["num_predict"]))
+    async with _ollama_semaphore:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            try:
+                async with client.stream(
+                    "POST",
+                    f"{OLLAMA_URL}/api/chat",
+                    json=payload,
+                ) as resp:
+                    if resp.status_code != 200:
+                        text = await resp.aread()
+                        _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, http_status=resp.status_code, error=text.decode())
+                        raise OllamaAdapterError(
+                            f"Ollama stream failed ({resp.status_code}): {text.decode()}"
+                        )
+                    async for line in resp.aiter_lines():
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            chunk = json.loads(line)
+                            if "done" in chunk and chunk["done"]:
+                                log_llm_call(
+                                    request_id=request_id or "",
+                                    user_id=None,
+                                    conversation_id=None,
+                                    model=model,
+                                    latency_ms=0,
+                                    eval_count=chunk.get("eval_count"),
+                                    prompt_eval_count=chunk.get("prompt_eval_count"),
+                                    eval_duration_ns=chunk.get("eval_duration"),
+                                    prompt_eval_duration_ns=chunk.get("prompt_eval_duration"),
+                                )
+                                break
+                            message = chunk.get("message", {})
+                            content = message.get("content", "")
+                            if content:
+                                yield content
+                        except Exception:
+                            continue
+            except httpx.RequestError as exc:
+                _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, error=str(exc), error_type="RequestError")
+                raise OllamaAdapterError(f"Ollama stream failed: {exc}") from exc
 
 
 async def embed(
@@ -258,21 +295,34 @@ async def generate_with_tools(
         response = _ollama_bypass_response(payload, request_id=request_id)
         _log_ollama_response("/api/chat", response)
         return response
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        try:
-            resp = await client.post(
-                f"{OLLAMA_URL}/api/chat",
-                json=payload,
+    timeout = calculate_ollama_timeout(merged_options.get("num_predict", DEFAULT_OPTIONS["num_predict"]))
+    async with _ollama_semaphore:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            try:
+                resp = await client.post(
+                    f"{OLLAMA_URL}/api/chat",
+                    json=payload,
+                )
+            except httpx.RequestError as exc:
+                _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, error=str(exc), error_type="RequestError")
+                raise OllamaAdapterError(f"Ollama chat failed: {exc}") from exc
+            if resp.status_code != 200:
+                _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, http_status=resp.status_code, error=resp.text)
+                raise OllamaAdapterError(
+                    f"Ollama chat failed ({resp.status_code}): {resp.text}"
+                )
+            data = resp.json()
+            _emit_ollama_debug(request_id, DebugStage.OLLAMA_RESPONSE, StageStatus.SUCCESS, output_data={"model": data.get("model"), "done": data.get("done")})
+            _log_ollama_response("/api/chat", data)
+            log_llm_call(
+                request_id=request_id or "",
+                user_id=None,
+                conversation_id=None,
+                model=model,
+                latency_ms=0,
+                eval_count=data.get("eval_count"),
+                prompt_eval_count=data.get("prompt_eval_count"),
+                eval_duration_ns=data.get("eval_duration"),
+                prompt_eval_duration_ns=data.get("prompt_eval_duration"),
             )
-        except httpx.RequestError as exc:
-            _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, error=str(exc), error_type="RequestError")
-            raise OllamaAdapterError(f"Ollama chat failed: {exc}") from exc
-        if resp.status_code != 200:
-            _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, http_status=resp.status_code, error=resp.text)
-            raise OllamaAdapterError(
-                f"Ollama chat failed ({resp.status_code}): {resp.text}"
-            )
-        data = resp.json()
-        _emit_ollama_debug(request_id, DebugStage.OLLAMA_RESPONSE, StageStatus.SUCCESS, output_data={"model": data.get("model"), "done": data.get("done")})
-        _log_ollama_response("/api/chat", data)
-        return data
+            return data

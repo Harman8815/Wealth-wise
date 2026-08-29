@@ -315,6 +315,10 @@ async def _chat_with_tools(
             conversation_id=conversation_id,
             model=model,
             latency_ms=latency,
+            eval_count=result.get("eval_count"),
+            prompt_eval_count=result.get("prompt_eval_count"),
+            eval_duration_ns=result.get("eval_duration"),
+            prompt_eval_duration_ns=result.get("prompt_eval_duration"),
         )
         message = result.get("message", {})
         content = message.get("content", "")
