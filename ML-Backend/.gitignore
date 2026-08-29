@@ -33,3 +33,12 @@ Thumbs.db
 
 # Notebooks
 .ipynb_checkpoints/
+
+# Temp test files
+test_*.py
+test_*.json
+test_*.txt
+test_*.ps1
+test_*.bat
+login_request.json
+openapi.json
