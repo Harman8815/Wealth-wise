@@ -7,6 +7,8 @@ API client.  No LLM-generated queries are allowed here.
 from __future__ import annotations
 
 import json
+import re
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from app.clients import (
@@ -21,7 +23,111 @@ from app.ollama import DEFAULT_CHAT_MODEL, generate
 from app.logging_utils import log_agent, log_validation
 
 
+_DATE_RANGE_PATTERNS = [
+    (r"\blast\s+month\b", "_last_month"),
+    (r"\bthis\s+month\b", "_this_month"),
+    (r"\blast\s+week\b", "_last_week"),
+    (r"\bthis\s+week\b", "_this_week"),
+    (r"\btoday\b", "_today"),
+    (r"\byesterday\b", "_yesterday"),
+]
+
+_AMOUNT_PATTERNS = [
+    (r"\bover\s+\$?(\d+(?:\.\d+)?)\b", ">"),
+    (r"\bmore\s+than\s+\$?(\d+(?:\.\d+)?)\b", ">"),
+    (r"\babove\s+\$?(\d+(?:\.\d+)?)\b", ">"),
+    (r"\bunder\s+\$?(\d+(?:\.\d+)?)\b", "<"),
+    (r"\bless\s+than\s+\$?(\d+(?:\.\d+)?)\b", "<"),
+    (r"\bbelow\s+\$?(\d+(?:\.\d+)?)\b", "<"),
+    (r"\bbetween\s+\$?(\d+(?:\.\d+)?)\s+and\s+\$?(\d+(?:\.\d+)?)\b", "between"),
+]
+
+_TYPE_KEYWORDS = {
+    "income": "income",
+    "expense": "expense",
+    "spent": "expense",
+    "earned": "income",
+    "received": "income",
+    "paid": "expense",
+}
+
+
+def _date_range_to_dates(range_name: str) -> Dict[str, Optional[str]]:
+    today = date.today()
+    if range_name == "_today":
+        return {"start_date": today.isoformat(), "end_date": today.isoformat()}
+    if range_name == "_yesterday":
+        yesterday = today - timedelta(days=1)
+        return {"start_date": yesterday.isoformat(), "end_date": yesterday.isoformat()}
+    if range_name == "_this_week":
+        start = today - timedelta(days=today.weekday())
+        return {"start_date": start.isoformat(), "end_date": today.isoformat()}
+    if range_name == "_last_week":
+        start = today - timedelta(days=today.weekday() + 7)
+        end = start + timedelta(days=6)
+        return {"start_date": start.isoformat(), "end_date": end.isoformat()}
+    if range_name == "_this_month":
+        start = today.replace(day=1)
+        return {"start_date": start.isoformat(), "end_date": today.isoformat()}
+    if range_name == "_last_month":
+        first_of_this_month = today.replace(day=1)
+        last_month_end = first_of_this_month - timedelta(days=1)
+        last_month_start = last_month_end.replace(day=1)
+        return {"start_date": last_month_start.isoformat(), "end_date": last_month_end.isoformat()}
+    return {}
+
+
+def _extract_filters_rule_based(query: str) -> Dict[str, Optional[str]]:
+    filters: Dict[str, Optional[str]] = {}
+    lower_query = query.lower()
+
+    for pattern, range_name in _DATE_RANGE_PATTERNS:
+        if re.search(pattern, lower_query, re.IGNORECASE):
+            filters.update(_date_range_to_dates(range_name))
+            break
+
+    for pattern, op in _AMOUNT_PATTERNS:
+        match = re.search(pattern, lower_query, re.IGNORECASE)
+        if match:
+            groups = match.groups()
+            if op == "between" and len(groups) == 2:
+                filters["amount_min"] = str(float(groups[0]))
+                filters["amount_max"] = str(float(groups[1]))
+            elif len(groups) == 1:
+                amount = str(float(groups[0]))
+                if op == ">":
+                    filters["amount_min"] = amount
+                elif op == "<":
+                    filters["amount_max"] = amount
+            break
+
+    for keyword, type_ in _TYPE_KEYWORDS.items():
+        if re.search(rf"\b{keyword}\b", lower_query, re.IGNORECASE):
+            filters["type_"] = type_
+            break
+
+    category_match = re.search(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:coffee|restaurant|store|shop|transactions?|purchases?)\b", query)
+    if not category_match:
+        category_match = re.search(r"\b(?:at|from|in)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b", query)
+    if category_match:
+        filters["category"] = category_match.group(1)
+
+    return filters
+
+
 async def _extract_transaction_filters(query: str) -> Dict[str, Optional[str]]:
+    rule_based = _extract_filters_rule_based(query)
+    if rule_based.get("category") or rule_based.get("start_date") or rule_based.get("end_date") or rule_based.get("type_") or rule_based.get("amount_min") or rule_based.get("amount_max"):
+        log_validation(
+            request_id="",
+            user_id="",
+            event="filter_extraction_rule_based",
+            schema="TransactionFilter",
+            data={"query": query, "filters": rule_based},
+            valid=True,
+        )
+        return {k: v for k, v in rule_based.items() if k in {"category", "type_", "start_date", "end_date"} and v}
+
     extraction_prompt = (
         "Extract transaction search filters from the user's query. "
         "Return ONLY a JSON object with keys: category, type_ (income|expense), "
@@ -262,6 +368,51 @@ async def get_alerts_tool(
 
 
 async def query_transactions_dynamic(token: str, user_id: str, query: str) -> Dict[str, Any]:
+    rule_based = _extract_filters_rule_based(query)
+    if rule_based.get("category") or rule_based.get("start_date") or rule_based.get("end_date") or rule_based.get("type_") or rule_based.get("amount_min") or rule_based.get("amount_max"):
+        log_validation(
+            request_id="",
+            user_id=user_id,
+            event="query_transactions_dynamic_rule_based",
+            schema="TransactionQuery",
+            data={"query": query, "filters": rule_based},
+            valid=True,
+        )
+        api_data = await get_transactions(
+            token,
+            page=1,
+            page_size=rule_based.get("limit", 20),
+            category=rule_based.get("category"),
+            type_=rule_based.get("type_"),
+            start_date=rule_based.get("start_date"),
+            end_date=rule_based.get("end_date"),
+        )
+        results = api_data.get("results", []) if isinstance(api_data, dict) else []
+        amount_min = rule_based.get("amount_min")
+        amount_max = rule_based.get("amount_max")
+        if amount_min is not None or amount_max is not None:
+            filtered_results = []
+            for item in results:
+                amount = float(item.get("amount", 0))
+                if amount_min is not None and amount < float(amount_min):
+                    continue
+                if amount_max is not None and amount > float(amount_max):
+                    continue
+                filtered_results.append(item)
+            results = filtered_results
+            api_data = dict(api_data)
+            api_data["results"] = results
+        result_count = len(results)
+        log_agent(
+            request_id="",
+            user_id=user_id,
+            conversation_id=None,
+            agent="tool",
+            event="query_transactions_dynamic_result",
+            output_data={"filters": rule_based, "result_count": result_count},
+        )
+        return {"user_id": user_id, "query": query, "filters": rule_based, "data": api_data}
+
     extraction_prompt = (
         "Extract transaction search filters from the user's query. "
         "Return ONLY a JSON object with these exact keys:\n"

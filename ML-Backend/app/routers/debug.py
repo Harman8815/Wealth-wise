@@ -11,11 +11,10 @@ import json
 import time
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.debug_events import DebugEvent, DebugStage, StageStatus
-from app.deps import get_user_id
 
 router = APIRouter(prefix="/debug", tags=["debug"])
 
@@ -83,7 +82,7 @@ def _sse_pack(event: str, data: str) -> str:
 
 
 @router.get("/traces/{request_id}")
-async def get_trace(request_id: str, request: Request, user_id: str = Depends(get_user_id)):
+async def get_trace(request_id: str, request: Request):
     store = get_debug_store()
     trace = store.get_trace(request_id)
     if not trace:
@@ -92,7 +91,7 @@ async def get_trace(request_id: str, request: Request, user_id: str = Depends(ge
 
 
 @router.get("/traces")
-async def list_traces(request: Request, user_id: str = Depends(get_user_id)):
+async def list_traces(request: Request):
     store = get_debug_store()
     traces = []
     for request_id, events in store.traces.items():
@@ -106,7 +105,7 @@ async def list_traces(request: Request, user_id: str = Depends(get_user_id)):
 
 
 @router.post("/events")
-async def receive_event(request: Request, user_id: str = Depends(get_user_id)):
+async def receive_event(request: Request):
     body = await request.json()
     store = get_debug_store()
     store.append_event(
@@ -153,7 +152,7 @@ async def debug_stream(request: Request, request_id: str = Query(...)):
 
 
 @router.post("/test/flow")
-async def debug_test_flow(request: Request, user_id: str = Depends(get_user_id)):
+async def debug_test_flow(request: Request):
     store = get_debug_store()
     request_id = f"test-{int(time.time() * 1000)}"
     store.start_trace(request_id, "debug test flow")
@@ -197,7 +196,7 @@ async def debug_test_flow(request: Request, user_id: str = Depends(get_user_id))
 
 
 @router.delete("/traces")
-async def clear_traces(request: Request, user_id: str = Depends(get_user_id)):
+async def clear_traces(request: Request):
     store = get_debug_store()
     store.clear()
     return {"status": "cleared"}
