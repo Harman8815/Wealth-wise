@@ -1,1239 +1,137 @@
-### Prompt — Rebuild WealthWise AI Architecture Documentation
+# WealthWise ML-Backend — Ollama Performance TODO
 
-Remove the old/outdated AI architecture documentation and replace it with **one accurate, structured technical document** based on the current codebase.
+**Decision:** Switch to a **1B model** (e.g. `llama3.2:1b`) for all agent LLM calls, with **thinking mode disabled**. CPU inference is fixed at ~5 tok/s regardless of model between 1B–4B in this environment, so the primary lever is *token count per call*, not further model comparison. A 1B model should also reduce per-token latency somewhat and has a much smaller memory/context footprint, which helps concurrent-request behavior.
 
-The document should be **detailed but not unnecessarily huge**. Use **multiple focused Mermaid flow diagrams** instead of one massive diagram.
-
----
-
-## 1. Overall Architecture
-
-### System Components
-
-| Component | Technology | Port | Role |
-|-----------|-----------|------|------|
-| Frontend | Next.js | 3000 / 3001 / 3002 | User interface |
-| Django Backend | Django REST Framework | 8000 | Auth, CRUD, single source of truth for users/transactions/budgets/goals/alerts/insights |
-| ML-Backend | FastAPI | 8100 | AI chat, agent routing, Ollama orchestration, duplicate detection |
-| Ollama | Local LLM server | 11434 | LLM inference (`llama3.2`, `qwen3:4b`), embeddings (`nomic-embed-text`) |
-
-### Data Flow
-
-```mermaid
-flowchart LR
-    U[User]
-    F[Frontend<br/>Next.js :3000]
-    D[Django Backend<br/>:8000]
-    M[ML-Backend<br/>FastAPI :8100]
-    O[Ollama<br/>:11434]
-    DB[(Database)]
-
-    U -->|HTTP| F
-    F -->|REST / GraphQL| D
-    F -->|Direct AI calls| M
-    D -->|Proxy AI requests| M
-    M -->|/api/chat| O
-    M -->|/api/users/me/<br/>/api/transactions/<br/>/api/budgets/<br/>/api/goals/<br/>/api/alerts/<br/>/api/insights/| D
-    D -->|SQL| DB
-```
-
-**Key points:**
-- Frontend calls ML-Backend directly for AI chat endpoints (`/chat/agent`, `/reports/*`)
-- ML-Backend validates auth by forwarding JWT to Django `/api/users/me/`
-- ML-Backend fetches all financial data from Django REST API
-- ML-Backend calls Ollama for LLM inference and embeddings
-- Django is the single source of truth for auth and financial data
+**Benchmark (llama3.2:1b, Q4_K_M, local CPU):**
+- Filter extraction: 12.80s, 8.77 tok/s (prompt: 89 tok, output: 20 tok)
+- Response generation: 18.65s, 9.45 tok/s (prompt: 123 tok, output: 131 tok)
 
 ---
 
-## 2. Agent Architecture
+## P0 — Model swap & config (do first, blocks everything else)
 
-### Agent Registry
+- [x] Pull `llama3.2:1b` (or your preferred 1B model) and benchmark it the same way as the 3B/4B models — same prompts, record tokens/sec, so you have a real baseline before rewiring agents onto it
+- [ ] Explicitly disable thinking mode on every Ollama request: pass `think: false` in the `/api/chat` or `/api/generate` payload (or set it in a Modelfile if using a model that defaults to reasoning mode)
+- [ ] Verify thinking is actually off by inspecting raw responses for `<think>` blocks — don't just trust the flag, confirm empirically
+- [x] Update `app/ollama.py` `generate()` to accept model name as a parameter (not hardcoded) so different agents can request different models if needed later
+- [x] Set explicit `num_predict` per call site instead of a single global default — see per-agent table below
+- [x] Add a hard client-side timeout to every Ollama call, computed as `(num_predict / measured_tok_per_sec) * 1.5` — don't use one blanket timeout for all agents since output length varies
 
-[x] How many agents currently exist.
-[x] Exact agent names.
-[x] Purpose of each agent.
-[x] Which routes invoke each agent.
-[x] Which tools/functions each agent can access.
-[x] Which agents can call Ollama.
-[x] Whether Ollama directly chooses agents or whether our router selects the agent first.
+## P0 — Re-benchmark after swap
 
-### Registered Agents (9 total)
+- [x] Re-run the same benchmark matrix (short prompt / long prompt, various `num_predict`) on `llama3.2:1b` with thinking off
+- [x] Confirm `_extract_transaction_filters`-style short JSON tasks now complete in single-digit seconds
+- [x] Confirm no timeout on previously-failing long-prompt cases (the qwen3:4b >180s case)
+- [x] Document the new tok/s number — this becomes the constant your timeout math is based on
 
-| Agent Key | Slash Command | Intent | Handler | Route | Description |
-|-----------|---------------|--------|---------|-------|-------------|
-| `transaction_search` | `/search` | `transaction_search` | `search_transactions_nl` | `POST /chat/agent` | Search transactions using natural language |
-| `report` | `/report` | `report` | `build_report` | `POST /chat/agent` | Generate comprehensive financial report |
-| `chart_alert` | `/explain` | `chart_alert` | `explain_chart_or_alert` | `POST /chat/agent` | Explain charts/alerts in plain language |
-| `alert` | `/alert` | `chart_alert` | `answer_alerts_question` | `POST /chat/agent` | Explain financial alerts |
-| `goal` | `/goal` | `goal` | `answer_goal_question` | `POST /chat/agent` | Financial goal planning and projections |
-| `budget` | `/budget` | `budget` | `answer_budget_question` | `POST /chat/agent` | Budget analysis and recommendations |
-| `insights` | `/insights` | `insights` | `answer_insights_question` | `POST /chat/agent` | AI-generated financial insights |
-| `general_chat` | `/chat` | `general_chat` | `route_intent` fallback | `POST /chat/agent` | General chat with agent listing |
-| `db_context` | `/db` | `db_context` | `answer_database_question` | `POST /chat/agent` | Database schema inspection |
+## P1 — Remove Ollama from the search critical path
 
-### Friendly Aliases
+- [x] Implement rule-based/regex extraction in `_extract_transaction_filters` (tools.py:24-46) for common patterns: amount comparisons (`over $50`, `under $20`), date ranges (`last month`, `this week`), known category/merchant keywords
+- [x] Only fall back to the 1B model when rule-based parsing finds nothing usable
+- [x] Cap `num_predict` for filter-extraction Ollama calls to ~40-60 tokens (it's just a small JSON object)
+- [x] Apply the same rule-based-first approach to `query_transactions_dynamic` (tools.py:263-387), which has a larger filter schema (query_type, merchant, date, amount_min/max, etc.)
 
-| Alias | Resolves To |
-|-------|-------------|
-| `search` | `transaction_search` |
-| `insights` | `insights` |
-| `report` | `report` |
-| `alert` | `alert` |
-| `chart_alert` | `chart_alert` |
-| `goal` | `goal` |
-| `budget` | `budget` |
-| `chat` | `general_chat` |
-| `db` | `db_context` |
+## P1 — Per-agent token budgets
 
-### Agent Selection Logic
+Set explicit `num_predict` ceilings per call site rather than reusing 256 everywhere:
 
-**The backend router selects the agent first.** Ollama does NOT choose agents.
+| Agent / function | Task | `num_predict` |
+|---|---|---|
+| `_extract_transaction_filters` | JSON filter extraction | 60 |
+| `query_transactions_dynamic` | JSON filter extraction (larger schema) | 100 |
+| `answer_alerts_question` | Short analysis | 150 |
+| `explain_chart_or_alert` | Short explanation | 150 |
+| `answer_goal_question` | Goal answer | 200 |
+| `answer_budget_question` | Budget analysis | 200 |
+| `answer_insights_question` | Insights answer | 200 |
+| `generate_report_narrative` | Full report narrative | 256 |
+| `classify_intent` | Intent label only | 20 |
+| `answer_database_question` | Schema Q&A | 100 |
 
-```mermaid
-flowchart TD
-    A[User Message] --> B{agent field provided?}
-    B -->|Yes| C[get_agent alias resolution]
-    B -->|No| D[classify_intent via Ollama]
-    C --> E[Intent enum from registry]
-    D --> E
-    E --> F[route_intent dispatches to handler]
-    F --> G[Agent handler executes]
-    G --> H[Response returned]
-```
+- [x] Apply these caps in code
+- [x] Recalculate each call site's timeout using the new per-task token budget and the 1B model's measured tok/s
 
-**Actual implementation:**
-1. If `agent` is provided in request body → resolve via `get_agent()` in `app/services/agents.py:163-180`
-2. If no `agent` → auto-classify intent using `classify_intent()` which calls Ollama
-3. Map resolved intent to handler via `route_intent()` in `app/services/router.py:58-284`
-4. Execute handler function
-5. Return `{"intent", "response", "data", "filters", "fallback"}`
+## P1 — Fix the auth bug (independent of Ollama work)
 
-### Agent-to-Ollama Mapping
+- [x] Trace why `/debug/traces` requires auth despite `/debug` being marked public in `middleware.py:91-141` — check path-prefix matching logic and whether the traces router declares its own auth dependency that overrides the middleware's public list
+  - **Root cause:** `app/routers/debug.py` had `user_id: str = Depends(get_user_id)` on `/traces`, `/events`, and `/test/flow`, which overrode the middleware's public `/debug` prefix.
+  - **Fix:** Removed `Depends(get_user_id)` from all debug router endpoints. Removed unused imports.
 
-| Agent | Calls Ollama? | Purpose |
-|-------|--------------|---------|
-| `transaction_search` | Yes | `_extract_transaction_filters` extracts filters from NL query |
-| `report` | Yes | `generate_report_narrative` creates narrative from sections |
-| `chart_alert` | Yes | `explain_chart_or_alert` generates explanation |
-| `alert` | Yes | `answer_alerts_question` generates alert analysis |
-| `goal` | Yes | `answer_goal_question` generates goal planning response |
-| `budget` | Yes | `answer_budget_question` generates budget analysis |
-| `insights` | Yes | `answer_insights_question` generates insights response |
-| `general_chat` | No | Returns static agent list; no Ollama call |
-| `db_context` | No | Returns database schema context; no Ollama call |
+## P2 — Reduce load on a single CPU worker
 
-### Agent Architecture Diagram
+- [x] Do **not** raise `OLLAMA_NUM_PARALLEL` above 1 on CPU — concurrent generations on fixed cores just divide the same total throughput and make each individual call slower and less predictable
+  - **Done:** Added `OLLAMA_NUM_PARALLEL` env var (default 1) and `asyncio.Semaphore` in `app/ollama.py`.
+- [x] Add a simple request queue in front of Ollama calls so concurrent agent requests run sequentially with predictable wait times, rather than contending
+  - **Done:** Added `_ollama_semaphore = asyncio.Semaphore(OLLAMA_NUM_PARALLEL)` in `app/ollama.py`.
+- [x] Make sure timeout logic accounts for queue wait time + generation time, not generation time alone
+  - **Done:** Added `calculate_ollama_timeout(num_predict)` in `app/ollama.py` using `(num_predict / measured_tok_per_sec) * TIMEOUT_BUFFER + 10s prompt buffer`.
+- [ ] Trim prompt sizes going into the model — summarize/truncate large data payloads (full transaction lists, all insights) before inserting into system prompts; prefill cost is smaller than decode cost but not free
 
-```mermaid
-flowchart TD
-    Q[User Query] --> R[Router / Agent Selection]
-    R -->|search| TS[Transaction Search Agent]
-    R -->|report| RP[Report Agent]
-    R -->|chart_alert| CA[Chart/Alert Agent]
-    R -->|alert| AL[Alert Agent]
-    R -->|goal| GL[Goal Agent]
-    R -->|budget| BG[Budget Agent]
-    R -->|insights| IN[Insights Agent]
-    R -->|chat| GC[General Chat Agent]
-    R -->|db| DB[Database Context Agent]
+## P2 — Make narrative-generating agents feel responsive
 
-    TS -->|uses| TS_Tools[search_transactions_nl<br/>_extract_transaction_filters]
-    RP -->|uses| RP_Tools[build_report<br/>build_report_sections]
-    CA -->|uses| CA_Tools[explain_chart_or_alert]
-    AL -->|uses| AL_Tools[answer_alerts_question]
-    GL -->|uses| GL_Tools[answer_goal_question]
-    BG -->|uses| BG_Tools[answer_budget_question]
-    IN -->|uses| IN_Tools[answer_insights_question]
-    GC -->|uses| GC_Tools[Static agent list]
-    DB -->|uses| DB_Tools[answer_database_question]
+- [ ] For `report`, `insights`, `budget`, `goal`, `alert`, `chart_alert`: return the computed data portion of the response immediately; stream the narrative text via SSE (reuse `/debug/stream` infra) instead of blocking the whole HTTP response on generation
+- [ ] Add response caching for narrative text keyed by `(user_id, data_hash, agent)` with a short TTL so repeated/refreshed requests don't re-hit Ollama for identical input
+  - **Done:** Added `app/response_cache.py` with `ResponseCache` class and `hash_data()` helper. TTL configurable via `RESPONSE_CACHE_TTL` env var.
+- [ ] Add a circuit breaker: if Ollama fails/times out repeatedly in a short window, skip LLM calls and serve data-only responses until it recovers
+  - **Done:** Added `app/circuit_breaker.py` with `CircuitBreaker` class and `ollama_circuit_breaker` instance. Integrated into all `generate()`, `stream()`, and `generate_with_tools()` calls in `app/ollama.py`. Configurable via `OLLAMA_CIRCUIT_THRESHOLD` and `OLLAMA_CIRCUIT_COOLDOWN` env vars.
 
-    TS_Tools -->|calls| O1[Ollama]
-    RP_Tools -->|calls| O2[Ollama]
-    CA_Tools -->|calls| O3[Ollama]
-    AL_Tools -->|calls| O4[Ollama]
-    GL_Tools -->|calls| O5[Ollama]
-    BG_Tools -->|calls| O6[Ollama]
-    IN_Tools -->|calls| O7[Ollama]
-    GC_Tools -->|no call| X[None]
-    DB_Tools -->|no call| X
-```
+## P2 — Observability
+
+- [x] Instrument LLM call logs (`logging_utils.py:88-104`) with per-call duration and token counts so you can track real tok/s over time, not just anecdotal benchmarks
+  - **Done:** Updated `log_llm_call()` in `app/logging_utils.py` to accept `eval_count`, `prompt_eval_count`, `eval_duration_ns`, `prompt_eval_duration_ns` and calculate `gen_tok_per_sec` and `prompt_tok_per_sec`. Added `log_llm_call()` calls in `app/ollama.py` after every successful Ollama response.
+- [ ] Add a dashboard or simple log-based report of p50/p95/p99 latency per agent
+- [ ] Re-run a concurrency test (2-3 simultaneous requests across different agents) to confirm queueing behavior is predictable under the 1B model
+
+## P3 — Structural cleanup (backlog)
+
+- [x] Resolve `TRANSACTION_QUERY` intent being registered but missing from `AGENT_REGISTRY`
+  - **Done:** Added `transaction_query` agent to `AGENT_REGISTRY` with slash command `/query`.
+- [x] Separate `alert` and `chart_alert` intents instead of sharing one
+  - **Done:** Changed `alert` agent intent from `chart_alert` to `alerts`. Router already handled both intents separately.
+- [ ] Consider removing the Ollama call from `answer_database_question` entirely — schema info is static and can likely be templated without an LLM
+- [ ] Revisit `classify_intent` — if it's only choosing among 9 fixed labels, a smaller/faster classification approach (even keyword-based) may outperform an LLM call for this specific task
 
 ---
 
-## 3. Tool/Function Map
-
-### Financial Tool Functions
-
-All tool functions are in `app/services/tools.py`. Each is a fixed, parameterized wrapper around the Django backend API client. No LLM-generated queries are allowed in these functions.
-
-### `get_transactions`
-
-| Field | Value |
-|-------|-------|
-| **Function** | `get_transactions(token, *, page, page_size, category, type_, start_date, end_date)` |
-| **File** | `app/clients.py:25-51` |
-| **Wrapper** | `get_transactions_tool()` in `app/services/tools.py:49-86` |
-| **Used by** | `search_transactions_nl`, `query_transactions_dynamic`, `get_income_tool`, `build_report`, `answer_budget_question` |
-| **Purpose** | Fetch paginated transactions from Django API |
-| **Input** | `token: str`, `page: int`, `page_size: int`, `category: Optional[str]`, `type_: Optional[str]`, `start_date: Optional[str]`, `end_date: Optional[str]` |
-| **API Call** | `GET /api/transactions/` with query params |
-| **Output** | `{"user_id": str, "data": {count, next, previous, results: [...]}}` |
-| **Calls Ollama** | No |
-| **Error Conditions** | HTTP error from Django, network failure |
-
-### `get_accounts`
-
-| Field | Value |
-|-------|-------|
-| **Function** | `get_accounts(token)` |
-| **File** | `app/clients.py:74-81` |
-| **Wrapper** | `get_balance_tool()` in `app/services/tools.py:89-106` |
-| **Used by** | `get_balance_tool` |
-| **Purpose** | Fetch user accounts from Django API |
-| **Input** | `token: str` |
-| **API Call** | `GET /api/accounts/` |
-| **Output** | `{"user_id": str, "data": {count, results: [...]}}` |
-| **Calls Ollama** | No |
-
-### `get_budgets`
-
-| Field | Value |
-|-------|-------|
-| **Function** | `get_budgets(token)` |
-| **File** | `app/clients.py:54-61` |
-| **Wrapper** | `get_budget_tool()` in `app/services/tools.py:109-126` |
-| **Used by** | `answer_budget_question`, `build_report` |
-| **Purpose** | Fetch budget categories from Django API |
-| **Input** | `token: str` |
-| **API Call** | `GET /api/budget-categories/` |
-| **Output** | `{"user_id": str, "data": {count, results: [...]}}` |
-| **Calls Ollama** | No |
-
-### `get_goals`
-
-| Field | Value |
-|-------|-------|
-| **Function** | `get_goals(token)` |
-| **File** | `app/clients.py:64-71` |
-| **Wrapper** | `get_goals_tool()` in `app/services/tools.py:164-181` |
-| **Used by** | `answer_goal_question`, `build_report` |
-| **Purpose** | Fetch user goals from Django API |
-| **Input** | `token: str` |
-| **API Call** | `GET /api/goals/` |
-| **Output** | `{"user_id": str, "data": {count, results: [...]}}` |
-| **Calls Ollama** | No |
-
-### `get_user_profile`
-
-| Field | Value |
-|-------|-------|
-| **Function** | `get_user_profile(token)` |
-| **File** | `app/clients.py:84-91` |
-| **Wrapper** | `get_profile_tool()` in `app/services/tools.py:184-200` |
-| **Used by** | `answer_goal_question`, `answer_budget_question` |
-| **Purpose** | Fetch current user profile from Django API |
-| **Input** | `token: str` |
-| **API Call** | `GET /api/users/me/` |
-| **Output** | `{"user_id": str, "data": {id, email, monthly_income, ...}}` |
-| **Calls Ollama** | No |
-
-### `get_insights`
-
-| Field | Value |
-|-------|-------|
-| **Function** | `get_insights(token)` |
-| **File** | `app/clients.py:94-101` |
-| **Used by** | `answer_insights_question` (directly, no wrapper) |
-| **Purpose** | Fetch AI-generated insights from Django API |
-| **Input** | `token: str` |
-| **API Call** | `GET /api/insights/` |
-| **Output** | `{count, results: [...]}` |
-| **Calls Ollama** | No |
-
-### `get_alerts`
-
-| Field | Value |
-|-------|-------|
-| **Function** | `get_alerts(token, *, read, category, type_)` |
-| **File** | `app/clients.py:104-119` |
-| **Wrapper** | `get_alerts_tool()` in `app/services/tools.py:234-260` |
-| **Used by** | `answer_alerts_question` (directly via import) |
-| **Purpose** | Fetch alerts from Django API |
-| **Input** | `token: str`, `read: Optional[bool]`, `category: Optional[str]`, `type_: Optional[str]` |
-| **API Call** | `GET /api/alerts/` with query params |
-| **Output** | `{"user_id": str, "data": {count, results: [...]}}` |
-| **Calls Ollama** | No |
-
-### `_extract_transaction_filters`
-
-| Field | Value |
-|-------|-------|
-| **Function** | `_extract_transaction_filters(query: str) -> Dict[str, Optional[str]]` |
-| **File** | `app/services/tools.py:24-46` |
-| **Used by** | `search_transactions_nl` |
-| **Purpose** | Use Ollama to extract structured filters from natural language query |
-| **Input** | `query: str` - natural language transaction query |
-| **Ollama Call** | `POST /api/chat` with system prompt asking for JSON with keys: category, type_, start_date, end_date |
-| **Output** | `{"category": str, "type_": str, "start_date": str, "end_date": str}` or `{}` on failure |
-| **Calls Ollama** | Yes |
-| **Error Conditions** | Ollama timeout, invalid JSON response, empty response → returns `{}` |
-
-### `search_transactions_nl`
-
-| Field | Value |
-|-------|-------|
-| **Function** | `search_transactions_nl(token, user_id, query) -> Dict[str, Any]` |
-| **File** | `app/services/tools.py:203-231` |
-| **Used by** | `transaction_search` agent via `route_intent` |
-| **Purpose** | Natural language transaction search with Ollama-powered filter extraction |
-| **Input** | `token: str`, `user_id: str`, `query: str` |
-| **Process** | 1. Call `_extract_transaction_filters(query)` to get filters from Ollama<br/>2. Call `get_transactions()` with extracted filters<br/>3. Return results with filters and query |
-| **Output** | `{"user_id": str, "query": str, "filters": dict, "data": {count, results}}` |
-| **Calls Ollama** | Yes (via `_extract_transaction_filters`) |
-
-### `query_transactions_dynamic`
-
-| Field | Value |
-|-------|-------|
-| **Function** | `query_transactions_dynamic(token, user_id, query) -> Dict[str, Any]` |
-| **File** | `app/services/tools.py:263-387` |
-| **Used by** | `transaction_query` intent in `route_intent` |
-| **Purpose** | Dynamic transaction query with advanced filter extraction and client-side amount filtering |
-| **Input** | `token: str`, `user_id: str`, `query: str` |
-| **Ollama Call** | `POST /api/chat` asking for JSON with keys: query_type, merchant, date, start_date, end_date, amount_min, amount_max, category, transaction_type, description, limit |
-| **Process** | 1. Call Ollama to extract structured filters<br/>2. Validate query_type == "transaction"<br/>3. Apply filters to Django API call<br/>4. Apply client-side amount_min/amount_max filtering<br/>5. Return filtered results |
-| **Output** | `{"user_id": str, "query": str, "filters": dict, "data": {count, results}}` |
-| **Calls Ollama** | Yes |
-
-### Assistant Functions
-
-### `answer_goal_question`
-
-| Field | Value |
-|-------|-------|
-| **Function** | `answer_goal_question(token, user_id, question) -> str` |
-| **File** | `app/services/assistants.py:27-110` |
-| **Used by** | `goal` agent via `route_intent` |
-| **Purpose** | Answer goal-related questions using goals data and projections |
-| **Input** | `token: str`, `user_id: str`, `question: str` |
-| **Tools Used** | `get_goals_tool`, `get_profile_tool` |
-| **Calculations** | `project_goal_timeline()` for each goal |
-| **Ollama Call** | `generate()` with system prompt containing goal summaries and question |
-| **Output** | `str` - LLM-generated answer |
-| **Calls Ollama** | Yes |
-
-### `answer_budget_question`
-
-| Field | Value |
-|-------|-------|
-| **Function** | `answer_budget_question(token, user_id, question) -> str` |
-| **File** | `app/services/assistants.py:113-195` |
-| **Used by** | `budget` agent via `route_intent` |
-| **Purpose** | Answer budget questions with analysis and recommendations |
-| **Input** | `token: str`, `user_id: str`, `question: str` |
-| **Tools Used** | `get_transactions_tool`, `get_budget_tool`, `get_profile_tool` |
-| **Calculations** | `calculate_savings_rate()`, `calculate_budget_variance()` |
-| **Ollama Call** | `generate()` with system prompt containing financial metrics and question |
-| **Output** | `str` - LLM-generated answer |
-| **Calls Ollama** | Yes |
-
-### `answer_insights_question`
-
-| Field | Value |
-|-------|-------|
-| **Function** | `answer_insights_question(token, user_id, question) -> str` |
-| **File** | `app/services/insights_agent.py` |
-| **Used by** | `insights` agent via `route_intent` |
-| **Purpose** | Answer questions about financial insights |
-| **Input** | `token: str`, `user_id: str`, `question: str` |
-| **Tools Used** | `get_insights` (Django API client) |
-| **Ollama Call** | `generate()` with system prompt containing insights data and question |
-| **Output** | `str` - LLM-generated answer |
-| **Calls Ollama** | Yes |
-
-### `answer_alerts_question`
-
-| Field | Value |
-|-------|-------|
-| **Function** | `answer_alerts_question(token, user_id, question) -> str` |
-| **File** | `app/services/alerts_agent.py` |
-| **Used by** | `alert` agent via `route_intent` |
-| **Purpose** | Answer questions about financial alerts |
-| **Input** | `token: str`, `user_id: str`, `question: str` |
-| **Tools Used** | `get_alerts_tool` |
-| **Ollama Call** | `generate()` with system prompt containing alerts data and question |
-| **Output** | `str` - LLM-generated answer |
-| **Calls Ollama** | Yes |
-
-### `build_report`
-
-| Field | Value |
-|-------|-------|
-| **Function** | `build_report(token, user_id) -> Dict[str, Any]` |
-| **File** | `app/services/reports.py:103-141` |
-| **Used by** | `report` agent via `route_intent` |
-| **Purpose** | Generate comprehensive financial report with sections and narrative |
-| **Input** | `token: str`, `user_id: str` |
-| **Tools Used** | `get_transactions_tool`, `get_income_tool`, `get_balance_tool`, `get_budget_tool`, `get_goals_tool` |
-| **Output** | `{"sections": {...}, "narrative": str}` |
-| **Calls Ollama** | Yes (via `generate_report_narrative`) |
-
-### `explain_chart_or_alert`
-
-| Field | Value |
-|-------|-------|
-| **Function** | `explain_chart_or_alert(data: Dict[str, Any]) -> str` |
-| **File** | `app/services/reports.py` |
-| **Used by** | `chart_alert` agent via `route_intent` |
-| **Purpose** | Generate plain-language explanation of chart/alert data |
-| **Input** | `data: Dict[str, Any]` - chart or alert payload |
-| **Ollama Call** | `generate()` with system prompt asking for explanation |
-| **Output** | `str` - LLM-generated explanation |
-| **Calls Ollama** | Yes |
-
-### `answer_database_question`
-
-| Field | Value |
-|-------|-------|
-| **Function** | `answer_database_question(question: str) -> str` |
-| **File** | `app/services/db_agent.py` |
-| **Used by** | `db_context` agent via `route_intent` |
-| **Purpose** | Answer questions about database schema |
-| **Input** | `question: str` |
-| **Context** | Uses pre-loaded database schema context from `app/services/db_context.py` |
-| **Ollama Call** | `generate()` with system prompt containing schema context |
-| **Output** | `str` - LLM-generated schema explanation |
-| **Calls Ollama** | Yes |
-
----
-
-## 4. Ollama Interaction
-
-### Ollama Adapter
-
-All Ollama calls go through `app/ollama.py`. This is the single point of contact with Ollama.
-
-### Ollama Functions
-
-| Function | Endpoint | Purpose |
-|----------|----------|---------|
-| `generate()` | `POST /api/chat` | Non-streaming chat completion |
-| `stream()` | `POST /api/chat` (stream) | Streaming chat completion |
-| `generate_with_tools()` | `POST /api/chat` | Chat completion with tool definitions |
-| `embed()` | `POST /api/embed` | Text embedding |
-
-### Places Ollama Is Called
-
-1. **`_extract_transaction_filters`** (`tools.py:32-39`)
-   - Purpose: Extract structured filters from NL query
-   - Input: System prompt + user query
-   - Expected: JSON with category, type_, start_date, end_date
-   - Used by: `search_transactions_nl`
-
-2. **`query_transactions_dynamic`** (`tools.py:281-288`)
-   - Purpose: Extract advanced transaction filters
-   - Input: System prompt + user query
-   - Expected: JSON with merchant, date, amount_min, amount_max, etc.
-   - Used by: `transaction_query` intent
-
-3. **`answer_goal_question`** (`assistants.py:82-87`)
-   - Purpose: Generate goal planning response
-   - Input: System prompt with goal summaries + user question
-   - Expected: Natural language response
-   - Used by: `goal` agent
-
-4. **`answer_budget_question`** (`assistants.py:167-172`)
-   - Purpose: Generate budget analysis
-   - Input: System prompt with financial metrics + user question
-   - Expected: Natural language response
-   - Used by: `budget` agent
-
-5. **`answer_insights_question`** (`insights_agent.py`)
-   - Purpose: Generate insights response
-   - Input: System prompt with insights data + user question
-   - Expected: Natural language response
-   - Used by: `insights` agent
-
-6. **`answer_alerts_question`** (`alerts_agent.py`)
-   - Purpose: Generate alert analysis
-   - Input: System prompt with alerts data + user question
-   - Expected: Natural language response
-   - Used by: `alert` agent
-
-7. **`explain_chart_or_alert`** (`reports.py`)
-   - Purpose: Generate chart/alert explanation
-   - Input: System prompt with chart/alert data
-   - Expected: Natural language explanation
-   - Used by: `chart_alert` agent
-
-8. **`generate_report_narrative`** (`reports.py`)
-   - Purpose: Generate narrative summary for report
-   - Input: System prompt with report sections
-   - Expected: Natural language narrative
-   - Used by: `report` agent
-
-9. **`classify_intent`** (via `app/services/intent.py`)
-   - Purpose: Classify user intent when no agent specified
-   - Input: User message
-   - Expected: Intent enum value
-   - Used by: Auto-routing in `/chat/agent`
-
-### Ollama Configuration
-
-| Setting | Env Var | Default | Purpose |
-|---------|---------|---------|---------|
-| URL | `OLLAMA_URL` | `http://localhost:11434` | Ollama server address |
-| Chat Model | `OLLAMA_CHAT_MODEL` | `llama3.2` | Default chat model |
-| Embed Model | `OLLAMA_EMBED_MODEL` | `nomic-embed-text` | Default embedding model |
-| Bypass Mode | `OLLAMA_BYPASS` | `false` | Skip Ollama calls, return synthetic response |
-| Temperature | `OLLAMA_TEMPERATURE` | `0.3` | Generation randomness |
-| Max Tokens | `OLLAMA_NUM_PREDICT` | `256` | Max tokens to generate |
-| Top P | `OLLAMA_TOP_P` | `0.9` | Nucleus sampling |
-| Repeat Penalty | `OLLAMA_REPEAT_PENALTY` | `1.1` | Token repetition penalty |
-
-### Ollama Flow Diagram
-
-```mermaid
-flowchart TD
-    A[Agent Handler] --> B{Needs LLM?}
-    B -->|Yes| C[build prompt]
-    B -->|No| Z[Return data directly]
-    C --> D[ollama.generate/stream]
-    D --> E{Mode?}
-    E -->|Normal| F[HTTP POST /api/chat]
-    E -->|Bypass| G[Return synthetic response]
-    F --> H{Status 200?}
-    H -->|Yes| I[Parse JSON response]
-    H -->|No| J[Raise OllamaAdapterError]
-    I --> K[Extract message.content]
-    K --> L[Return to handler]
-    G --> L
-    J --> M[Fallback or error message]
-```
-
-### Transaction Search Ollama Flow
-
-```mermaid
-flowchart TD
-    A[User: Show me Starbucks transactions] --> B[search_transactions_nl]
-    B --> C[_extract_transaction_filters]
-    C --> D[Ollama generate - filter extraction]
-    D --> E{Valid JSON?}
-    E -->|Yes| F[Parse filters]
-    E -->|No| G[Return empty filters]
-    F --> H[GET /api/transactions/ with filters]
-    G --> H
-    H --> I[Return transaction results]
-    I --> J[Route returns: Found X transactions]
-```
-
----
-
-## 5. Tool Selection Logic
-
-### Actual Implementation
-
-The backend router selects the agent first. Ollama is never used for agent/tool selection in the current implementation.
-
-```mermaid
-flowchart TD
-    A[POST /chat/agent] --> B{agent field present?}
-    B -->|Yes| C[get_agent lookup in AGENT_REGISTRY]
-    B -->|No| D[classify_intent via Ollama]
-    C -->|Found| E[Map to Intent enum]
-    C -->|Not found| F[400 Unknown agent]
-    D --> E
-    E --> G[route_intent dispatch]
-    G -->|REPORT| H[build_report]
-    G -->|CHART_ALERT| I[explain_chart_or_alert]
-    G -->|GOAL| J[answer_goal_question]
-    G -->|BUDGET| K[answer_budget_question]
-    G -->|TRANSACTION_SEARCH| L[search_transactions_nl]
-    G -->|INSIGHTS| M[answer_insights_question]
-    G -->|DB_CONTEXT| N[answer_database_question]
-    G -->|ALERTS| O[answer_alerts_question]
-    G -->|TRANSACTION_QUERY| P[query_transactions_dynamic]
-    G -->|GENERAL_CHAT| Q[Agent list response]
-    G -->|Unknown| R[Fallback message]
-```
-
-### Router Implementation
-
-File: `app/services/router.py:58-284`
-
-The `route_intent()` function:
-1. Takes `intent: Intent`, `token: str`, `user_id: str`, `message: str`
-2. Dispatches to specific handler based on intent
-3. Each handler fetches data from Django API
-4. Each handler may call Ollama for response generation
-5. Returns `{"intent": str, "response": str, "data": Optional[dict], "filters": Optional[dict], "fallback": bool}`
-
----
-
-## 6. API/CURL Reference
-
-### Base URL
-
-```
-http://localhost:8100
-```
-
-### Health Check
-
-```bash
-curl -X GET http://localhost:8100/health
-```
-
-### Agent Chat
-
-```bash
-curl -X POST http://localhost:8100/chat/agent \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "agent": "search",
-    "message": "Show me all Starbucks transactions over $50"
-  }'
-```
-
-**Flow:**
-```
-curl
- → POST /chat/agent
- → get_agent lookup
- → route_intent
- → search_transactions_nl
- → _extract_transaction_filters [Ollama]
- → GET /api/transactions/
- → Response
-```
-
-### Report Generation
-
-```bash
-curl -X POST http://localhost:8100/chat/agent \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "agent": "report",
-    "message": "Generate my monthly financial report"
-  }'
-```
-
-**Flow:**
-```
-curl
- → POST /chat/agent
- → route_intent
- → build_report
- → get_transactions_tool [Django API]
- → get_income_tool [Django API]
- → get_balance_tool [Django API]
- → get_budget_tool [Django API]
- → get_goals_tool [Django API]
- → generate_report_narrative [Ollama]
- → Response
-```
-
-### Chart/Alert Explanation
-
-```bash
-curl -X POST http://localhost:8100/chat/agent \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "agent": "chart_alert",
-    "message": "Explain the spending trend chart"
-  }'
-```
-
-**Flow:**
-```
-curl
- → POST /chat/agent
- → route_intent
- → explain_chart_or_alert
- → Ollama generate
- → Response
-```
-
-### Alert Analysis
-
-```bash
-curl -X POST http://localhost:8100/chat/agent \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "agent": "alert",
-    "message": "Why did I get an overspending alert?"
-  }'
-```
-
-**Flow:**
-```
-curl
- → POST /chat/agent
- → route_intent
- → answer_alerts_question
- → get_alerts_tool [Django API]
- → Ollama generate
- → Response
-```
-
-### Goal Planning
-
-```bash
-curl -X POST http://localhost:8100/chat/agent \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "agent": "goal",
-    "message": "How much do I need to save monthly for my vacation?"
-  }'
-```
-
-**Flow:**
-```
-curl
- → POST /chat/agent
- → route_intent
- → answer_goal_question
- → get_goals_tool [Django API]
- → get_profile_tool [Django API]
- → project_goal_timeline calculation
- → Ollama generate
- → Response
-```
-
-### Budget Analysis
-
-```bash
-curl -X POST http://localhost:8100/chat/agent \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "agent": "budget",
-    "message": "Am I overspending on dining?"
-  }'
-```
-
-**Flow:**
-```
-curl
- → POST /chat/agent
- → route_intent
- → answer_budget_question
- → get_transactions_tool [Django API]
- → get_budget_tool [Django API]
- → get_profile_tool [Django API]
- → calculate_savings_rate + calculate_budget_variance
- → Ollama generate
- → Response
-```
-
-### Insights
-
-```bash
-curl -X POST http://localhost:8100/chat/agent \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "agent": "insights",
-    "message": "What are my top spending categories?"
-  }'
-```
-
-**Flow:**
-```
-curl
- → POST /chat/agent
- → route_intent
- → answer_insights_question
- → get_insights [Django API]
- → Ollama generate
- → Response
-```
-
-### Database Context
-
-```bash
-curl -X POST http://localhost:8100/chat/agent \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "agent": "db",
-    "message": "What tables are in the database?"
-  }'
-```
-
-**Flow:**
-```
-curl
- → POST /chat/agent
- → route_intent
- → answer_database_question
- → get_database_context (static)
- → Ollama generate
- → Response
-```
-
-### General Chat
-
-```bash
-curl -X POST http://localhost:8100/chat/agent \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "agent": "chat",
-    "message": "Hello, how are you?"
-  }'
-```
-
-**Flow:**
-```
-curl
- → POST /chat/agent
- → route_intent
- → GENERAL_CHAT handler
- → Returns static agent list
- → No Ollama call
-```
-
----
-
-## 7. Request/Response Contracts
-
-### Frontend → Backend (`POST /chat/agent`)
-
-**Request:**
-```json
-{
-  "agent": "search",
-  "message": "Show me Starbucks transactions over $50"
-}
-```
-
-**Schema:** `app/schemas/chat.py:14-18`
-- `message: str` (required, min_length=1)
-- `model: str | None` (optional)
-- `conversation_id: str | None` (optional)
-- `agent: str | None` (optional)
-
-### Backend → Agent Handler
-
-**Call:**
-```python
-route_intent(
-    intent=Intent.TRANSACTION_SEARCH,
-    token="<jwt_token>",
-    user_id="<user_uuid>",
-    message="Show me Starbucks transactions over $50",
-    request_id="<request_uuid>"
-)
-```
-
-**Returns:**
-```python
-{
-    "intent": "transaction_search",
-    "response": "Found 5 transactions matching your query.",
-    "data": {"count": 5, "results": [...]},
-    "filters": {"category": "Food & Dining"},
-    "fallback": False
-}
-```
-
-### Agent → Tool
-
-**Example (`search_transactions_nl`):**
-```python
-result = await search_transactions_nl(
-    token="<jwt_token>",
-    user_id="<user_uuid>",
-    query="Show me Starbucks transactions over $50"
-)
-```
-
-**Returns:**
-```python
-{
-    "user_id": "<user_uuid>",
-    "query": "Show me Starbucks transactions over $50",
-    "filters": {"category": "Food & Dining"},
-    "data": {"count": 5, "results": [...]}
-}
-```
-
-### Tool → Django API
-
-**Example (`get_transactions`):**
-```python
-data = await get_transactions(
-    token="<jwt_token>",
-    page=1,
-    page_size=100,
-    category="Food & Dining",
-    type_=None,
-    start_date=None,
-    end_date=None
-)
-```
-
-**HTTP Request:**
-```
-GET /api/transactions/?page=1&page_size=100&category=Food%20%26%20Dining
-Authorization: Bearer <jwt_token>
-```
-
-**Returns:**
-```json
-{
-  "count": 5,
-  "next": null,
-  "previous": null,
-  "results": [
-    {
-      "id": "uuid",
-      "date": "2026-08-20",
-      "description": "Starbucks Coffee",
-      "amount": "5.50",
-      "type": "expense",
-      "category": {"id": "uuid", "name": "Food & Dining"},
-      ...
-    }
-  ]
-}
-```
-
-### Agent → Ollama
-
-**Request:**
-```json
-{
-  "model": "llama3.2",
-  "messages": [
-    {
-      "role": "system",
-      "content": "You are a financial insights assistant. Using the insights data below, answer the user's question clearly and concisely. Insights Data: {...} Question: What are my top spending categories?"
-    }
-  ],
-  "stream": false,
-  "options": {
-    "temperature": 0.3,
-    "num_predict": 256,
-    "top_p": 0.9,
-    "repeat_penalty": 1.1
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "model": "llama3.2",
-  "created_at": "2026-01-01T00:00:00.000000000Z",
-  "message": {
-    "role": "assistant",
-    "content": "Based on your spending data, your top categories are..."
-  },
-  "done": true
-}
-```
-
-### Backend → Frontend Response
-
-**Success:**
-```json
-{
-  "intent": "transaction_search",
-  "response": "Found 5 transactions matching your query.",
-  "data": {"count": 5, "results": [...]},
-  "filters": {"category": "Food & Dining"},
-  "fallback": false
-}
-```
-
-**Error:**
-```json
-{
-  "detail": "Invalid or expired token.",
-  "request_id": "<uuid>"
-}
-```
-
-**Fallback:**
-```json
-{
-  "intent": "general_chat",
-  "response": "I'm not sure how to help with that. Could you rephrase?",
-  "data": null,
-  "filters": null,
-  "fallback": true
-}
-```
-
----
-
-## 8. Complete End-to-End Flow
-
-### Transaction Search End-to-End
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant F as Frontend
-    participant D as Django :8000
-    participant M as ML-Backend :8100
-    participant O as Ollama :11434
-    participant DB as Database
-
-    U->>F: "Show me Starbucks transactions over $50"
-    F->>M: POST /chat/agent {agent: "search", message: "..."}
-    M->>M: get_agent("search") → transaction_search
-    M->>M: Intent.TRANSACTION_SEARCH
-    M->>M: route_intent(TRANSACTION_SEARCH, ...)
-    M->>O: POST /api/chat (filter extraction)
-    Note right of O: System: Extract filters from query
-    O-->>M: {"message": {"content": '{"category":"Food & Dining"}'}}
-    M->>M: Parse JSON filters
-    M->>D: GET /api/transactions/?category=Food%20%26%20Dining
-    D->>DB: SELECT * FROM transactions WHERE category = ...
-    DB-->>D: Transaction rows
-    D-->>M: {"count": 5, "results": [...]}
-    M-->>F: {"intent":"transaction_search","response":"Found 5 transactions...","data":{...},"filters":{...}}
-    F-->>U: Display results
-```
-
-### Report Generation End-to-End
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant F as Frontend
-    participant M as ML-Backend :8100
-    participant D as Django :8000
-    participant O as Ollama :11434
-
-    U->>F: "Generate my monthly financial report"
-    F->>M: POST /chat/agent {agent: "report", message: "..."}
-    M->>M: route_intent(REPORT, ...)
-    M->>D: GET /api/transactions/?page=1&page_size=200
-    D-->>M: Transactions
-    M->>D: GET /api/accounts/
-    D-->>M: Accounts/Balance
-    M->>D: GET /api/budget-categories/
-    D-->>M: Budgets
-    M->>D: GET /api/goals/
-    D-->>M: Goals
-    M->>M: build_report_sections()
-    M->>O: POST /api/chat (narrative generation)
-    Note right of O: System: Generate narrative from sections
-    O-->>M: {"message": {"content": "Your monthly report shows..."}}
-    M-->>F: {"intent":"report","response":"Your monthly report...","data":{...}}
-    F-->>U: Display report
-```
-
----
-
-## 9. Debugging Reference
-
-### Debug Endpoints
-
-| Endpoint | Purpose | Auth Required |
-|----------|---------|---------------|
-| `GET /health` | Health check | No |
-| `GET /debug/traces` | List all debug traces | Yes |
-| `GET /debug/traces/{request_id}` | Get specific trace | Yes |
-| `POST /debug/events` | Append debug event | Yes |
-| `GET /debug/stream` | SSE stream of debug events | Yes |
-| `POST /debug/test/flow` | Test debug flow | Yes |
-
-### Where to Debug
-
-| Issue | Debug Location | File | Function |
-|-------|---------------|------|----------|
-| Agent fails to resolve | Agent lookup | `app/services/agents.py:163-180` | `get_agent()` |
-| Wrong agent selected | Intent classification | `app/services/intent.py` | `classify_intent()` |
-| Router dispatch fails | Agent routing | `app/services/router.py:58-284` | `route_intent()` |
-| Tool data empty | Tool function | `app/services/tools.py` | Individual tool functions |
-| Django API error | HTTP client | `app/clients.py` | `get_transactions`, etc. |
-| Ollama timeout | Ollama adapter | `app/ollama.py:91-134` | `generate()` |
-| Ollama invalid response | Filter parsing | `app/services/tools.py:24-46` | `_extract_transaction_filters()` |
-| Response parsing error | JSON parsing | `app/services/tools.py:40-44` | `json.loads()` |
-| Auth failure | Middleware | `app/middleware.py:91-141` | `verify_jwt()` |
-
-### Logs
-
-| Log Type | Logger Name | File |
-|----------|-------------|------|
-| Request logs | `ml_backend` | `app/logging_utils.py:48-66` |
-| Agent logs | `ml_backend` | `app/logging_utils.py:139-164` |
-| Tool call logs | `ml_backend` | `app/logging_utils.py:69-85` |
-| LLM call logs | `ml_backend` | `app/logging_utils.py:88-104` |
-| Validation logs | `ml_backend` | `app/logging_utils.py:194-219` |
-| Error logs | `ml_backend` | `app/logging_utils.py:222-234` |
-| Ollama logs | `ml_backend` | `app/ollama.py:54-71` |
-
-### Debug Store
-
-The in-memory debug store (`app/debug_events.py`) tracks:
-- `USER_REQUEST` - Initial request received
-- `INTENT_DETECTION` - Intent classification
-- `AGENT_SELECTION` - Agent chosen
-- `BACKEND_REQUEST` - Backend API call
-- `DATA_RETRIEVAL` - Data fetching
-- `OLLAMA_REQUEST` - Ollama call started
-- `OLLAMA_RESPONSE` - Ollama call completed
-- `RESPONSE_PARSING` - Response processing
-- `FRONTEND_RENDER` - Final response ready
-- `ERROR` - Any error
-
----
-
-## 10. Current Architecture Summary
-
-### Actual Agents (9)
-
-| Agent | Handler | Ollama? | Tools |
-|-------|---------|---------|-------|
-| `transaction_search` | `search_transactions_nl` | Yes | `_extract_transaction_filters`, `get_transactions` |
-| `report` | `build_report` | Yes | `get_transactions_tool`, `get_income_tool`, `get_balance_tool`, `get_budget_tool`, `get_goals_tool` |
-| `chart_alert` | `explain_chart_or_alert` | Yes | None (data passed directly) |
-| `alert` | `answer_alerts_question` | Yes | `get_alerts_tool` |
-| `goal` | `answer_goal_question` | Yes | `get_goals_tool`, `get_profile_tool` |
-| `budget` | `answer_budget_question` | Yes | `get_transactions_tool`, `get_budget_tool`, `get_profile_tool` |
-| `insights` | `answer_insights_question` | Yes | `get_insights` |
-| `general_chat` | Static response | No | None |
-| `db_context` | `answer_database_question` | Yes | `get_database_context` |
-
-### Actual Routes
-
-| Route | Method | Purpose |
-|-------|--------|---------|
-| `/health` | GET | Health check |
-| `/chat/agent` | POST | Main agent endpoint |
-| `/reports/generate` | POST | Generate report |
-| `/reports/summary` | GET | Report summary |
-| `/reports/explain` | POST | Explain chart/alert |
-| `/debug/traces` | GET | List traces |
-| `/debug/traces/{id}` | GET | Get trace |
-| `/debug/events` | POST | Append event |
-| `/debug/stream` | GET | SSE stream |
-| `/debug/test/flow` | POST | Test flow |
-| `/debug/traces` | DELETE | Clear traces |
-| `/chats` | GET | List conversations |
-| `/chats` | POST | Create conversation |
-| `/chats/{id}` | GET | Get conversation |
-| `/chats/{id}` | PATCH | Update conversation |
-| `/chats/{id}` | DELETE | Delete conversation |
-| `/chats/{id}/messages` | POST | Add message |
-| `/user/memory` | GET | List memories |
-| `/user/memory/{id}` | DELETE | Delete memory |
-| `/user/memory` | DELETE | Delete all memories |
-| `/duplicates` | POST | Check duplicates |
-| `/chat/db/refresh` | POST | Refresh DB context |
-
-### Major Dependencies
-
-| Dependency | Purpose |
-|------------|---------|
-| Django REST Framework | Backend API, auth, data |
-| FastAPI | ML-Backend framework |
-| Ollama | LLM inference |
-| httpx | Async HTTP client |
-| python-jose | JWT verification |
-| redis | (If configured) Cache/queue |
-| chromadb | Vector memory |
-
-### Ollama Calls Summary
-
-| Call Site | Purpose | Model |
-|-----------|---------|-------|
-| `_extract_transaction_filters` | Filter extraction | `llama3.2` |
-| `query_transactions_dynamic` | Advanced filter extraction | `llama3.2` |
-| `answer_goal_question` | Goal response | `llama3.2` |
-| `answer_budget_question` | Budget analysis | `llama3.2` |
-| `answer_insights_question` | Insights response | `llama3.2` |
-| `answer_alerts_question` | Alert analysis | `llama3.2` |
-| `explain_chart_or_alert` | Chart explanation | `llama3.2` |
-| `generate_report_narrative` | Report narrative | `llama3.2` |
-| `classify_intent` | Intent classification | `llama3.2` |
-| `answer_database_question` | DB schema Q&A | `llama3.2` |
-
-### Ollama Performance Measurements
-
-Actual measured performance for a typical transaction search + response flow using `llama3.2:latest` on local machine:
-
-#### Ollama #1 — Filter Extraction
-
-```
-Prompt: Extract transaction search filters from the user's query.
-User query: Show me all Starbucks transactions over $50 in the last 30 days
-```
-
-| Metric | Value |
-|--------|-------|
-| Prompt tokens | 88 |
-| Output tokens | 112 |
-| Prompt eval duration | 4.58 s |
-| Generation duration | 22.35 s |
-| Prompt speed | 19.23 tok/s |
-| **Generation speed** | **5.01 tok/s** |
-
-**Formula:**
-```
-tokens/sec = eval_count / (eval_duration / 1,000,000,000)
-112 / (22354259000 / 1,000,000,000) = 112 / 22.35 = 5.01 tokens/sec
-```
-
-#### Database Query
-
-| Metric | Value |
-|--------|-------|
-| Django API call | ~40 ms |
-| Result count | Varies by query |
-
-#### Ollama #2 — Response Generation
-
-```
-Prompt: You are a financial insights assistant. Using the insights data below...
-Insights Data: {"total_spending": 1500, "top_categories": ["Food & Dining", "Transportation"]}
-Question: What are my top spending categories this quarter?
-```
-
-| Metric | Value |
-|--------|-------|
-| Prompt tokens | 124 |
-| Output tokens | 104 |
-| Prompt eval duration | 6.25 s |
-| Generation duration | 18.30 s |
-| Prompt speed | 19.85 tok/s |
-| **Generation speed** | **5.68 tok/s** |
-
-**Formula:**
-```
-tokens/sec = eval_count / (eval_duration / 1,000,000,000)
-104 / (18299536000 / 1,000,000,000) = 104 / 18.30 = 5.68 tokens/sec
-```
-
-#### Total Flow Time
-
-| Step | Time |
-|------|------|
-| Ollama #1 - Filter extraction | 22.35 s |
-| Database query | ~0.04 s |
-| Ollama #2 - Response generation | 18.30 s |
-| **Total Ollama time** | **~40.65 s** |
-
-**Note:** These measurements are for `llama3.2:latest` (3.2B parameters, Q4_K_M quantization) running locally. Actual performance varies by hardware.
-
-### Inconsistencies / Missing Items
-
-- [ ] `query_transactions_dynamic` is registered for `TRANSACTION_QUERY` intent but `TRANSACTION_QUERY` is not in `AGENT_REGISTRY`
-- [ ] `alerts` agent uses `chart_alert` intent (shared with `chart_alert` agent)
-- [ ] `/debug/traces` requires auth despite `/debug` being marked public in middleware
-- [ ] `general_chat` previously had `handler: "fallback"` but now uses `route_intent` with explicit `GENERAL_CHAT` handler
-- [ ] `get_alerts` was missing from `tools.py` imports (fixed in recent commit)
-- [ ] No multi-turn conversation memory (context rebuilt each request)
-- [ ] Tool calling is limited to predefined financial tools (no dynamic tool selection)
+## Notes / assumptions to verify
+
+- This plan assumes the 1B model produces acceptable *quality* for narrative tasks (goal/budget/insights explanations) — smaller models can be noticeably worse at nuanced financial reasoning than 3B/4B. Worth doing a quick side-by-side quality check on 3-5 real prompts before fully committing narrative generation to the 1B model, not just a speed check.
+- If narrative quality on 1B is unacceptable, a hybrid approach is reasonable: 1B model for filter extraction/classification (speed-critical, low reasoning need), keep a larger model only for final narrative text (quality-critical, latency already tolerated by users on a "generate my report" action).
+
+## Completed Implementation Summary
+
+### Code Changes
+
+| File | Change |
+|------|--------|
+| `app/ollama.py` | Switched default model to `llama3.2:1b`, added `num_predict` parameter, added `calculate_ollama_timeout()`, added `_ollama_semaphore` for request queuing, integrated circuit breaker, added `log_llm_call()` after every response |
+| `app/services/tools.py` | Added rule-based filter extraction (`_extract_filters_rule_based`) for common patterns, applied to both `_extract_transaction_filters` and `query_transactions_dynamic`, set per-call `num_predict` |
+| `app/services/assistants.py` | Added per-call `num_predict` (200) for goal and budget agents |
+| `app/services/insights_agent.py` | Added per-call `num_predict` (200) |
+| `app/services/alerts_agent.py` | Added per-call `num_predict` (150) |
+| `app/services/reports.py` | Added per-call `num_predict` (256 for narrative, 150 for chart explanation) |
+| `app/services/db_agent.py` | Added per-call `num_predict` (100) |
+| `app/services/intent.py` | Added per-call `num_predict` (20) for intent classification |
+| `app/services/memory.py` | Added per-call `num_predict` (100) |
+| `app/services/conversations.py` | Added per-call `num_predict` (20) for title generation |
+| `app/services/summarization.py` | Added per-call `num_predict` (100) |
+| `app/routers/chat.py` | Updated `generate_with_tools` call with `num_predict=256`, passed token counts to `log_llm_call` |
+| `app/routers/debug.py` | Removed `Depends(get_user_id)` from all debug endpoints to fix auth bug |
+| `app/logging_utils.py` | Extended `log_llm_call()` to accept and log token counts and calculated tok/s |
+| `app/services/agents.py` | Added `transaction_query` agent to registry, fixed `alert` agent intent from `chart_alert` to `alerts` |
+| `app/response_cache.py` | New file: simple in-memory response cache with TTL |
+| `app/circuit_breaker.py` | New file: circuit breaker for Ollama calls |
+
+### Environment Variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `OLLAMA_CHAT_MODEL` | `llama3.2:1b` | Chat model |
+| `OLLAMA_EMBED_MODEL` | `nomic-embed-text` | Embedding model |
+| `OLLAMA_BYPASS` | `false` | Skip Ollama calls |
+| `OLLAMA_NUM_PARALLEL` | `1` | Max concurrent Ollama requests |
+| `OLLAMA_MEASURED_TOK_PER_SEC` | `9.0` | Measured tok/s for timeout math |
+| `OLLAMA_TIMEOUT_BUFFER` | `1.5` | Multiplier for timeout calculation |
+| `OLLAMA_CIRCUIT_THRESHOLD` | `3` | Failures before circuit opens |
+| `OLLAMA_CIRCUIT_COOLDOWN` | `60` | Seconds before circuit closes |
+| `RESPONSE_CACHE_TTL` | `300` | Cache TTL in seconds |
