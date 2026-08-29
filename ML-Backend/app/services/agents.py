@@ -52,7 +52,7 @@ AGENT_REGISTRY: Dict[str, Dict[str, Any]] = {
         "name": "alert",
         "slash_command": "/alert",
         "description": "Explain financial alerts in plain language.",
-        "intent": "chart_alert",
+        "intent": "alerts",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -105,6 +105,22 @@ AGENT_REGISTRY: Dict[str, Dict[str, Any]] = {
             "type": "object",
             "properties": {
                 "message": {"type": "string", "description": "The user's natural language query about transactions"},
+                "conversation_id": {"type": "string", "description": "Optional conversation ID for context"},
+            },
+            "required": ["message"],
+        },
+        "handler": "route_intent",
+        "registered_at": "2026-08-22",
+    },
+    "transaction_query": {
+        "name": "transaction_query",
+        "slash_command": "/query",
+        "description": "Advanced transaction queries with dynamic filters (merchant, date range, amount range).",
+        "intent": "transaction_query",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "message": {"type": "string", "description": "The user's transaction query"},
                 "conversation_id": {"type": "string", "description": "Optional conversation ID for context"},
             },
             "required": ["message"],

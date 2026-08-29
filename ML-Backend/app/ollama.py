@@ -15,6 +15,7 @@ import httpx
 
 from app.logging_utils import logger as ollama_logger, log_llm_call
 from app.debug_events import DebugEvent, DebugStage, StageStatus, get_debug_store
+from app.circuit_breaker import ollama_circuit_breaker
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 DEFAULT_CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", "llama3.2:1b")
@@ -137,6 +138,9 @@ async def generate(
         response = _ollama_bypass_response(payload, request_id=request_id)
         _log_ollama_response("/api/chat", response)
         return response
+    if ollama_circuit_breaker.is_open:
+        _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, error="Ollama circuit breaker open", error_type="CircuitBreakerOpen")
+        raise OllamaAdapterError("Ollama circuit breaker is open. Please try again later.")
     timeout = calculate_ollama_timeout(merged_options.get("num_predict", DEFAULT_OPTIONS["num_predict"]))
     async with _ollama_semaphore:
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -146,13 +150,16 @@ async def generate(
                     json=payload,
                 )
             except httpx.RequestError as exc:
+                ollama_circuit_breaker.record_failure()
                 _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, error=str(exc), error_type="RequestError")
                 raise OllamaAdapterError(f"Ollama chat failed: {exc}") from exc
             if resp.status_code != 200:
+                ollama_circuit_breaker.record_failure()
                 _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, http_status=resp.status_code, error=resp.text)
                 raise OllamaAdapterError(
                     f"Ollama chat failed ({resp.status_code}): {resp.text}"
                 )
+            ollama_circuit_breaker.record_success()
             data = resp.json()
             _emit_ollama_debug(request_id, DebugStage.OLLAMA_RESPONSE, StageStatus.SUCCESS, output_data={"model": data.get("model"), "done": data.get("done")})
             _log_ollama_response("/api/chat", data)
@@ -197,6 +204,9 @@ async def stream(
         for chunk in [content[i : i + 4] for i in range(0, len(content), 4)]:
             yield chunk
         return
+    if ollama_circuit_breaker.is_open:
+        _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, error="Ollama circuit breaker open", error_type="CircuitBreakerOpen")
+        raise OllamaAdapterError("Ollama circuit breaker is open. Please try again later.")
     timeout = calculate_ollama_timeout(merged_options.get("num_predict", DEFAULT_OPTIONS["num_predict"]))
     async with _ollama_semaphore:
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -208,6 +218,7 @@ async def stream(
                 ) as resp:
                     if resp.status_code != 200:
                         text = await resp.aread()
+                        ollama_circuit_breaker.record_failure()
                         _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, http_status=resp.status_code, error=text.decode())
                         raise OllamaAdapterError(
                             f"Ollama stream failed ({resp.status_code}): {text.decode()}"
@@ -238,6 +249,7 @@ async def stream(
                         except Exception:
                             continue
             except httpx.RequestError as exc:
+                ollama_circuit_breaker.record_failure()
                 _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, error=str(exc), error_type="RequestError")
                 raise OllamaAdapterError(f"Ollama stream failed: {exc}") from exc
 
@@ -295,6 +307,9 @@ async def generate_with_tools(
         response = _ollama_bypass_response(payload, request_id=request_id)
         _log_ollama_response("/api/chat", response)
         return response
+    if ollama_circuit_breaker.is_open:
+        _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, error="Ollama circuit breaker open", error_type="CircuitBreakerOpen")
+        raise OllamaAdapterError("Ollama circuit breaker is open. Please try again later.")
     timeout = calculate_ollama_timeout(merged_options.get("num_predict", DEFAULT_OPTIONS["num_predict"]))
     async with _ollama_semaphore:
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -304,13 +319,16 @@ async def generate_with_tools(
                     json=payload,
                 )
             except httpx.RequestError as exc:
+                ollama_circuit_breaker.record_failure()
                 _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, error=str(exc), error_type="RequestError")
                 raise OllamaAdapterError(f"Ollama chat failed: {exc}") from exc
             if resp.status_code != 200:
+                ollama_circuit_breaker.record_failure()
                 _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, http_status=resp.status_code, error=resp.text)
                 raise OllamaAdapterError(
                     f"Ollama chat failed ({resp.status_code}): {resp.text}"
                 )
+            ollama_circuit_breaker.record_success()
             data = resp.json()
             _emit_ollama_debug(request_id, DebugStage.OLLAMA_RESPONSE, StageStatus.SUCCESS, output_data={"model": data.get("model"), "done": data.get("done")})
             _log_ollama_response("/api/chat", data)
