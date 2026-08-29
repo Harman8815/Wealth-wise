@@ -1,718 +1,270 @@
-Use this as the **new implementation prompt**. It is deliberately technical and tells the coding agent to stop making superficial UI changes and prove the entire pipeline works.
+### Prompt — Rebuild WealthWise AI Architecture Documentation
 
----
+Remove the old/outdated AI architecture documentation and replace it with **one accurate, structured technical document** based on the current codebase.
 
-## Prompt — Rebuild WealthWise AI Debugging System at the Technical Level
+The document should be **detailed but not unnecessarily huge**. Use **multiple focused Mermaid flow diagrams** instead of one massive diagram.
 
-The current Chat Debug implementation is **not functional enough**. The UI shows requests such as `/report` and `/insights`, but the debug panel only contains the initial `User Request` event and the chat displays generic failures like:
+### 1. Overall Architecture
 
-```text
-The AI assistant is temporarily unavailable.
-I couldn't generate a response.
-```
-
-Do **not** make another UI-only fix. We need to diagnose and rebuild the debugging pipeline so it captures the **real backend execution lifecycle**.
-
-### Primary goal
-
-For every AI request, the system must provide a **real-time, request-scoped execution trace**:
+Create a Mermaid diagram showing the complete flow:
 
 ```text
-USER MESSAGE
-    ↓
-FRONTEND REQUEST
-    ↓
-DJANGO ROUTE
-    ↓
-AUTHENTICATION
-    ↓
-INTENT / AGENT
-    ↓
-AGENT TOOL
-    ↓
-API / DATABASE CALL
-    ↓
-DATA RETRIEVED
-    ↓
-CONTEXT/PROMPT BUILT
-    ↓
-OLLAMA REQUEST
-    ↓
-OLLAMA RAW RESPONSE
-    ↓
-RESPONSE PARSING
-    ↓
-DJANGO RESPONSE
-    ↓
-FRONTEND RESPONSE
-    ↓
-CHAT RENDER
-```
-
-Every stage must generate a real debug event.
-
----
-
-# Phase 1 — Stop and Audit the Existing System
-
-Before changing code:
-
-* [x] Identify the exact frontend chat request function.
-* [x] Identify the exact Django endpoint handling chat.
-* [x] Identify the ML Backend endpoint.
-* [x] Identify the agent/router implementation.
-* [x] Identify every tool/API called by `/insights`, `/report`, `/alert`, `/explain`, `/goal`, and `/budget`.
-* [x] Identify the Ollama integration.
-* [x] Identify where the generic `"Couldn't generate a response"` message is generated.
-* [x] Identify where `"AI assistant is temporarily unavailable"` is generated.
-* [x] Identify why only `User Request` appears in the current debug trace.
-* [x] Determine whether debug events are actually being emitted by the backend or are currently generated only by the frontend.
-
-**Do not proceed with UI changes until this audit is complete.**
-
----
-
-# Phase 2 — Prove Every Backend Route Independently
-
-Before integrating the debug UI, test the backend independently.
-
-For each route:
-
-```text
-/insights
-/report
-/alert
-/explain
-/goal
-/budget
-```
-
-create repeatable API tests.
-
-For every test verify:
-
-```text
-HTTP status
-response body
-response time
-authentication
-database/API calls
-agent execution
-Ollama execution
-final response
-```
-
-Run each endpoint **multiple times**, not just once.
-
-Example:
-
-```text
-Test /report
-Attempt 1 → ?
-Attempt 2 → ?
-Attempt 3 → ?
-Attempt 4 → ?
-Attempt 5 → ?
-```
-
-This is necessary to determine whether failures are:
-
-* deterministic
-* intermittent
-* authentication-related
-* timeout-related
-* Ollama-related
-* data-related
-* frontend-only
-
-Add automated backend tests where appropriate.
-
----
-
-# Phase 3 — Create a Real Trace Architecture
-
-Implement a request-scoped trace system.
-
-Every request gets:
-
-```text
-request_id
-trace_id
-```
-
-Example:
-
-```text
-REQ-20260828-A81F42
-```
-
-Create a backend trace object/event structure containing:
-
-```text
-request_id
-event_id
-sequence
-stage
-service
-status
-timestamp
-duration_ms
-method
-endpoint
-status_code
-input
-output
-error
-metadata
-```
-
-Do **not** put JWTs, passwords, secrets, or sensitive credentials into the trace.
-
----
-
-# Phase 4 — Instrument the Actual Backend
-
-Instrument the real code paths.
-
-For example:
-
-```text
-chat request
-    ↓ emit USER_REQUEST
-router
-    ↓ emit INTENT_DETECTION
-agent
-    ↓ emit AGENT_SELECTION
-tool
-    ↓ emit TOOL_START
-API
-    ↓ emit API_REQUEST
-API response
-    ↓ emit API_RESPONSE
-data
-    ↓ emit DATA_RETRIEVED
-context builder
-    ↓ emit CONTEXT_BUILT
-Ollama
-    ↓ emit OLLAMA_REQUEST
-Ollama response
-    ↓ emit OLLAMA_RESPONSE
-parser
-    ↓ emit RESPONSE_PARSED
-final API
-    ↓ emit FINAL_RESPONSE
-```
-
-**Do not fabricate these events from the frontend.**
-
-The backend must generate them from actual execution.
-
----
-
-# Phase 5 — Implement Real-Time Event Transport
-
-The debug UI currently receives almost nothing.
-
-Fix the communication architecture.
-
-Evaluate the existing project architecture and implement **SSE or WebSocket** for real-time debug events.
-
-Preferred flow:
-
-```text
-Frontend
-   │
-   ├──── POST /chat ────────────────► Backend
-   │
-   │       request_id
-   │
-   └──── SSE/WebSocket connection ──► Debug event stream
-                                      │
-                                      ├─ USER_REQUEST
-                                      ├─ AGENT
-                                      ├─ API_REQUEST
-                                      ├─ DATA
-                                      ├─ OLLAMA
-                                      ├─ RESPONSE
-                                      └─ ERROR
-```
-
-The debug stream must be associated with the same `request_id`.
-
-### Important
-
-Do not simply add a WebSocket because it sounds appropriate.
-
-First verify:
-
-* [x] backend supports the selected transport
-* [x] frontend can establish the connection
-* [x] events actually arrive
-* [x] events are associated with the correct request
-* [x] connection survives the entire AI request
-* [x] connection closes cleanly after completion
-* [x] errors are delivered through the stream
-
-If SSE is simpler and sufficient for this architecture, use SSE.
-
----
-
-# Phase 6 — Create Debug Test Endpoint
-
-Create a development/debug endpoint that proves the event infrastructure works independently of Ollama.
-
-Example concept:
-
-```text
-POST /api/ai/debug/test
-```
-
-It should intentionally generate:
-
-```text
-USER_REQUEST
-    ↓
-TEST_API_CALL
-    ↓
-TEST_DATA
-    ↓
-TEST_PROCESSING
-    ↓
-TEST_OLLAMA_SIMULATION
-    ↓
-TEST_RESPONSE
-```
-
-with delays between stages.
-
-For example:
-
-```text
-Event 1 → immediately
-Event 2 → +500ms
-Event 3 → +500ms
-Event 4 → +500ms
-Event 5 → +500ms
-```
-
-The Debug UI must visibly receive these events **one by one in real time**.
-
-This proves the debugging infrastructure works independently of the AI system.
-
----
-
-# Phase 7 — Create Failure Simulation Tests
-
-Create development-only test scenarios for:
-
-```text
-AUTH_FAILURE
-API_400
-API_401
-API_403
-API_404
-API_500
-DATABASE_FAILURE
-ML_BACKEND_FAILURE
-OLLAMA_TIMEOUT
-OLLAMA_ERROR
-INVALID_OLLAMA_JSON
-PARSER_ERROR
-```
-
-Example:
-
-```text
-✓ USER_REQUEST
-✓ AGENT_SELECTION
-✓ API_REQUEST
-✗ API_RESPONSE
-    HTTP 500
-    error: Database connection failed
-○ OLLAMA_REQUEST
-○ OLLAMA_RESPONSE
-○ RESPONSE_PARSING
-```
-
-The frontend must receive the error event immediately.
-
----
-
-# Phase 8 — Fix 500 Error Propagation
-
-A `500` must **never become only**:
-
-```text
-Couldn't generate a response.
-```
-
-Instead return structured information:
-
-```json
-{
-  "success": false,
-  "request_id": "REQ-A81F42",
-  "stage": "DATA_RETRIEVAL",
-  "service": "django",
-  "endpoint": "/api/alerts",
-  "status_code": 500,
-  "error": {
-    "type": "DatabaseError",
-    "message": "Unable to retrieve alerts"
-  }
-}
-```
-
-The frontend debug panel must display this information.
-
-The normal user chat can display:
-
-```text
-I couldn't retrieve your alerts right now.
-```
-
-But Debug Mode must show the actual diagnostic information.
-
----
-
-# Phase 9 — Debug the Actual AI Commands
-
-Once the infrastructure is proven, connect real commands.
-
-Test:
-
-### `/insights`
-
-Verify:
-
-```text
-request
-→ route
-→ agent
-→ insight API
-→ actual insight data
-→ prompt
+User
+→ Frontend
+→ Django
+→ AI/Agent Layer
+→ Tools/APIs
+→ Database
 → Ollama
-→ response
-→ frontend
+→ Response
+→ Frontend
 ```
 
-### `/report`
+Clearly show where each service runs and how they communicate.
 
-Verify the complete pipeline and specifically determine why it currently returns:
+### 2. Agent Architecture
+
+Document:
+
+* [ ] How many agents currently exist.
+* [ ] Exact agent names.
+* [ ] Purpose of each agent.
+* [ ] Which routes invoke each agent.
+* [ ] Which tools/functions each agent can access.
+* [ ] Which agents can call Ollama.
+* [ ] Whether Ollama directly chooses agents or whether our router selects the agent first.
+
+Create a Mermaid diagram showing:
 
 ```text
-I couldn't generate a response.
+User Query
+    ↓
+Router / Agent Selection
+    ↓
+Agent
+    ↓
+Available Tools
 ```
 
-### `/alert`
+### 3. Tool/Function Map
 
-Verify the AI receives **actual WealthWise alerts**, not unrelated/fabricated market information.
+Document **every AI tool/function** currently available.
 
-### `/explain`
+For each function explain:
 
-Verify the actual chart/alert data reaches Ollama.
+* Function name
+* File/location
+* Which agent uses it
+* Purpose
+* Expected input
+* Input format
+* Processing performed
+* Database/API calls
+* Expected output
+* Error conditions
+* Whether it calls Ollama
 
-### `/goal`
-
-Verify actual goals reach the AI.
-
-### `/budget`
-
-Verify actual budgets reach the AI.
-
----
-
-# Phase 10 — Build the Debug UI From the Real Events
-
-Only after the backend event system works, build/update the UI.
-
-Left side:
+For example, document `search_transactions` in detail:
 
 ```text
-DEBUG TRACE
-
-REQ-A81F42
-/report
-
-● User Request             ✓
-   ↓
-● Intent Detection         ✓
-   ↓
-● Agent Selection          ✓
-   ↓
-● API Request              ✓
-   ↓
-● Data Retrieved            ✓
-   ↓
-● Context Built             ✓
-   ↓
-● Ollama Request            ●
-   ↓
-● Ollama Response           ○
-   ↓
-● Response Parsing          ○
-   ↓
-● Final Response            ○
+search_transactions
+    ↓
+Input
+    ↓
+Filter processing
+    ↓
+Database query
+    ↓
+Transaction results
+    ↓
+Output
 ```
 
-Each node must be populated from the **real backend event**.
+Clearly explain what happens internally.
 
-Clicking a node should expose:
+### 4. Ollama Interaction
+
+Create a separate Mermaid diagram showing the complete Ollama flow.
+
+Explain:
+
+* How many places Ollama is called.
+* Which agents/functions call it.
+* Why each call exists.
+* What input is sent to Ollama.
+* What Ollama is expected to return.
+* How the response is parsed.
+* What happens after parsing.
+
+For the transaction search specifically, document:
 
 ```text
-Timestamp
-Duration
-Service
-Endpoint
-Request
+User Query
+    ↓
+Ollama — Filter Extraction
+    ↓
+Structured Filters
+    ↓
+Database Search
+    ↓
+Transaction Results
+    ↓
+Ollama — Response Generation
+    ↓
+Final Answer
+```
+
+### 5. Tool Selection Logic
+
+Explain **exactly how tool/agent selection currently works**.
+
+Do not assume Ollama chooses tools.
+
+Determine from the code whether the flow is:
+
+```text
+User
+ ↓
+Ollama
+ ↓
+Tool Selection
+```
+
+or:
+
+```text
+User
+ ↓
+Backend Router
+ ↓
+Agent
+ ↓
+Tool
+```
+
+or a combination.
+
+Document the **actual implementation**, not the intended architecture.
+
+Create a Mermaid diagram for this.
+
+### 6. API/CURL Reference
+
+Provide working `curl` examples for the important AI routes.
+
+For every example explain:
+
+```text
+curl
+ ↓
+Route
+ ↓
+Agent
+ ↓
+Function/tool
+ ↓
+Database/API
+ ↓
+Ollama
+ ↓
 Response
-Status
-Data
-Error
 ```
 
----
+Include examples for:
 
-# Phase 11 — Show Exact AI Context
+* [ ] `/chat/agent`
+* [ ] `search`
+* [ ] `report`
+* [ ] `alert`
+* [ ] `chart_alert`
+* [ ] `goal`
+* [ ] `budget`
+* [ ] Any other currently registered agent/tool
 
-For the Ollama stage provide expandable sections:
+Use the **actual routes, parameters, agent names, and payload structures from the codebase**.
+
+Do not invent examples.
+
+### 7. Request/Response Contracts
+
+For important functions and endpoints document:
 
 ```text
-SYSTEM PROMPT
-USER PROMPT
-RETRIEVED DATA
-CONTEXT
-FINAL PROMPT
-RAW OLLAMA JSON
-PARSED RESPONSE
+INPUT
+↓
+PROCESSING
+↓
+OUTPUT
 ```
 
-This is critical because we need to determine whether the AI problem is:
+Include actual JSON examples wherever useful.
 
-```text
-No data retrieved
-        OR
-Data retrieved but not passed to Ollama
-        OR
-Incorrect prompt
-        OR
-Ollama failure
-        OR
-Ollama hallucination
-        OR
-Response parser failure
-        OR
-Frontend rendering failure
-```
+Clearly distinguish:
 
----
+* Frontend → Backend payload
+* Backend → Agent payload
+* Agent → Tool payload
+* Tool → Database/API
+* Agent → Ollama payload
+* Ollama → Agent response
+* Backend → Frontend response
 
-# Phase 12 — Automated End-to-End Tests
+### 8. Complete End-to-End Flow
 
-Create tests that execute the complete pipeline.
-
-For each capability:
-
-```text
-send request
-↓
-wait for trace completion
-↓
-verify expected stages
-↓
-verify API calls
-↓
-verify data
-↓
-verify Ollama
-↓
-verify final response
-```
-
-Run each important request multiple times.
+Create a final Mermaid sequence/flow diagram showing one realistic request from beginning to end.
 
 Example:
 
 ```text
-/report × 5
-/insights × 5
-/alert × 5
-/explain × 5
-/goal × 5
-/budget × 5
-```
-
-Record:
-
-```text
-success rate
-failure rate
-average duration
-failure stage
-HTTP status
-```
-
----
-
-# Phase 13 — Frontend Capability Auto-Execution
-
-When clicking:
-
-```text
-Insights
-Report
-Chart & Alerts
-Alerts
-Goal
-Budget
-Search
-```
-
-the capability must:
-
-```text
-CLICK
+User
  ↓
-CREATE MESSAGE
+Frontend
  ↓
-CREATE request_id
+Django
  ↓
-OPEN DEBUG STREAM
+Agent Router
  ↓
-SEND BACKEND REQUEST
+Search Agent
  ↓
-RECEIVE LIVE EVENTS
+Ollama Filter Extraction
  ↓
-RENDER RESPONSE
+Structured Filters
+ ↓
+Transaction Search Tool
+ ↓
+Database
+ ↓
+Transactions
+ ↓
+Ollama Response Generation
+ ↓
+Final JSON
+ ↓
+Django
+ ↓
+Frontend
 ```
 
-No Enter key.
+### 9. Debugging Reference
 
-No second Send click.
+Add a short section explaining:
 
-No fake frontend-only message.
+* Where to debug if an agent fails.
+* Where to debug if a tool fails.
+* Where to debug database retrieval.
+* Where to debug Ollama filter extraction.
+* Where to debug Ollama response generation.
+* Where to debug response parsing.
+* Which logs/functions/files to inspect.
 
----
+### Documentation Rules
 
-# Phase 14 — Final Acceptance Tests
-
-The implementation is **not complete** until these scenarios work.
-
-### Successful request
-
-```text
-User → "Show my alerts"
-
-Debug:
-
-✓ Request
-✓ Intent
-✓ Agent
-✓ API
-✓ Data
-✓ Context
-✓ Ollama request
-✓ Ollama response
-✓ Parser
-✓ Final response
-```
-
-### Backend failure
-
-```text
-User → "Show my alerts"
-
-Debug:
-
-✓ Request
-✓ Intent
-✓ Agent
-✗ API → 500
-
-Error:
-DatabaseError
-Endpoint:
-/api/alerts
-Request ID:
-REQ-A81F42
-```
-
-### Ollama failure
-
-```text
-✓ API
-✓ Data
-✓ Context
-✗ Ollama → timeout
-```
-
-### Frontend parsing failure
-
-```text
-✓ Ollama
-✗ Response Parser
-```
-
-### Debug infrastructure test
-
-The artificial debug test must visibly stream:
-
-```text
-Event 1
-   ↓
-Event 2
-   ↓
-Event 3
-   ↓
-Event 4
-   ↓
-Event 5
-```
-
-**without refreshing the page.**
-
----
-
-## Commit Strategy
-
-Do this as separate commits and **test each commit before moving forward**:
-
-```text
-1. audit-current-ai-flow
-2. add-request-trace-id
-3. add-debug-event-contract
-4. instrument-django-ai-flow
-5. instrument-ml-ollama-flow
-6. fix-structured-error-propagation
-7. add-sse-or-websocket-debug-stream
-8. add-debug-stream-test-endpoint
-9. add-debug-failure-scenarios
-10. build-live-debug-pipeline-ui
-11. connect-real-events-to-debug-ui
-12. expose-ollama-context-and-response
-13. fix-insights-report-alert-flows
-14. fix-goal-budget-explain-flows
-15. fix-chat-rendering
-16. auto-execute-ai-capabilities
-17. add-end-to-end-ai-tests
-18. final-debug-mode-cleanup
-```
-
-### Hard requirement
-
-**Do not mark a commit complete just because the code compiles or the UI appears.**
-
-For every commit, actually run the relevant API/test and verify the expected behavior.
-
-The most important milestone is **Commit 8**: the artificial debug-stream test must prove that the frontend can receive multiple backend events in real time. If that does not work, **stop there and fix the transport before touching the AI agents**.
-
-This separates the problem into two independently testable systems:
-
-```text
-DEBUG INFRASTRUCTURE
-        +
-ACTUAL AI PIPELINE
-```
-
-Once the infrastructure itself is proven to work, we can reliably diagnose why `/report`, `/insights`, etc. are failing instead of repeatedly changing the UI and hoping the problem disappears.
+* **Delete/replace outdated documentation.**
+* Base everything on the **current implementation/codebase**.
+* Do not document planned functionality as if it already exists.
+* Clearly mark anything that is missing or inconsistent.
+* Use **multiple Mermaid diagrams**, each focused on one concept.
+* Avoid one enormous unreadable Mermaid diagram.
+* Include enough detail that another developer can understand and debug the entire AI architecture without reading the whole codebase.
+* Keep the document technically dense and structured rather than adding unnecessary prose.
+* Include a final **“Current Architecture Summary”** listing the actual agents, tools, Ollama calls, routes, and major dependencies.
