@@ -1161,6 +1161,73 @@ The in-memory debug store (`app/debug_events.py`) tracks:
 | `classify_intent` | Intent classification | `llama3.2` |
 | `answer_database_question` | DB schema Q&A | `llama3.2` |
 
+### Ollama Performance Measurements
+
+Actual measured performance for a typical transaction search + response flow using `llama3.2:latest` on local machine:
+
+#### Ollama #1 — Filter Extraction
+
+```
+Prompt: Extract transaction search filters from the user's query.
+User query: Show me all Starbucks transactions over $50 in the last 30 days
+```
+
+| Metric | Value |
+|--------|-------|
+| Prompt tokens | 88 |
+| Output tokens | 112 |
+| Prompt eval duration | 4.58 s |
+| Generation duration | 22.35 s |
+| Prompt speed | 19.23 tok/s |
+| **Generation speed** | **5.01 tok/s** |
+
+**Formula:**
+```
+tokens/sec = eval_count / (eval_duration / 1,000,000,000)
+112 / (22354259000 / 1,000,000,000) = 112 / 22.35 = 5.01 tokens/sec
+```
+
+#### Database Query
+
+| Metric | Value |
+|--------|-------|
+| Django API call | ~40 ms |
+| Result count | Varies by query |
+
+#### Ollama #2 — Response Generation
+
+```
+Prompt: You are a financial insights assistant. Using the insights data below...
+Insights Data: {"total_spending": 1500, "top_categories": ["Food & Dining", "Transportation"]}
+Question: What are my top spending categories this quarter?
+```
+
+| Metric | Value |
+|--------|-------|
+| Prompt tokens | 124 |
+| Output tokens | 104 |
+| Prompt eval duration | 6.25 s |
+| Generation duration | 18.30 s |
+| Prompt speed | 19.85 tok/s |
+| **Generation speed** | **5.68 tok/s** |
+
+**Formula:**
+```
+tokens/sec = eval_count / (eval_duration / 1,000,000,000)
+104 / (18299536000 / 1,000,000,000) = 104 / 18.30 = 5.68 tokens/sec
+```
+
+#### Total Flow Time
+
+| Step | Time |
+|------|------|
+| Ollama #1 - Filter extraction | 22.35 s |
+| Database query | ~0.04 s |
+| Ollama #2 - Response generation | 18.30 s |
+| **Total Ollama time** | **~40.65 s** |
+
+**Note:** These measurements are for `llama3.2:latest` (3.2B parameters, Q4_K_M quantization) running locally. Actual performance varies by hardware.
+
 ### Inconsistencies / Missing Items
 
 - [ ] `query_transactions_dynamic` is registered for `TRANSACTION_QUERY` intent but `TRANSACTION_QUERY` is not in `AGENT_REGISTRY`
