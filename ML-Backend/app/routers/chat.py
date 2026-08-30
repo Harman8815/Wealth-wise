@@ -19,7 +19,6 @@ from app.context import ContextBudget, get_context_budget
 from app.deps import get_user_id
 from app.ollama import DEFAULT_CHAT_MODEL, OllamaAdapterError, generate_with_tools, stream
 from app.prompt import SYSTEM_PROMPT
-from app.schemas.agent_response import StructuredResponse
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.ollama import generate
 from app.services.context import build_context

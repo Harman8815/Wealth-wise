@@ -33,8 +33,8 @@ async def build_report_sections(token: str, user_id: str) -> Dict[str, Any]:
 
     tx_data = transactions.get("data", {})
     results = tx_data.get("results", [])
-    total_income = sum(item.get("amount", 0) for item in results if item.get("type") == "income")
-    total_expense = sum(item.get("amount", 0) for item in results if item.get("type") == "expense")
+    total_income = sum(float(item.get("amount", 0) or 0) for item in results if item.get("type") == "income")
+    total_expense = sum(float(item.get("amount", 0) or 0) for item in results if item.get("type") == "expense")
     savings_rate = calculate_savings_rate(total_income, total_expense)
 
     budget_items = budgets.get("data", {}).get("results", [])

@@ -144,14 +144,14 @@ async def answer_budget_question(token: str, user_id: str, question: str) -> str
             return get_fallback(error_key_budget)
 
         results = tx_data.get("results", [])
-        total_expense = sum(item.get("amount", 0) for item in results if item.get("type") == "expense")
-        total_income = sum(item.get("amount", 0) for item in results if item.get("type") == "income")
+        total_expense = sum(float(item.get("amount", 0) or 0) for item in results if item.get("type") == "expense")
+        total_income = sum(float(item.get("amount", 0) or 0) for item in results if item.get("type") == "income")
         savings_rate = calculate_savings_rate(total_income, total_expense)
 
         budget_items = budget_data
         budget_variance = None
         if budget_items:
-            total_budget = sum(item.get("amount", 0) for item in budget_items)
+            total_budget = sum(float(item.get("amount", 0) or 0) for item in budget_items)
             budget_variance = calculate_budget_variance(total_budget, total_expense)
 
         prompt = (

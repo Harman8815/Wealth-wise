@@ -1,137 +1,280 @@
-# WealthWise ML-Backend — Ollama Performance TODO
+# TODO: Investigate and Plan Fixes for AI Agent Issues
 
-**Decision:** Switch to a **1B model** (e.g. `llama3.2:1b`) for all agent LLM calls, with **thinking mode disabled**. CPU inference is fixed at ~5 tok/s regardless of model between 1B–4B in this environment, so the primary lever is *token count per call*, not further model comparison. A 1B model should also reduce per-token latency somewhat and has a much smaller memory/context footprint, which helps concurrent-request behavior.
+## Context
 
-**Benchmark (llama3.2:1b, Q4_K_M, local CPU):**
-- Filter extraction: 12.80s, 8.77 tok/s (prompt: 89 tok, output: 20 tok)
-- Response generation: 18.65s, 9.45 tok/s (prompt: 123 tok, output: 131 tok)
+The WealthWise AI backend has multiple agent/API paths.
 
----
+The transaction-search functionality has already been tested successfully:
+- Each test hit returned a valid output.
+- Therefore, transaction search should currently be treated as a known-working reference implementation.
+- Do not modify this functionality unless investigation shows that it is directly related to another issue.
 
-## P0 — Model swap & config (do first, blocks everything else)
-
-- [x] Pull `llama3.2:1b` (or your preferred 1B model) and benchmark it the same way as the 3B/4B models — same prompts, record tokens/sec, so you have a real baseline before rewiring agents onto it
-- [ ] Explicitly disable thinking mode on every Ollama request: pass `think: false` in the `/api/chat` or `/api/generate` payload (or set it in a Modelfile if using a model that defaults to reasoning mode)
-- [ ] Verify thinking is actually off by inspecting raw responses for `<think>` blocks — don't just trust the flag, confirm empirically
-- [x] Update `app/ollama.py` `generate()` to accept model name as a parameter (not hardcoded) so different agents can request different models if needed later
-- [x] Set explicit `num_predict` per call site instead of a single global default — see per-agent table below
-- [x] Add a hard client-side timeout to every Ollama call, computed as `(num_predict / measured_tok_per_sec) * 1.5` — don't use one blanket timeout for all agents since output length varies
-
-## P0 — Re-benchmark after swap
-
-- [x] Re-run the same benchmark matrix (short prompt / long prompt, various `num_predict`) on `llama3.2:1b` with thinking off
-- [x] Confirm `_extract_transaction_filters`-style short JSON tasks now complete in single-digit seconds
-- [x] Confirm no timeout on previously-failing long-prompt cases (the qwen3:4b >180s case)
-- [x] Document the new tok/s number — this becomes the constant your timeout math is based on
-
-## P1 — Remove Ollama from the search critical path
-
-- [x] Implement rule-based/regex extraction in `_extract_transaction_filters` (tools.py:24-46) for common patterns: amount comparisons (`over $50`, `under $20`), date ranges (`last month`, `this week`), known category/merchant keywords
-- [x] Only fall back to the 1B model when rule-based parsing finds nothing usable
-- [x] Cap `num_predict` for filter-extraction Ollama calls to ~40-60 tokens (it's just a small JSON object)
-- [x] Apply the same rule-based-first approach to `query_transactions_dynamic` (tools.py:263-387), which has a larger filter schema (query_type, merchant, date, amount_min/max, etc.)
-
-## P1 — Per-agent token budgets
-
-Set explicit `num_predict` ceilings per call site rather than reusing 256 everywhere:
-
-| Agent / function | Task | `num_predict` |
-|---|---|---|
-| `_extract_transaction_filters` | JSON filter extraction | 60 |
-| `query_transactions_dynamic` | JSON filter extraction (larger schema) | 100 |
-| `answer_alerts_question` | Short analysis | 150 |
-| `explain_chart_or_alert` | Short explanation | 150 |
-| `answer_goal_question` | Goal answer | 200 |
-| `answer_budget_question` | Budget analysis | 200 |
-| `answer_insights_question` | Insights answer | 200 |
-| `generate_report_narrative` | Full report narrative | 256 |
-| `classify_intent` | Intent label only | 20 |
-| `answer_database_question` | Schema Q&A | 100 |
-
-- [x] Apply these caps in code
-- [x] Recalculate each call site's timeout using the new per-task token budget and the 1B model's measured tok/s
-
-## P1 — Fix the auth bug (independent of Ollama work)
-
-- [x] Trace why `/debug/traces` requires auth despite `/debug` being marked public in `middleware.py:91-141` — check path-prefix matching logic and whether the traces router declares its own auth dependency that overrides the middleware's public list
-  - **Root cause:** `app/routers/debug.py` had `user_id: str = Depends(get_user_id)` on `/traces`, `/events`, and `/test/flow`, which overrode the middleware's public `/debug` prefix.
-  - **Fix:** Removed `Depends(get_user_id)` from all debug router endpoints. Removed unused imports.
-
-## P2 — Reduce load on a single CPU worker
-
-- [x] Do **not** raise `OLLAMA_NUM_PARALLEL` above 1 on CPU — concurrent generations on fixed cores just divide the same total throughput and make each individual call slower and less predictable
-  - **Done:** Added `OLLAMA_NUM_PARALLEL` env var (default 1) and `asyncio.Semaphore` in `app/ollama.py`.
-- [x] Add a simple request queue in front of Ollama calls so concurrent agent requests run sequentially with predictable wait times, rather than contending
-  - **Done:** Added `_ollama_semaphore = asyncio.Semaphore(OLLAMA_NUM_PARALLEL)` in `app/ollama.py`.
-- [x] Make sure timeout logic accounts for queue wait time + generation time, not generation time alone
-  - **Done:** Added `calculate_ollama_timeout(num_predict)` in `app/ollama.py` using `(num_predict / measured_tok_per_sec) * TIMEOUT_BUFFER + 10s prompt buffer`.
-- [ ] Trim prompt sizes going into the model — summarize/truncate large data payloads (full transaction lists, all insights) before inserting into system prompts; prefill cost is smaller than decode cost but not free
-
-## P2 — Make narrative-generating agents feel responsive
-
-- [ ] For `report`, `insights`, `budget`, `goal`, `alert`, `chart_alert`: return the computed data portion of the response immediately; stream the narrative text via SSE (reuse `/debug/stream` infra) instead of blocking the whole HTTP response on generation
-- [ ] Add response caching for narrative text keyed by `(user_id, data_hash, agent)` with a short TTL so repeated/refreshed requests don't re-hit Ollama for identical input
-  - **Done:** Added `app/response_cache.py` with `ResponseCache` class and `hash_data()` helper. TTL configurable via `RESPONSE_CACHE_TTL` env var.
-- [ ] Add a circuit breaker: if Ollama fails/times out repeatedly in a short window, skip LLM calls and serve data-only responses until it recovers
-  - **Done:** Added `app/circuit_breaker.py` with `CircuitBreaker` class and `ollama_circuit_breaker` instance. Integrated into all `generate()`, `stream()`, and `generate_with_tools()` calls in `app/ollama.py`. Configurable via `OLLAMA_CIRCUIT_THRESHOLD` and `OLLAMA_CIRCUIT_COOLDOWN` env vars.
-
-## P2 — Observability
-
-- [x] Instrument LLM call logs (`logging_utils.py:88-104`) with per-call duration and token counts so you can track real tok/s over time, not just anecdotal benchmarks
-  - **Done:** Updated `log_llm_call()` in `app/logging_utils.py` to accept `eval_count`, `prompt_eval_count`, `eval_duration_ns`, `prompt_eval_duration_ns` and calculate `gen_tok_per_sec` and `prompt_tok_per_sec`. Added `log_llm_call()` calls in `app/ollama.py` after every successful Ollama response.
-- [ ] Add a dashboard or simple log-based report of p50/p95/p99 latency per agent
-- [ ] Re-run a concurrency test (2-3 simultaneous requests across different agents) to confirm queueing behavior is predictable under the 1B model
-
-## P3 — Structural cleanup (backlog)
-
-- [x] Resolve `TRANSACTION_QUERY` intent being registered but missing from `AGENT_REGISTRY`
-  - **Done:** Added `transaction_query` agent to `AGENT_REGISTRY` with slash command `/query`.
-- [x] Separate `alert` and `chart_alert` intents instead of sharing one
-  - **Done:** Changed `alert` agent intent from `chart_alert` to `alerts`. Router already handled both intents separately.
-- [ ] Consider removing the Ollama call from `answer_database_question` entirely — schema info is static and can likely be templated without an LLM
-- [ ] Revisit `classify_intent` — if it's only choosing among 9 fixed labels, a smaller/faster classification approach (even keyword-based) may outperform an LLM call for this specific task
+The following issues were observed during testing.
 
 ---
 
-## Notes / assumptions to verify
+## Issue 1 — Ollama /api/generate
 
-- This plan assumes the 1B model produces acceptable *quality* for narrative tasks (goal/budget/insights explanations) — smaller models can be noticeably worse at nuanced financial reasoning than 3B/4B. Worth doing a quick side-by-side quality check on 3-5 real prompts before fully committing narrative generation to the 1B model, not just a speed check.
-- If narrative quality on 1B is unacceptable, a hybrid approach is reasonable: 1B model for filter extraction/classification (speed-critical, low reasoning need), keep a larger model only for final narrative text (quality-critical, latency already tolerated by users on a "generate my report" action).
+### Request / observation
 
-## Completed Implementation Summary
+The application was producing repeated Ollama log entries similar to:
 
-### Code Changes
+404 POST /api/generate
 
-| File | Change |
-|------|--------|
-| `app/ollama.py` | Switched default model to `llama3.2:1b`, added `num_predict` parameter, added `calculate_ollama_timeout()`, added `_ollama_semaphore` for request queuing, integrated circuit breaker, added `log_llm_call()` after every response |
-| `app/services/tools.py` | Added rule-based filter extraction (`_extract_filters_rule_based`) for common patterns, applied to both `_extract_transaction_filters` and `query_transactions_dynamic`, set per-call `num_predict` |
-| `app/services/assistants.py` | Added per-call `num_predict` (200) for goal and budget agents |
-| `app/services/insights_agent.py` | Added per-call `num_predict` (200) |
-| `app/services/alerts_agent.py` | Added per-call `num_predict` (150) |
-| `app/services/reports.py` | Added per-call `num_predict` (256 for narrative, 150 for chart explanation) |
-| `app/services/db_agent.py` | Added per-call `num_predict` (100) |
-| `app/services/intent.py` | Added per-call `num_predict` (20) for intent classification |
-| `app/services/memory.py` | Added per-call `num_predict` (100) |
-| `app/services/conversations.py` | Added per-call `num_predict` (20) for title generation |
-| `app/services/summarization.py` | Added per-call `num_predict` (100) |
-| `app/routers/chat.py` | Updated `generate_with_tools` call with `num_predict=256`, passed token counts to `log_llm_call` |
-| `app/routers/debug.py` | Removed `Depends(get_user_id)` from all debug endpoints to fix auth bug |
-| `app/logging_utils.py` | Extended `log_llm_call()` to accept and log token counts and calculated tok/s |
-| `app/services/agents.py` | Added `transaction_query` agent to registry, fixed `alert` agent intent from `chart_alert` to `alerts` |
-| `app/response_cache.py` | New file: simple in-memory response cache with TTL |
-| `app/circuit_breaker.py` | New file: circuit breaker for Ollama calls |
+Initially this suggested that the Ollama generation endpoint might be unavailable or incorrectly configured.
 
-### Environment Variables
+However, independent testing has now been performed and the Ollama endpoint/model interaction is returning valid output for each hit.
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `OLLAMA_CHAT_MODEL` | `llama3.2:1b` | Chat model |
-| `OLLAMA_EMBED_MODEL` | `nomic-embed-text` | Embedding model |
-| `OLLAMA_BYPASS` | `false` | Skip Ollama calls |
-| `OLLAMA_NUM_PARALLEL` | `1` | Max concurrent Ollama requests |
-| `OLLAMA_MEASURED_TOK_PER_SEC` | `9.0` | Measured tok/s for timeout math |
-| `OLLAMA_TIMEOUT_BUFFER` | `1.5` | Multiplier for timeout calculation |
-| `OLLAMA_CIRCUIT_THRESHOLD` | `3` | Failures before circuit opens |
-| `OLLAMA_CIRCUIT_COOLDOWN` | `60` | Seconds before circuit closes |
-| `RESPONSE_CACHE_TTL` | `300` | Cache TTL in seconds |
+### Current status
+
+VALID / WORKING.
+
+### Requirement
+
+Investigate the existing Ollama integration only to understand:
+- Which Ollama endpoint the application is configured to use.
+- Which model is configured.
+- Which code paths call Ollama.
+- Whether the application is using the same Ollama instance that was independently tested.
+- Whether the previous 404 logs belong to an old/stale configuration, different code path, proxy, or another source.
+
+Do not assume this is currently a broken Ollama installation.
+
+Before making any change, explain the findings and whether a code/configuration change is actually required.
+
+---
+
+## Issue 2 — Report Agent Returning Insights
+
+### Request
+
+The following request was made:
+
+{
+    "agent": "report",
+    "message": "..."
+}
+
+### Response received
+
+{
+    "intent": "insights",
+    "response": "The AI assistant is temporarily unavailable."
+}
+
+### Problem observed
+
+The requested agent was:
+
+report
+
+But the returned intent was:
+
+insights
+
+The response also indicated that the AI assistant was unavailable.
+
+### Investigation required
+
+Trace the complete execution path for a report request.
+
+Determine:
+- Where the report agent is selected.
+- Whether the report agent internally routes to another agent.
+- Why the resulting intent is reported as "insights".
+- Whether the report functionality depends on the insights agent.
+- Where the "AI assistant is temporarily unavailable." response is generated.
+- Whether that message represents an Ollama failure, exception handling, routing failure, or another condition.
+- Whether the returned intent is generated by the router, agent, fallback handler, or response formatter.
+
+Compare this path with the known-working transaction_search path.
+
+Do not modify the implementation until the actual cause and intended architecture are understood.
+
+### Expected investigation output
+
+Explain:
+1. Current report request flow.
+2. Actual component responsible for the "insights" intent.
+3. Actual source of the unavailable message.
+4. Root cause or strongest evidence.
+5. Proposed fix.
+6. Files/components that would need modification.
+7. Any risks or side effects.
+
+---
+
+## Issue 3 — Budget Agent Type Error
+
+### Request
+
+A budget request was made:
+
+{
+    "agent": "budget",
+    "message": "Am I overspending on dining this month?"
+}
+
+### Response received
+
+{
+    "intent": "budget",
+    "response": "I encountered an error processing your budget question: unsupported operand type(s) for +: 'int' and 'str'",
+    "data": null,
+    "filters": null,
+    "fallback": false
+}
+
+### Problem observed
+
+The budget processing path is producing:
+
+unsupported operand type(s) for +: 'int' and 'str'
+
+This indicates that some calculation is attempting to combine numeric and string values.
+
+### Investigation required
+
+Trace the complete budget request from the API entry point through the budget agent and its supporting services/tools.
+
+Identify:
+- Where the exception originates.
+- The exact operation producing the error.
+- The values involved in that operation.
+- Where those values originally come from.
+- Whether Django/database/API serialization is returning financial values as strings.
+- Whether the issue occurs during transaction aggregation, budget calculation, category filtering, or another operation.
+- Whether the same data-type problem exists elsewhere in the financial calculation code.
+- What data type the application architecture expects for monetary values.
+
+Inspect the existing implementation before proposing a change.
+
+Pay particular attention to aggregation and arithmetic operations involving transaction amounts, budget amounts, totals, and category values.
+
+Do not simply add a conversion at the line where the exception occurs without determining where the incorrect type originates.
+
+### Expected investigation output
+
+Explain:
+1. Exact source of the exception.
+2. Data flow that produces the incorrect type.
+3. Expected type versus actual type.
+4. Root cause.
+5. Recommended correction.
+6. Files/components affected.
+7. Whether similar issues may exist in other financial calculations.
+8. Recommended validation/tests.
+
+---
+
+## Issue 4 — Generic Internal Server Error for Normal Message
+
+### Request
+
+{
+    "message": "Hello, how are you?"
+}
+
+### Response received
+
+{
+    "detail": "An internal server error occurred.",
+    "request_id": "0db73162-80ee-4d08-9aca-d139758bc40e"
+}
+
+### Problem observed
+
+A normal conversational request is producing a generic internal server error.
+
+The API does provide a request_id:
+
+0db73162-80ee-4d08-9aca-d139758bc40e
+
+### Investigation required
+
+Trace this request using the request_id and identify the underlying exception.
+
+Determine:
+- Which API endpoint received the request.
+- Which router/intent detection path was selected.
+- Which service/agent was invoked.
+- The exact exception and traceback.
+- Where the exception is caught.
+- Why the API returns only the generic error message.
+- Whether this is related to Ollama, intent detection, request validation, agent routing, or another component.
+- Whether the same exception-handling mechanism affects other AI requests.
+
+Inspect the existing logging and exception-handling implementation.
+
+Do not expose internal exceptions directly to production users unless that is already consistent with the application's architecture.
+
+The goal is to understand why the underlying exception is being hidden and determine how debugging/observability should work while preserving appropriate production error handling.
+
+---
+
+# Known Working Reference
+
+Use transaction_search as the comparison point.
+
+Observed result:
+
+{
+    "intent": "transaction_search",
+    "response": "Found 100 transactions matching your query.",
+    "data": {
+        "count": 1349,
+        "results": [...]
+    }
+}
+
+This path is currently producing valid responses.
+
+Investigate its:
+- Request handling
+- Agent selection
+- Tool/service invocation
+- Data retrieval
+- Response construction
+- Error handling
+
+and compare it with the failing budget, report, and general conversational paths.
+
+Do not rewrite the working transaction-search implementation just for consistency unless there is a demonstrated architectural reason.
+
+---
+
+# Overall Investigation
+
+Before changing code:
+
+1. Map the AI request flow.
+2. Identify the router/agent selection mechanism.
+3. Identify all relevant agents and services.
+4. Trace each failing request to its actual exception/source.
+5. Compare failing paths with transaction_search.
+6. Inspect Ollama configuration and call sites.
+7. Inspect exception handling and logging.
+8. Identify whether the issues have a common root cause or are independent.
+9. Determine the minimum required changes.
+10. Produce a proposed implementation plan.
+
+## Important
+
+Do NOT immediately start modifying code.
+
+First investigate the existing architecture and implementation.
+
+Return an investigation report containing:
+
+- Issue
+- Request
+- Actual response
+- Execution path
+- Evidence found in the code
+- Root cause
+- Proposed solution
+- Files likely affected
+- Tests required
+- Potential regressions/risks
+
+Only after the investigation and plan are complete should implementation changes be considered.

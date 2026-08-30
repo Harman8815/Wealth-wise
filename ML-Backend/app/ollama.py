@@ -160,7 +160,12 @@ async def generate(
                     f"Ollama chat failed ({resp.status_code}): {resp.text}"
                 )
             ollama_circuit_breaker.record_success()
-            data = resp.json()
+            try:
+                data = resp.json()
+            except json.JSONDecodeError as exc:
+                ollama_circuit_breaker.record_failure()
+                _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, error=f"Invalid JSON from Ollama: {exc}", error_type="JSONDecodeError")
+                raise OllamaAdapterError(f"Ollama returned invalid JSON: {exc}") from exc
             _emit_ollama_debug(request_id, DebugStage.OLLAMA_RESPONSE, StageStatus.SUCCESS, output_data={"model": data.get("model"), "done": data.get("done")})
             _log_ollama_response("/api/chat", data)
             log_llm_call(
@@ -274,7 +279,10 @@ async def embed(
             raise OllamaAdapterError(
                 f"Ollama embed failed ({resp.status_code}): {resp.text}"
             )
-        data = resp.json()
+        try:
+            data = resp.json()
+        except json.JSONDecodeError as exc:
+            raise OllamaAdapterError(f"Ollama embed returned invalid JSON: {exc}") from exc
         return data.get("embedding", [])
 
 
@@ -329,7 +337,12 @@ async def generate_with_tools(
                     f"Ollama chat failed ({resp.status_code}): {resp.text}"
                 )
             ollama_circuit_breaker.record_success()
-            data = resp.json()
+            try:
+                data = resp.json()
+            except json.JSONDecodeError as exc:
+                ollama_circuit_breaker.record_failure()
+                _emit_ollama_debug(request_id, DebugStage.ERROR, StageStatus.ERROR, error=f"Invalid JSON from Ollama: {exc}", error_type="JSONDecodeError")
+                raise OllamaAdapterError(f"Ollama returned invalid JSON: {exc}") from exc
             _emit_ollama_debug(request_id, DebugStage.OLLAMA_RESPONSE, StageStatus.SUCCESS, output_data={"model": data.get("model"), "done": data.get("done")})
             _log_ollama_response("/api/chat", data)
             log_llm_call(
