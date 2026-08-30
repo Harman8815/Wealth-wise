@@ -86,9 +86,118 @@ The application is designed as a monolithic system composed of three primary ser
 
 ## Architecture
 
-WealthWise follows a service-oriented architecture within a monorepo. The **Next.js frontend** communicates exclusively with the **Django CRUD backend** for all financial data operations (accounts, transactions, budgets, goals, etc.). The **FastAPI ML backend** sits alongside the CRUD backend and is called internally by Django for computationally intensive or AI-specific tasks: duplicate transaction scoring, LLM-powered chat agents, report generation, and conversation memory.
+```mermaid
+flowchart TD
+    subgraph User ["👤 User / Browser"]
+        A[User Interface]
+    end
 
-In production, the ML backend is not exposed to browsers directly. All AI/ML requests flow through the Django backend, which handles authentication, project scoping, and orchestration before forwarding requests to the ML service. The ML backend is stateless for duplicate detection but maintains its own SQLAlchemy database for conversation history and memory.
+    subgraph Frontend ["🖥️ Frontend (Next.js 15 - Port 3000)"]
+        B[App Router]
+        C[React Query Hooks]
+        D[Axios Client\nJWT Interceptors]
+        E[shadcn/ui Components]
+        F[Recharts Dashboard]
+        G[Landing Pages]
+        H[AI Chat Interface]
+    end
+
+    subgraph CRUD ["🔧 CRUD Backend (Django 5 - Port 8000)"]
+        I[JWT Authentication\nSimpleJWT]
+        J[Project Scope Middleware\nRBAC: owner/admin/editor/viewer]
+        K[REST API Endpoints]
+        L[Business Logic Services]
+        M[(SQLite / PostgreSQL\nDjango ORM)]
+        N[PDF Report Generator\nreportlab]
+        O[Alert Engine\nRule Registry]
+        P[Insights Engine\nINSIGHT_RULES]
+        Q[Subscription Detector\nPattern Mining]
+        R[Duplicate Detector\nOrchestrator]
+        S[Import/Export\nCSV Excel PDF]
+        T[Recurring Engine\nTransactions + Budgets]
+        U[Financial Health\nScorer]
+    end
+
+    subgraph ML ["🤖 ML Backend (FastAPI - Port 8100)"]
+        V[JWT Auth Middleware]
+        W[Duplicate Service\nTF-IDF + Cosine Similarity]
+        X[Chat Router\nIntent Classification]
+        Y[Agent Orchestrator\nTools + Pipeline]
+        Z[Ollama Client\nllama3.2:1b]
+        AA[Embedding Client\nnomic-embed-text]
+        AB[(SQLAlchemy DB\nConversations + Memory)]
+        AC[Chroma Vector Store\nSemantic Memory]
+        AD[Report Generator\nLLM-assisted]
+        AE[Debug Events\nSSE Stream]
+    end
+
+    subgraph External ["🌐 External Services"]
+        AF[Ollama Server\nlocalhost:11434]
+        AG[Chroma Vector DB]
+    end
+
+    subgraph Notebooks ["📓 ML Notebooks (Jupyter)"]
+        AH[Spending Forecast\nProphet + LSTM]
+        AI[Anomaly Detection\nIsolation Forest]
+        AJ[Merchant Clustering\nKMeans]
+        AK[Budget Forecasting]
+        AL[Model Artifacts\n.pkl .keras .joblib]
+    end
+
+    A -->|HTTP/REST| B
+    B -->|TanStack Query| C
+    C -->|Axios + JWT| D
+    D -->|Bearer Token| K
+    H -->|Chat Messages| D
+
+    K -->|Route| I
+    K -->|Route| J
+    K -->|Route| L
+
+    L -->|Read/Write| M
+    L -->|Generate| N
+    L -->|Trigger| O
+    L -->|Generate| P
+    L -->|Scan| Q
+    L -->|Scan| R
+    L -->|Import/Export| S
+    L -->|Generate| T
+    L -->|Recompute| U
+
+    R -->|HTTP Internal| W
+    L -->|Forward Request| V
+
+    V --> X
+    X --> Y
+    Y -->|Tool Calls| K
+    Y --> Z
+    Y --> AA
+    Y --> AD
+
+    Z -->|HTTP| AF
+    AA -->|HTTP| AF
+    AA -->|Store| AC
+    Y -->|Read/Write| AB
+    Y -->|Query| AC
+
+    AH -.->|Train Models| AL
+    AI -.->|Train Models| AL
+    AJ -.->|Train Models| AL
+    AK -.->|Analyze| AL
+    AL -.->|Load at Runtime| L
+    AL -.->|Load at Runtime| W
+
+    O -->|Notify| K
+    P -->|Notify| K
+    Q -->|Notify| K
+    U -->|Notify| K
+
+    style Frontend fill:#e1f5fe
+    style CRUD fill:#f3e5f5
+    style ML fill:#e8f5e9
+    style Notebooks fill:#fff3e0
+    style External fill:#fce4ec
+```
 
 ---
 
