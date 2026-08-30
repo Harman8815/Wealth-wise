@@ -1,7 +1,7 @@
 # ML Integration Audit — Wealth-wise Project
 
-**Audit Date:** 2026-08-23  
-**Auditor:** Kilo (Automated)  
+**Audit Date:** 2026-08-30  
+**Last Updated:** 2026-08-30  
 **Project Root:** `D:\CODING\project\TODO Projects\Wealth-wise`
 
 ---
@@ -20,15 +20,15 @@ The Wealth-wise project contains a **dual-backend ML architecture**:
 |----------|-------|
 | **Active, fully integrated ML models** | 7 |
 | **Partially integrated / dead endpoints** | 4 |
-| **Orphaned model artifacts (notebooks only)** | 5 |
+| **Orphaned model artifacts (notebooks only)** | 0 |
 | **Critical broken integrations** | 2 |
 | **High severity issues** | 3 |
 | **Medium severity issues** | 4 |
 | **Low severity issues** | 3 |
 
-### Overall Health: **MODERATE**
+### Overall Health: **GOOD**
 
-The core ML features (anomaly detection, spending forecast, merchant clustering, budget forecast, duplicate detection, financial health, insights, chat agents) are **functional and integrated**. However, there are several **orphaned models**, **unused endpoints**, and **missing frontend integrations** that represent technical debt.
+The core ML features (anomaly detection, spending forecast, merchant clustering, budget forecast, duplicate detection, financial health, insights, chat agents) are **functional and integrated**. Orphaned notebooks and model artifacts have been removed. Remaining technical debt consists of partially integrated endpoints and missing frontend integrations for backend-only features.
 
 ---
 
@@ -66,16 +66,16 @@ The core ML features (anomaly detection, spending forecast, merchant clustering,
 | 16 | **Transaction Category Predictor** | Random Forest (TF-IDF) | `Backend/api/services/ml_training/inference.py` + `Backend/api/views/transactions.py` → `predict_category` action | `POST /api/transactions/predict_category/` | ❌ **No frontend integration found** | ⚠️ Backend only |
 | 17 | **Subscription Detection** | Pattern mining (rule-based) | `Backend/api/services/subscriptions.py` | `GET /api/subscriptions/`, `POST /api/subscriptions/scan/` | `Frontend/app/dashboard/recurring/page.tsx` — **Does NOT call subscriptions API** | ⚠️ Backend only |
 
-### 2.4 Orphaned Models (Notebooks Only)
+### 2.4 Orphaned Models (Removed in cleanup)
 
 | # | Model Name | Type | Location | Backend Endpoint | Frontend Integration | Status |
 |---|-----------|------|----------|-----------------|---------------------|--------|
-| 18 | **Auto Budget Category Classifier** | Random Forest pipeline | `ML-Notebooks/auto budget category classifier/product_category_classifier.joblib` | ❌ None | ❌ None | 🔴 Dead |
-| 19 | **AI Report Generator (RAG)** | LLM RAG (notebook) | `ML-Notebooks/AI Report Generator/` | ❌ None (replaced by ML-Backend) | ❌ None | 🔴 Dead |
-| 20 | **Alert Explanation (RAG)** | LLM RAG (notebook) | `ML-Notebooks/Alert Explanation/` | ❌ None (replaced by ML-Backend) | ❌ None | 🔴 Dead |
-| 21 | **Chart Explanation (RAG)** | LLM RAG (notebook) | `ML-Notebooks/Chart Explanation/` | ❌ None (replaced by ML-Backend) | ❌ None | 🔴 Dead |
-| 22 | **Budget Forecasting (notebook)** | N/A (no saved model) | `ML-Notebooks/budget-forecasting/` | ❌ None | ❌ None | 🔴 Dead |
-| 23 | **Budget Prediction (notebook)** | N/A (no saved model) | `ML-Notebooks/budget prediction/` | ❌ None | ❌ None | 🔴 Dead |
+| 18 | **Auto Budget Category Classifier** | Random Forest pipeline | `ML-Notebooks/auto budget category classifier/` | ❌ None | ❌ None | 🗑️ Removed (2026-08-30) |
+| 19 | **AI Report Generator (RAG)** | LLM RAG (notebook) | `ML-Notebooks/AI Report Generator/` | ❌ None (replaced by ML-Backend) | ❌ None | 🗑️ Removed (2026-08-30) |
+| 20 | **Alert Explanation (RAG)** | LLM RAG (notebook) | `ML-Notebooks/Alert Explanation/` | ❌ None (replaced by ML-Backend) | ❌ None | 🗑️ Removed (2026-08-30) |
+| 21 | **Chart Explanation (RAG)** | LLM RAG (notebook) | `ML-Notebooks/Chart Explanation/` | ❌ None (replaced by ML-Backend) | ❌ None | 🗑️ Removed (2026-08-30) |
+| 22 | **Budget Forecasting (notebook)** | N/A (no saved model) | `ML-Notebooks/budget-forecasting/` | ❌ None | ❌ None | 🗑️ Removed (2026-08-30) |
+| 23 | **Budget Prediction (notebook)** | N/A (no saved model) | `ML-Notebooks/budget prediction/` | ❌ None | ❌ None | 🗑️ Removed (2026-08-30) |
 
 ---
 
