@@ -44,7 +44,7 @@ interface DuplicateMatch {
   duplicate_of_date: string
   duplicate_of_amount: number
   score: number
-  confidence: number
+  confidence: string
   explanation: string
   resolution: string | null
   created_at: string
@@ -209,7 +209,7 @@ export default function DuplicatesPageRoute() {
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-medium">Score:</span>
                                 <span className="text-sm">{(match.score * 100).toFixed(0)}%</span>
-                                <span className="text-xs text-muted-foreground">({match.confidence.toFixed(0)}% confidence)</span>
+                                <span className="text-xs text-muted-foreground">({match.confidence} confidence)</span>
                               </div>
                               {match.resolution && (
                                 <div className="flex items-center gap-1">
