@@ -38,3 +38,4 @@ class Conversation(Base):
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan", order_by="Message.created_at")
+    tool_executions = relationship("ToolExecution", back_populates="conversation", cascade="all, delete-orphan")

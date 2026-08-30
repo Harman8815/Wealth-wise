@@ -14,8 +14,7 @@ WealthWise is a comprehensive personal finance management application. This API 
 2. [Users API](./users.md)
 3. [Accounts API](./accounts.md)
 4. [Transactions API](./transactions.md)
-5. [Categories API](./users.md) *(shared category system)*
-6. [Budget Categories API](./budget-categories.md)
+5. [Budget Categories API](./budget-categories.md)
 7. [Goals API](./goals.md)
 8. [Alerts API](./alerts.md)
 9. [Alert Settings API](./alert-settings.md)

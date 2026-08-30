@@ -9,6 +9,7 @@ from typing import Any, Dict
 
 from app.services.db_context import get_database_context, refresh_database_context
 from app.ollama import DEFAULT_CHAT_MODEL, generate
+from app.services.ollama_config import get_options
 
 
 async def answer_database_question(question: str) -> str:
@@ -28,5 +29,7 @@ async def answer_database_question(question: str) -> str:
         [{"role": "system", "content": prompt}],
         model=DEFAULT_CHAT_MODEL,
         stream=False,
+        options=get_options("db_context"),
+        num_predict=100,
     )
     return result.get("message", {}).get("content", "")

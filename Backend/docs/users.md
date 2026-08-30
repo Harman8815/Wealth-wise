@@ -18,26 +18,29 @@ Manage user accounts and profiles. User registration is public, but all other op
 
 **Permission:** Public (AllowAny)
 
-**Description:** Register a new user account.
+**Description:** Register a new user account. On success, creates a default "Personal Finance" project and makes the user the owner.
 
 **Request Body:**
 ```json
 {
     "email": "newuser@example.com",
     "password": "securepassword123",
-    "first_name": "John",
-    "last_name": "Doe"
+    "name": "John Doe"
 }
 ```
 
 **Response (201 Created):**
 ```json
 {
-    "id": 1,
+    "id": "550e8400-e29b-41d4-a716-446655440000",
     "email": "newuser@example.com",
-    "first_name": "John",
-    "last_name": "Doe",
-    "created_at": "2024-01-15T10:30:00Z"
+    "name": "John Doe",
+    "currency": "INR",
+    "language": "en",
+    "theme": "system",
+    "email_verified": false,
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z"
 }
 ```
 
@@ -45,7 +48,8 @@ Manage user accounts and profiles. User registration is public, but all other op
 ```json
 {
     "email": ["This field is required."],
-    "password": ["This field is required."]
+    "password": ["This field is required."],
+    "name": ["This field is required."]
 }
 ```
 
@@ -63,18 +67,15 @@ Manage user accounts and profiles. User registration is public, but all other op
 ```json
 [
     {
-        "id": 1,
+        "id": "550e8400-e29b-41d4-a716-446655440000",
         "email": "user1@example.com",
-        "first_name": "John",
-        "last_name": "Doe",
-        "created_at": "2024-01-15T10:30:00Z"
-    },
-    {
-        "id": 2,
-        "email": "user2@example.com",
-        "first_name": "Jane",
-        "last_name": "Smith",
-        "created_at": "2024-01-16T14:20:00Z"
+        "name": "John Doe",
+        "currency": "INR",
+        "language": "en",
+        "theme": "system",
+        "email_verified": true,
+        "created_at": "2024-01-15T10:30:00Z",
+        "updated_at": "2024-01-20T14:45:00Z"
     }
 ]
 ```
@@ -92,11 +93,15 @@ Manage user accounts and profiles. User registration is public, but all other op
 **Response (200 OK):**
 ```json
 {
-    "id": 1,
+    "id": "550e8400-e29b-41d4-a716-446655440000",
     "email": "user@example.com",
-    "first_name": "John",
-    "last_name": "Doe",
-    "created_at": "2024-01-15T10:30:00Z"
+    "name": "John Doe",
+    "currency": "INR",
+    "language": "en",
+    "theme": "system",
+    "email_verified": true,
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-20T14:45:00Z"
 }
 ```
 
@@ -113,16 +118,20 @@ Manage user accounts and profiles. User registration is public, but all other op
 **Parameters:**
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| id | integer | Yes | User ID |
+| id | uuid | Yes | User ID |
 
 **Response (200 OK):**
 ```json
 {
-    "id": 1,
+    "id": "550e8400-e29b-41d4-a716-446655440000",
     "email": "user@example.com",
-    "first_name": "John",
-    "last_name": "Doe",
-    "created_at": "2024-01-15T10:30:00Z"
+    "name": "John Doe",
+    "currency": "INR",
+    "language": "en",
+    "theme": "system",
+    "email_verified": true,
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-20T14:45:00Z"
 }
 ```
 
@@ -147,19 +156,25 @@ Manage user accounts and profiles. User registration is public, but all other op
 ```json
 {
     "email": "updated@example.com",
-    "first_name": "Johnny",
-    "last_name": "Doe"
+    "name": "Johnny Doe",
+    "currency": "USD",
+    "language": "en",
+    "theme": "dark"
 }
 ```
 
 **Response (200 OK):**
 ```json
 {
-    "id": 1,
+    "id": "550e8400-e29b-41d4-a716-446655440000",
     "email": "updated@example.com",
-    "first_name": "Johnny",
-    "last_name": "Doe",
-    "created_at": "2024-01-15T10:30:00Z"
+    "name": "Johnny Doe",
+    "currency": "USD",
+    "language": "en",
+    "theme": "dark",
+    "email_verified": true,
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-20T14:45:00Z"
 }
 ```
 
@@ -176,18 +191,22 @@ Manage user accounts and profiles. User registration is public, but all other op
 **Request Body:**
 ```json
 {
-    "first_name": "Johnny"
+    "name": "Johnny Doe"
 }
 ```
 
 **Response (200 OK):**
 ```json
 {
-    "id": 1,
+    "id": "550e8400-e29b-41d4-a716-446655440000",
     "email": "user@example.com",
-    "first_name": "Johnny",
-    "last_name": "Doe",
-    "created_at": "2024-01-15T10:30:00Z"
+    "name": "Johnny Doe",
+    "currency": "INR",
+    "language": "en",
+    "theme": "system",
+    "email_verified": true,
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-20T14:45:00Z"
 }
 ```
 
@@ -212,20 +231,25 @@ Manage user accounts and profiles. User registration is public, but all other op
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| id | integer | Auto | Unique identifier |
+| id | uuid | Auto | Unique identifier |
 | email | string | Yes | User email (unique) |
 | password | string | Yes | Hashed password (write-only) |
-| first_name | string | No | User's first name |
-| last_name | string | No | User's last name |
+| name | string | Yes | User's full name (max 255 chars) |
+| currency | string | No | Preferred currency code (default: INR) |
+| language | string | No | Preferred language code (default: en) |
+| theme | string | No | UI theme preference: light, dark, system (default: system) |
+| email_verified | boolean | Auto | Whether email has been verified |
 | created_at | datetime | Auto | Account creation timestamp |
+| updated_at | datetime | Auto | Last update timestamp |
+| last_login | datetime | Auto | Last login timestamp |
 
 ---
 
 ## Validation Rules
 
 - **Email:** Must be valid email format, unique across all users
-- **Password:** Minimum 8 characters (configurable in settings)
-- **Name fields:** Maximum 150 characters each
+- **Password:** Minimum 8 characters
+- **Name:** Required, max 255 characters
 
 ---
 
@@ -238,8 +262,7 @@ curl -X POST http://localhost:8000/api/users/ \
   -d '{
     "email": "newuser@example.com",
     "password": "securepass123",
-    "first_name": "John",
-    "last_name": "Doe"
+    "name": "John Doe"
   }'
 ```
 
@@ -251,10 +274,10 @@ curl -X GET http://localhost:8000/api/users/me/ \
 
 ### Update Profile
 ```bash
-curl -X PATCH http://localhost:8000/api/users/1/ \
+curl -X PATCH http://localhost:8000/api/users/me/ \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "first_name": "Updated Name"
+    "name": "Updated Name"
   }'
 ```

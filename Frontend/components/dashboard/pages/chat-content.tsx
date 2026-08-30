@@ -19,13 +19,11 @@ import {
   Sparkles,
   User,
   Loader2,
-  AlertCircle,
   Square,
   Plus,
   Trash2,
   MessageSquare,
   MoreHorizontal,
-  Sparkle,
   BarChart3,
   Target,
   Search,
@@ -38,6 +36,7 @@ import {
   sendChatMessageStream,
   sendChatMessage,
   sendAgentMessage,
+  sendDebugEvent,
   type ChatMessage,
   type AgentMessageRequest,
   type StructuredResponse,
@@ -66,6 +65,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useDebug } from "@/components/debug/debug-context";
 
 const INITIAL_MESSAGE: ChatMessage = {
   role: "assistant",
@@ -87,7 +87,7 @@ type MessageMeta = {
   agentId?: string;
 };
 
-export function ChatPageContent({ conversationId }: { conversationId?: string }) {
+export function ChatPageContent({ conversationId, externalAgentId, onAgentHandled }: { conversationId?: string; externalAgentId?: string; onAgentHandled?: () => void }) {
   const searchParams = useSearchParams();
   const urlConversationId = searchParams.get("conversation") || undefined;
   const activeConversationId = conversationId || urlConversationId;
@@ -96,7 +96,6 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
   const [messageMeta, setMessageMeta] = useState<Record<number, MessageMeta>>({});
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [processingTime, setProcessingTime] = useState(0);
   const [processingMessage, setProcessingMessage] = useState("");
   const [slashQuery, setSlashQuery] = useState("");
@@ -104,6 +103,7 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
   const abortControllerRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const messageIndexRef = useRef(0);
+  const debug = useDebug();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -162,9 +162,25 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
     if (!trimmed || isStreaming) return;
     setInput("");
     setSlashQuery("");
-    setError(null);
     const agentId = agent?.id;
+    const requestId = debug.startTrace(trimmed);
+    if (debug.enabled) {
+      debug.connectStream(requestId);
+    }
     appendMessage("user", trimmed, agentId);
+    debug.appendEvent({ stage: "intent_detection", status: "running", service: "frontend" });
+    debug.appendEvent({
+      stage: "intent_detection",
+      status: "success",
+      service: "frontend",
+      output: { intent: agentId ?? "general_chat", agent: agentId ?? null },
+    });
+    debug.appendEvent({ stage: "agent_selection", status: "success", service: "frontend", output: { agent: agentId ?? null } });
+    debug.appendEvent({ stage: "backend_request", status: "running", service: "ml-backend", route: agentId ? "/chat/agent" : "/chat/stream", method: "POST" });
+    await sendDebugEvent(requestId, { stage: "user_request", status: "success", service: "frontend", input: { message: trimmed } });
+    await sendDebugEvent(requestId, { stage: "intent_detection", status: "success", service: "frontend", output: { intent: agentId ?? "general_chat" } });
+    await sendDebugEvent(requestId, { stage: "agent_selection", status: "success", service: "frontend", output: { agent: agentId ?? null } });
+    await sendDebugEvent(requestId, { stage: "backend_request", status: "running", service: "ml-backend", route: agentId ? "/chat/agent" : "/chat/stream", method: "POST" });
 
     try {
       setIsStreaming(true);
@@ -191,11 +207,16 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
               updateLastAssistant(fullReply ? fullReply + " [cancelled]" : "[cancelled]");
               toast.info("Generation stopped");
             } else {
-              setError(err.message);
+              updateLastAssistant(`Sorry, something went wrong: ${err.message}`);
               toast.error(err.message);
+            }
+            if (requestId) {
+              debug.appendEvent({ stage: "error", status: "error", service: "ml-backend", error: err.message, errorType: err.name });
+              sendDebugEvent(requestId, { stage: "error", status: "error", service: "ml-backend", error: err.message, error_type: err.name });
             }
           },
           abortControllerRef.current.signal,
+          requestId,
         );
       } else {
         await sendChatMessageStream(
@@ -209,14 +230,19 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
               updateLastAssistant(fullReply ? fullReply + " [cancelled]" : "[cancelled]");
               toast.info("Generation stopped");
             } else {
-              setError(err.message);
+              updateLastAssistant(`Sorry, something went wrong: ${err.message}`);
               toast.error(err.message);
+            }
+            if (requestId) {
+              debug.appendEvent({ stage: "error", status: "error", service: "ml-backend", error: err.message, errorType: err.name });
+              sendDebugEvent(requestId, { stage: "error", status: "error", service: "ml-backend", error: err.message, error_type: err.name });
             }
           },
           (structured) => {
             structuredRef.current = structured;
           },
           abortControllerRef.current.signal,
+          requestId,
         );
         if (structuredRef.current) {
           setMessages((prev) => {
@@ -229,11 +255,28 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
           });
         }
       }
+      if (requestId) {
+        debug.appendEvent({ stage: "frontend_render", status: "success", service: "frontend", output: { reply: fullReply || "empty" } });
+        await sendDebugEvent(requestId, { stage: "frontend_render", status: "success", service: "frontend", output: { reply: fullReply || "empty" } });
+      }
+      if (!fullReply && !structuredRef.current) {
+        const emptyMessage = "I couldn't generate a response. Please try rephrasing your question.";
+        updateLastAssistant(emptyMessage);
+        if (requestId) {
+          debug.appendEvent({ stage: "error", status: "error", service: "ml-backend", error: emptyMessage, errorType: "EmptyResponse" });
+          await sendDebugEvent(requestId, { stage: "error", status: "error", service: "ml-backend", error: emptyMessage, error_type: "EmptyResponse" });
+        }
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to send message";
-      setError(message);
+      updateLastAssistant(`Sorry, something went wrong: ${message}`);
       toast.error(message);
+      debug.appendEvent({ stage: "error", status: "error", service: "frontend", error: message, errorType: err instanceof Error ? err.name : "unknown" });
+      await sendDebugEvent(requestId, { stage: "error", status: "error", service: "frontend", error: message, error_type: err instanceof Error ? err.name : "unknown" });
     } finally {
+      debug.appendEvent({ stage: "backend_request", status: "success", service: "ml-backend" });
+      await sendDebugEvent(requestId, { stage: "backend_request", status: "success", service: "ml-backend" });
+      debug.finishTrace();
       clearTimer();
       setIsStreaming(false);
       abortControllerRef.current = null;
@@ -280,6 +323,18 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
       handleSend();
     }
   };
+
+  const handleSendWithAgentRef = useRef(handleSendWithAgent);
+  handleSendWithAgentRef.current = handleSendWithAgent;
+
+  useEffect(() => {
+    if (!externalAgentId) return;
+    handleSendWithAgentRef.current(
+      agents.find((a) => a.id === externalAgentId)?.slashCommand ?? externalAgentId,
+      agents.find((a) => a.id === externalAgentId),
+    );
+    onAgentHandled?.();
+  }, [externalAgentId, onAgentHandled]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -467,18 +522,6 @@ export function ChatPageContent({ conversationId }: { conversationId?: string })
                     {processingMessage} {formatTime(processingTime)}
                   </span>
                 )}
-              </div>
-            </div>
-          )}
-          {error && (
-            <div className="flex gap-3 justify-start">
-              <Avatar className="h-8 w-8 shrink-0">
-                <AvatarFallback className="bg-red-600 text-white">
-                  <AlertCircle className="h-4 w-4" />
-                </AvatarFallback>
-              </Avatar>
-              <div className="max-w-[80%] rounded-2xl rounded-bl-sm px-4 py-3 text-sm bg-red-950/50 text-red-200 border border-red-800/50">
-                {error}
               </div>
             </div>
           )}

@@ -91,14 +91,28 @@ def log_llm_call(
     conversation_id: Optional[str],
     model: str,
     latency_ms: float,
+    eval_count: Optional[int] = None,
+    prompt_eval_count: Optional[int] = None,
+    eval_duration_ns: Optional[int] = None,
+    prompt_eval_duration_ns: Optional[int] = None,
     **extra: Any,
 ) -> None:
+    gen_tok_per_sec = None
+    prompt_tok_per_sec = None
+    if eval_count and eval_duration_ns and eval_duration_ns > 0:
+        gen_tok_per_sec = round(eval_count / (eval_duration_ns / 1e9), 2)
+    if prompt_eval_count and prompt_eval_duration_ns and prompt_eval_duration_ns > 0:
+        prompt_tok_per_sec = round(prompt_eval_count / (prompt_eval_duration_ns / 1e9), 2)
     payload = {
         "request_id": request_id,
         "user_id": user_id,
         "conversation_id": conversation_id,
         "model": model,
         "latency_ms": round(latency_ms, 2),
+        "eval_count": eval_count,
+        "prompt_eval_count": prompt_eval_count,
+        "gen_tok_per_sec": gen_tok_per_sec,
+        "prompt_tok_per_sec": prompt_tok_per_sec,
     }
     payload.update(_scrub_dict(extra))
     logger.info("llm_call", extra=payload)

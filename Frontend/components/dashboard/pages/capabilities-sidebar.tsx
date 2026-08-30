@@ -14,7 +14,7 @@ const capabilityIcons: Record<string, React.ComponentType<{ className?: string }
   transaction_search: Search,
 };
 
-export function CapabilitiesSidebar() {
+export function CapabilitiesSidebar({ onCardClick }: { onCardClick?: (agentId: string) => void }) {
   return (
     <div className="hidden xl:flex w-80 shrink-0 border-l border-white/10 bg-[#0B0F19]/50 p-6 flex-col gap-6">
       <div>
@@ -26,9 +26,11 @@ export function CapabilitiesSidebar() {
           {agents.map((agent) => {
             const Icon = capabilityIcons[agent.id] || MessageSquare;
             return (
-              <div
+              <button
                 key={agent.id}
-                className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/5"
+                type="button"
+                onClick={() => onCardClick?.(agent.id)}
+                className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/5 w-full text-left hover:bg-white/10 hover:border-white/10 transition-colors cursor-pointer"
               >
                 <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 shrink-0">
                   <Icon className="h-4 w-4" />
@@ -37,7 +39,7 @@ export function CapabilitiesSidebar() {
                   <p className="text-sm font-medium text-white">{agent.name}</p>
                   <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">{agent.description}</p>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>

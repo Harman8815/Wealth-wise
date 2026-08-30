@@ -21,7 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-=@&u+e%_kc)3cq&rjm(k)p9t5bsdc$g$me&k$j6$8h6@b#cn3@'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dev-only-please-set-SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -154,8 +154,9 @@ SIMPLE_JWT = {
 }
 
 # CORS Configuration
-CORS_ALLOW_ALL_ORIGINS = True  # Configure properly for production
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://localhost:3001,http://localhost:3002').split(',')
 # Allow custom headers such as X-Project-Id (sent on every request) so the
 # browser preflight (OPTIONS) succeeds.
 CORS_ALLOW_HEADERS = [

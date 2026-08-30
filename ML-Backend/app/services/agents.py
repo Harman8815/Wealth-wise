@@ -52,7 +52,7 @@ AGENT_REGISTRY: Dict[str, Dict[str, Any]] = {
         "name": "alert",
         "slash_command": "/alert",
         "description": "Explain financial alerts in plain language.",
-        "intent": "chart_alert",
+        "intent": "alerts",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -112,6 +112,22 @@ AGENT_REGISTRY: Dict[str, Dict[str, Any]] = {
         "handler": "route_intent",
         "registered_at": "2026-08-22",
     },
+    "transaction_query": {
+        "name": "transaction_query",
+        "slash_command": "/query",
+        "description": "Advanced transaction queries with dynamic filters (merchant, date range, amount range).",
+        "intent": "transaction_query",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "message": {"type": "string", "description": "The user's transaction query"},
+                "conversation_id": {"type": "string", "description": "Optional conversation ID for context"},
+            },
+            "required": ["message"],
+        },
+        "handler": "route_intent",
+        "registered_at": "2026-08-22",
+    },
     "insights": {
         "name": "insights",
         "slash_command": "/insights",
@@ -130,7 +146,7 @@ AGENT_REGISTRY: Dict[str, Dict[str, Any]] = {
     "general_chat": {
         "name": "general_chat",
         "slash_command": "/chat",
-        "description": "General financial assistant chat without specialized tools.",
+        "description": "General financial assistant chat with access to financial tools.",
         "intent": "general_chat",
         "input_schema": {
             "type": "object",
@@ -140,7 +156,7 @@ AGENT_REGISTRY: Dict[str, Dict[str, Any]] = {
             },
             "required": ["message"],
         },
-        "handler": "fallback",
+        "handler": "route_intent",
     },
     "db_context": {
         "name": "db_context",
@@ -161,7 +177,23 @@ AGENT_REGISTRY: Dict[str, Dict[str, Any]] = {
 
 
 def get_agent(name: str) -> Optional[Dict[str, Any]]:
-    return AGENT_REGISTRY.get(name)
+    if name in AGENT_REGISTRY:
+        return AGENT_REGISTRY[name]
+    alias = {
+        "search": "transaction_search",
+        "insights": "insights",
+        "report": "report",
+        "alert": "alert",
+        "chart_alert": "chart_alert",
+        "goal": "goal",
+        "budget": "budget",
+        "chat": "general_chat",
+        "db": "db_context",
+    }
+    resolved = alias.get(name)
+    if resolved and resolved in AGENT_REGISTRY:
+        return AGENT_REGISTRY[resolved]
+    return None
 
 
 def list_agents() -> list[Dict[str, Any]]:

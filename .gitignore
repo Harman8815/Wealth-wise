@@ -1,9 +1,48 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+.eggs/
+.coverage
+htmlcov/
+.pytest_cache/
+*.cover
+*.log
+db.sqlite3
+ml_backend.db
+
+# Node.js
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific
 context.ai.model
 *.list
-./Task.list
-**/Task.list
-./Feature.md
-**/Feature.md
+Task.list
+Feature.md
 .kilo

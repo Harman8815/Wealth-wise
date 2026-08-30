@@ -36,7 +36,7 @@ async def extract_memory(user_id: str, assistant_reply: str) -> Optional[str]:
         {"role": "user", "content": assistant_reply},
     ]
     try:
-        result = await generate(messages, model=DEFAULT_CHAT_MODEL, stream=False)
+        result = await generate(messages, model=DEFAULT_CHAT_MODEL, stream=False, num_predict=100)
         content = result.get("message", {}).get("content", "").strip()
         if not content:
             return None

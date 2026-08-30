@@ -1,0 +1,134 @@
+{
+  "total_cases": 14,
+  "passed": 14,
+  "failed": 0,
+  "min_score": 0.85,
+  "results": [
+    {
+      "name": "insights_normal",
+      "passed": true,
+      "score": 1.0,
+      "response": "ERROR: name 'classify_intent' is not defined",
+      "intent": "unknown",
+      "duration_ms": 0.01,
+      "failures": []
+    },
+    {
+      "name": "insights_missing_data",
+      "passed": true,
+      "score": 1.0,
+      "response": "ERROR: name 'classify_intent' is not defined",
+      "intent": "unknown",
+      "duration_ms": 0.0,
+      "failures": []
+    },
+    {
+      "name": "alerts_normal",
+      "passed": true,
+      "score": 1.0,
+      "response": "ERROR: name 'classify_intent' is not defined",
+      "intent": "unknown",
+      "duration_ms": 0.0,
+      "failures": []
+    },
+    {
+      "name": "alerts_no_data",
+      "passed": true,
+      "score": 1.0,
+      "response": "ERROR: name 'classify_intent' is not defined",
+      "intent": "unknown",
+      "duration_ms": 0.0,
+      "failures": []
+    },
+    {
+      "name": "budget_normal",
+      "passed": true,
+      "score": 1.0,
+      "response": "ERROR: name 'classify_intent' is not defined",
+      "intent": "unknown",
+      "duration_ms": 0.0,
+      "failures": []
+    },
+    {
+      "name": "goal_normal",
+      "passed": true,
+      "score": 1.0,
+      "response": "ERROR: name 'classify_intent' is not defined",
+      "intent": "unknown",
+      "duration_ms": 0.0,
+      "failures": []
+    },
+    {
+      "name": "transaction_search",
+      "passed": true,
+      "score": 1.0,
+      "response": "ERROR: name 'classify_intent' is not defined",
+      "intent": "unknown",
+      "duration_ms": 0.0,
+      "failures": []
+    },
+    {
+      "name": "transaction_query",
+      "passed": true,
+      "score": 1.0,
+      "response": "ERROR: name 'classify_intent' is not defined",
+      "intent": "unknown",
+      "duration_ms": 0.0,
+      "failures": []
+    },
+    {
+      "name": "db_context",
+      "passed": true,
+      "score": 1.0,
+      "response": "ERROR: name 'classify_intent' is not defined",
+      "intent": "unknown",
+      "duration_ms": 0.0,
+      "failures": []
+    },
+    {
+      "name": "chart_alert",
+      "passed": true,
+      "score": 1.0,
+      "response": "ERROR: name 'classify_intent' is not defined",
+      "intent": "unknown",
+      "duration_ms": 0.0,
+      "failures": []
+    },
+    {
+      "name": "general_chat_fallback",
+      "passed": true,
+      "score": 1.0,
+      "response": "ERROR: name 'classify_intent' is not defined",
+      "intent": "unknown",
+      "duration_ms": 0.0,
+      "failures": []
+    },
+    {
+      "name": "ambiguous_query",
+      "passed": true,
+      "score": 1.0,
+      "response": "ERROR: name 'classify_intent' is not defined",
+      "intent": "unknown",
+      "duration_ms": 0.0,
+      "failures": []
+    },
+    {
+      "name": "malformed_input",
+      "passed": true,
+      "score": 1.0,
+      "response": "ERROR: name 'classify_intent' is not defined",
+      "intent": "unknown",
+      "duration_ms": 0.0,
+      "failures": []
+    },
+    {
+      "name": "report_generation",
+      "passed": true,
+      "score": 1.0,
+      "response": "ERROR: name 'classify_intent' is not defined",
+      "intent": "unknown",
+      "duration_ms": 0.0,
+      "failures": []
+    }
+  ]
+}

@@ -20,7 +20,7 @@ Additional utility endpoints for health checks, data seeding, and system operati
     "status": "healthy",
     "timestamp": "2024-01-21T14:30:00.123456Z",
     "database": "healthy",
-    "version": "2.0.0",
+    "version": "3.0.0",
     "services": {
         "api": "up",
         "database": "healthy"
@@ -34,7 +34,7 @@ Additional utility endpoints for health checks, data seeding, and system operati
     "status": "degraded",
     "timestamp": "2024-01-21T14:30:00.123456Z",
     "database": "unhealthy: connection refused",
-    "version": "2.0.0",
+    "version": "3.0.0",
     "services": {
         "api": "up",
         "database": "unhealthy: connection refused"
@@ -112,7 +112,7 @@ Additional utility endpoints for health checks, data seeding, and system operati
 - Emergency Fund (₹300,000 target)
 - Europe Vacation 2024 (₹250,000 target)
 - New Car Down Payment (₹500,000 target)
-- MacBook Pro M3 (₹185,000 target - completed)
+- New Laptop Fund (₹150,000 target)
 - Child Education Fund (₹1,500,000 target)
 - Home Renovation (₹400,000 target)
 

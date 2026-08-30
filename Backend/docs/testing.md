@@ -1,7 +1,6 @@
 # Backend Testing Infrastructure
 
-Comprehensive API test suite for the WealthWise Django/DRF backend. This setup is
-intended to live on the `feature/backend-testing` branch in isolation from feature work.
+Comprehensive API test suite for the WealthWise Django/DRF backend.
 
 ## Stack
 
@@ -110,5 +109,5 @@ toward 80% as service-layer tests are added.
 
 ## CI
 
-`.github/workflows/backend-tests.yml` runs `pytest` with coverage on push/PR to
-`feature/backend-testing`. It is minimal and CI-ready but does not need to run locally.
+`.github/workflows/backend-tests.yml` runs `pytest` with coverage on push/PR.
+It is minimal and CI-ready but does not need to run locally.

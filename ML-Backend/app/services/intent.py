@@ -15,6 +15,7 @@ from enum import Enum
 from typing import Dict
 
 from app.ollama import DEFAULT_CHAT_MODEL, generate
+from app.services.ollama_config import get_options
 from app.logging_utils import log_chat
 
 
@@ -34,13 +35,15 @@ class Intent(str, Enum):
 INTENT_CLASSIFIER_PROMPT = (
     "You are an intent classifier for a financial assistant. "
     "Classify the user's message into exactly one of these categories:\n"
-    "- report: user wants a financial report or summary\n"
+    "- report: user wants a structured financial report with sections (income, expenses, budget, goals, balance, recommendations). "
+    "Triggers include: 'generate report', 'financial report', 'summary report', 'show me my report'.\n"
     "- chart_alert: user wants explanation of charts or alerts\n"
     "- goal: user is asking about financial goals or goal planning\n"
     "- budget: user is asking about budgets or budget planning\n"
     "- transaction_search: user is searching for transactions with simple filters\n"
     "- transaction_query: user is asking for specific transaction details, merchant lookups, date-specific transactions, or amount-filtered transactions\n"
-    "- insights: user wants financial insights or AI-generated analysis\n"
+    "- insights: user wants observations, trends, anomalies, or AI-generated analysis about their finances. "
+    "Triggers include: 'insights', 'what do you notice', 'trends', 'anomalies', 'spending patterns'.\n"
     "- db_context: user is asking about database schema, tables, columns, or relationships\n"
     "- alerts: user is asking about alerts, notifications, warnings, or unusual activity\n"
     "- general_chat: everything else\n\n"
@@ -56,6 +59,8 @@ async def classify_intent(message: str) -> Intent:
         ],
         model=DEFAULT_CHAT_MODEL,
         stream=False,
+        options=get_options("intent_classification"),
+        num_predict=20,
     )
     content = result.get("message", {}).get("content", "").strip().lower()
     try:

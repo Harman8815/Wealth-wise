@@ -27,6 +27,7 @@ from app.services.summarization import maybe_summarize
 from app.services.assistants import answer_budget_question, answer_goal_question
 from app.services.intent import classify_intent
 from app.services.router import route_intent
+from app.services.pipeline import process_response
 from app.rate_limit import enforce_rate_limit
 from app.logging_utils import get_request_id, log_chat, log_llm_call, log_tool_call, log_validation
 from app.schemas.structured_response import StructuredResponse
@@ -42,8 +43,45 @@ from app.services.tools import (
     query_transactions_dynamic,
 )
 from app.services.alerts_agent import answer_alerts_question
+from app.debug_events import DebugEvent, DebugStage, StageStatus, get_debug_store
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+
+def _emit_debug_event(
+    request_id: str,
+    stage: DebugStage,
+    status: StageStatus,
+    service: str = "backend",
+    route: Optional[str] = None,
+    method: Optional[str] = None,
+    http_status: Optional[int] = None,
+    duration_ms: Optional[float] = None,
+    input_data: Optional[Dict[str, Any]] = None,
+    output_data: Optional[Dict[str, Any]] = None,
+    error: Optional[str] = None,
+    error_type: Optional[str] = None,
+) -> None:
+    try:
+        store = get_debug_store()
+        store.append_event(
+            DebugEvent(
+                request_id=request_id,
+                stage=stage,
+                status=status,
+                service=service,
+                route=route,
+                method=method,
+                http_status=http_status,
+                duration_ms=duration_ms,
+                input_data=input_data,
+                output_data=output_data,
+                error=error,
+                error_type=error_type,
+            )
+        )
+    except Exception:
+        pass
 
 
 def _sse_pack(event: str, data: str) -> str:
@@ -59,8 +97,13 @@ def _parse_structured_response(content: str) -> Dict[str, Any]:
             try:
                 validated = StructuredResponse(**data)
                 return validated.model_dump()
-            except Exception:
-                pass
+            except Exception as exc:
+                from app.logging_utils import logger as chat_logger
+                chat_logger.warning(
+                    "structured_response_validation_failed",
+                    extra={"content": content[:500], "error": str(exc)},
+                )
+                return {"type": "markdown", "markdown": content}
         return {"type": "markdown", "markdown": content}
     except Exception:
         return {"type": "text", "text": content}
@@ -258,18 +301,23 @@ async def _chat_with_tools(
     model: str = DEFAULT_CHAT_MODEL,
     conversation_id: Optional[str] = None,
     request: Optional[Request] = None,
+    request_id: Optional[str] = None,
 ) -> str:
     current_messages = messages[:]
     for _ in range(5):
         start = time.perf_counter()
-        result = await generate_with_tools(current_messages, FINANCIAL_TOOLS, model=model)
+        result = await generate_with_tools(current_messages, FINANCIAL_TOOLS, model=model, format="json", request_id=request_id, num_predict=256)
         latency = (time.perf_counter() - start) * 1000
         log_llm_call(
-            request_id=get_request_id(request),
+            request_id=get_request_id(request) if request else request_id or "",
             user_id=user_id,
             conversation_id=conversation_id,
             model=model,
             latency_ms=latency,
+            eval_count=result.get("eval_count"),
+            prompt_eval_count=result.get("prompt_eval_count"),
+            eval_duration_ns=result.get("eval_duration"),
+            prompt_eval_duration_ns=result.get("prompt_eval_duration"),
         )
         message = result.get("message", {})
         content = message.get("content", "")
@@ -316,10 +364,11 @@ async def _ollama_stream_to_sse(
     user_id: str,
     conversation_id: str,
     token: str,
+    request_id: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
     full_reply = ""
     try:
-        async for token in stream(messages, model=model):
+        async for token in stream(messages, model=model, request_id=request_id):
             full_reply += token
             payload = json.dumps({"token": token})
             yield _sse_pack("token", payload)
@@ -330,18 +379,28 @@ async def _ollama_stream_to_sse(
             role="assistant",
             content="Request cancelled by user.",
         )
+        if request_id:
+            _emit_debug_event(request_id, DebugStage.ERROR, StageStatus.ERROR, service="backend", route="/chat/stream", error="Client disconnected", error_type="ClientDisconnect")
         return
     except OllamaAdapterError as exc:
+        if request_id:
+            _emit_debug_event(request_id, DebugStage.ERROR, StageStatus.ERROR, service="backend", route="/chat/stream", http_status=502, error=str(exc), error_type="OllamaAdapterError")
         payload = json.dumps({"error": str(exc)})
         yield _sse_pack("error", payload)
         return
     structured = _parse_structured_response(full_reply)
+    if request_id:
+        _emit_debug_event(request_id, DebugStage.OLLAMA_RESPONSE, StageStatus.SUCCESS, service="backend", output_data={"reply_length": len(full_reply)})
+        _emit_debug_event(request_id, DebugStage.RESPONSE_PARSING, StageStatus.SUCCESS, service="backend", output_data={"type": structured.get("type")})
     add_message(
         user_id=user_id,
         conversation_id=conversation_id,
         role="assistant",
         content=structured.get("text") or structured.get("markdown") or full_reply,
     )
+    if request_id:
+        _emit_debug_event(request_id, DebugStage.FRONTEND_RENDER, StageStatus.SUCCESS, service="backend", output_data={"reply": structured.get("text") or structured.get("markdown") or full_reply})
+        _emit_debug_event(request_id, DebugStage.BACKEND_REQUEST, StageStatus.SUCCESS, service="backend", route="/chat/stream", http_status=200)
     yield _sse_pack("done", json.dumps({"conversation_id": conversation_id, "structured": structured}))
 
 
@@ -371,6 +430,7 @@ async def chat(
     _: None = Depends(enforce_rate_limit),
 ) -> ChatResponse:
     request_id = get_request_id(request)
+    _emit_debug_event(request_id, DebugStage.BACKEND_REQUEST, StageStatus.RUNNING, service="backend", route="/chat", method="POST", input_data={"message": body.message})
     log_chat(
         request_id=request_id,
         user_id=user_id,
@@ -382,6 +442,7 @@ async def chat(
     if conversation_id:
         conv = get_conversation(user_id, conversation_id)
         if not conv:
+            _emit_debug_event(request_id, DebugStage.ERROR, StageStatus.ERROR, service="backend", route="/chat", http_status=404, error="Conversation not found")
             raise HTTPException(status_code=404, detail="Conversation not found.")
     else:
         conv = create_conversation(user_id=user_id)
@@ -393,7 +454,9 @@ async def chat(
         question=body.message,
         budget=get_context_budget(),
     )
+    _emit_debug_event(request_id, DebugStage.DATA_PROCESSING, StageStatus.SUCCESS, service="backend", output_data={"context_messages": len(context_messages)})
     token = _get_token(request)
+    _emit_debug_event(request_id, DebugStage.OLLAMA_REQUEST, StageStatus.RUNNING, service="backend", route="/chat", method="POST", input_data={"model": body.model or DEFAULT_CHAT_MODEL})
     try:
         raw_reply = await _chat_with_tools(
             context_messages,
@@ -402,9 +465,14 @@ async def chat(
             model=body.model or DEFAULT_CHAT_MODEL,
             conversation_id=conversation_id,
             request=request,
+            request_id=request_id,
         )
+        _emit_debug_event(request_id, DebugStage.OLLAMA_RESPONSE, StageStatus.SUCCESS, service="backend", output_data={"reply_length": len(raw_reply)})
         structured = _parse_structured_response(raw_reply)
+        _emit_debug_event(request_id, DebugStage.RESPONSE_PARSING, StageStatus.SUCCESS, service="backend", output_data={"type": structured.get("type")})
         reply = structured.get("text") or structured.get("markdown") or raw_reply
+        if structured.get("type") in ("text", "markdown"):
+            reply = process_response(reply)
         add_message(
             user_id=user_id,
             conversation_id=conversation_id,
@@ -418,8 +486,9 @@ async def chat(
             role="assistant",
             content=reply,
             structured_data=structured if structured.get("type") != "text" else None,
-            metadata={"model": body.model or DEFAULT_CHAT_MODEL},
+            extra_data={"model": body.model or DEFAULT_CHAT_MODEL},
         )
+        _emit_debug_event(request_id, DebugStage.FRONTEND_RENDER, StageStatus.SUCCESS, service="backend", output_data={"reply": reply})
         log_chat(
             request_id=request_id,
             user_id=user_id,
@@ -427,8 +496,10 @@ async def chat(
             event="response_generated",
             response=reply,
         )
+        _emit_debug_event(request_id, DebugStage.BACKEND_REQUEST, StageStatus.SUCCESS, service="backend", route="/chat", http_status=200)
         return ChatResponse(reply=reply, model=body.model or DEFAULT_CHAT_MODEL, conversation_id=conversation_id, structured=structured)
     except OllamaAdapterError as exc:
+        _emit_debug_event(request_id, DebugStage.ERROR, StageStatus.ERROR, service="backend", route="/chat", http_status=502, error=str(exc), error_type="OllamaAdapterError")
         log_chat(
             request_id=request_id,
             user_id=user_id,
@@ -437,6 +508,9 @@ async def chat(
             error=str(exc),
         )
         raise HTTPException(status_code=502, detail=str(exc))
+    except Exception as exc:
+        _emit_debug_event(request_id, DebugStage.ERROR, StageStatus.ERROR, service="backend", route="/chat", http_status=500, error=str(exc), error_type=type(exc).__name__)
+        raise
 
 
 @router.post("/stream")
@@ -447,6 +521,7 @@ async def chat_stream(
     _: None = Depends(enforce_rate_limit),
 ) -> StreamingResponse:
     request_id = get_request_id(request)
+    _emit_debug_event(request_id, DebugStage.BACKEND_REQUEST, StageStatus.RUNNING, service="backend", route="/chat/stream", method="POST", input_data={"message": body.message, "model": body.model or DEFAULT_CHAT_MODEL})
     log_chat(
         request_id=request_id,
         user_id=user_id,
@@ -458,6 +533,7 @@ async def chat_stream(
     if conversation_id:
         conv = get_conversation(user_id, conversation_id)
         if not conv:
+            _emit_debug_event(request_id, DebugStage.ERROR, StageStatus.ERROR, service="backend", route="/chat/stream", http_status=404, error="Conversation not found")
             raise HTTPException(status_code=404, detail="Conversation not found.")
     else:
         conv = create_conversation(user_id=user_id)
@@ -476,9 +552,11 @@ async def chat_stream(
         question=body.message,
         budget=get_context_budget(),
     )
+    _emit_debug_event(request_id, DebugStage.DATA_PROCESSING, StageStatus.SUCCESS, service="backend", output_data={"context_messages": len(context_messages)})
     token = _get_token(request)
+    _emit_debug_event(request_id, DebugStage.OLLAMA_REQUEST, StageStatus.RUNNING, service="backend", route="/chat/stream", method="POST", input_data={"model": body.model or DEFAULT_CHAT_MODEL})
     return StreamingResponse(
-        _ollama_stream_to_sse(context_messages, model=body.model or DEFAULT_CHAT_MODEL, user_id=user_id, conversation_id=conversation_id, token=token),
+        _ollama_stream_to_sse(context_messages, model=body.model or DEFAULT_CHAT_MODEL, user_id=user_id, conversation_id=conversation_id, token=token, request_id=request_id),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -558,26 +636,30 @@ async def refresh_db_context():
 @router.post("/agent")
 async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: None = Depends(enforce_rate_limit)):
     request_id = get_request_id(request)
+    body = await request.json()
+    _emit_debug_event(request_id, DebugStage.BACKEND_REQUEST, StageStatus.RUNNING, service="backend", route="/chat/agent", method="POST", input_data={"message": body.get("message"), "agent": body.get("agent")})
     log_chat(
         request_id=request_id,
         user_id=user_id,
         conversation_id=None,
         event="agent_request_received",
-        message=None,
+        message=body.get("message"),
     )
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):
+        _emit_debug_event(request_id, DebugStage.ERROR, StageStatus.ERROR, service="backend", route="/chat/agent", http_status=401, error="Missing or invalid Authorization header")
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header.")
     token = auth_header.split(" ")[1]
-    body = await request.json()
     message = body.get("message", "")
     if not message:
+        _emit_debug_event(request_id, DebugStage.ERROR, StageStatus.ERROR, service="backend", route="/chat/agent", http_status=400, error="Missing message")
         raise HTTPException(status_code=400, detail="Missing message.")
     agent_name = body.get("agent")
     if agent_name:
         from app.services.agents import get_agent
         agent_entry = get_agent(agent_name)
         if not agent_entry:
+            _emit_debug_event(request_id, DebugStage.ERROR, StageStatus.ERROR, service="backend", route="/chat/agent", http_status=400, error=f"Unknown agent: {agent_name}")
             raise HTTPException(status_code=400, detail=f"Unknown agent: {agent_name}")
         slash_command = agent_entry.get("slash_command", f"/{agent_name}")
         if message.startswith(slash_command):
@@ -589,7 +671,10 @@ async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: N
         except ValueError:
             intent = Intent.GENERAL_CHAT
     else:
+        _emit_debug_event(request_id, DebugStage.INTENT_DETECTION, StageStatus.RUNNING, service="backend")
         intent = await classify_intent(message)
+        _emit_debug_event(request_id, DebugStage.INTENT_DETECTION, StageStatus.SUCCESS, service="backend", output_data={"intent": intent.value})
+    _emit_debug_event(request_id, DebugStage.AGENT_SELECTION, StageStatus.SUCCESS, service="backend", output_data={"agent": agent_name or "auto", "intent": intent.value})
     log_chat(
         request_id=request_id,
         user_id=user_id,
@@ -598,13 +683,15 @@ async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: N
         agent=agent_name or "auto",
         intent=intent.value,
     )
-    routed = await route_intent(intent, token, user_id, message)
-    if routed.get("response") is None:
-        return {
-            "intent": routed["intent"],
-            "response": "I'm not sure how to help with that. Could you rephrase?",
-            "fallback": True,
-        }
+    _emit_debug_event(request_id, DebugStage.BACKEND_REQUEST, StageStatus.SUCCESS, service="backend", route="/chat/agent", http_status=200)
+    routed = await route_intent(intent, token, user_id, message, request_id=request_id)
+    response = routed.get("response") or ""
+    if not response.strip():
+        response = "I'm not sure how to help with that. Could you rephrase?"
+        fallback = True
+    else:
+        fallback = routed.get("fallback", False)
+    _emit_debug_event(request_id, DebugStage.FRONTEND_RENDER, StageStatus.SUCCESS, service="backend", output_data={"response": response})
     log_chat(
         request_id=request_id,
         user_id=user_id,
@@ -612,11 +699,12 @@ async def agent_chat(request: Request, user_id: str = Depends(get_user_id), _: N
         event="agent_response_generated",
         agent=agent_name or "auto",
         intent=intent.value,
-        response=routed.get("response"),
+        response=response,
     )
     return {
         "intent": routed["intent"],
-        "response": routed["response"],
+        "response": response,
         "data": routed.get("data"),
         "filters": routed.get("filters"),
+        "fallback": fallback,
     }

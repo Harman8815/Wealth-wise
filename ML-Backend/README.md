@@ -1,20 +1,24 @@
-# WealthWise Duplicate Detection — ML Microservice
+# WealthWise ML-Backend
 
-A **stateless, compute-only** FastAPI service that detects near-duplicate
-transactions using **TF-IDF + cosine similarity** on normalized descriptions,
-blended with amount and date-proximity features into a weighted confidence
-score.
+FastAPI service for AI chat, Ollama orchestration, duplicate detection, and LLM-powered financial assistants.
 
-It is reached only from the Django backend (never directly by browsers or the
-frontend) over HTTP. It owns **no database, no authentication, no project
-scoping** — all of that lives in Django, which passes candidate records in the
-request body.
+It is reached from the Django backend and the Next.js frontend over HTTP. It provides:
+- **Duplicate detection** — TF-IDF + cosine similarity for near-duplicate transactions
+- **Chat + AI agents** — Intent-classified conversational endpoints (goal planning, budget advice, insights, database schema Q&A)
+- **Report generation** — LLM-assisted financial reports with chart/alert explanations
+- **Conversation memory** — SQLAlchemy-backed persistence with Ollama embeddings + Chroma vector store
+
+## Prerequisites
+
+- Python 3.10+
+- Ollama (for LLM and embedding models)
 
 ## Run it
 
 ```bash
 cd ML-Backend
-python -m venv .venv && source .venv/bin/activate   # or .venv\Scripts\activate on Windows
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn app.main:app --host 0.0.0.0 --port 8100
 ```
@@ -30,85 +34,103 @@ The Django backend expects this service at `ML_SERVICE_URL`
 
 ## Endpoints
 
-### `POST /duplicates/scan`
+### Duplicate Detection
 
-Group a set of transactions into duplicate groups.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/duplicates/scan` | Group transactions into duplicate groups |
+| `POST` | `/duplicates/score-batch` | Score one transaction against existing ones |
 
-```json
-{
-  "transactions": [
-    {"id": "t1", "date": "2024-01-05", "amount": 2500.0, "description": "Swiggy order 1234", "type": "expense"},
-    {"id": "t2", "date": "2024-01-06", "amount": 2500.0, "description": "SWIGGY ORDER 1234", "type": "expense"}
-  ],
-  "config": {
-    "amount_tolerance": 0.01,
-    "date_window_days": 4,
-    "threshold_high": 0.85,
-    "threshold_medium": 0.65,
-    "weights": {"description": 0.5, "amount": 0.3, "date": 0.2}
-  }
-}
+### Chat & AI
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/chat` | General chat with tool-calling LLM |
+| `POST` | `/chat/stream` | SSE streaming chat |
+| `POST` | `/chat/agent` | Intent-routed agent endpoint |
+| `POST` | `/chat/goal-planning` | Goal planning assistant |
+| `POST` | `/chat/budget-planning` | Budget planning assistant |
+
+### Reports
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/reports/generate` | Generate LLM-assisted financial report |
+| `GET` | `/reports/summary` | Report summary |
+| `POST` | `/reports/explain` | Explain a chart or alert |
+
+### Conversations & Memory
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/conversations` | List user conversations |
+| `POST` | `/conversations` | Create conversation |
+| `GET` | `/conversations/{id}` | Get conversation with messages |
+| `DELETE` | `/conversations/{id}` | Delete conversation |
+| `GET` | `/user/memory` | List memory entries |
+| `DELETE` | `/user/memory/{id}` | Delete memory entry |
+
+### Debug (internal)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/debug/events` | Recent debug events |
+| `GET` | `/debug/stream` | SSE debug stream |
+
+## Architecture
+
+```
+ML-Backend/
+├── app/
+│   ├── main.py              # FastAPI app, CORS, middleware
+│   ├── routers/             # API routers
+│   │   ├── chat.py          # Chat + agent endpoints
+│   │   ├── conversations.py # Conversation CRUD
+│   │   ├── debug.py         # Debug event streaming
+│   │   ├── duplicates.py    # TF-IDF duplicate scoring
+│   │   ├── memory.py        # Memory CRUD
+│   │   └── reports.py       # Report generation + explanation
+│   ├── services/            # Business logic
+│   │   ├── agents.py        # Agent orchestration
+│   │   ├── alerts_agent.py  # Alert explanation
+│   │   ├── assistants.py    # Goal/budget assistants
+│   │   ├── calculations.py  # Financial math helpers
+│   │   ├── context.py       # Context window management
+│   │   ├── db_agent.py      # Database schema Q&A
+│   │   ├── embeddings.py    # Ollama embedding client
+│   │   ├── fallbacks.py     # Graceful degradation
+│   │   ├── insights_agent.py # Insights agent
+│   │   ├── intent.py        # Intent classification
+│   │   ├── memory.py        # Memory/context service
+│   │   ├── ollama_config.py # Model configuration
+│   │   ├── pipeline.py      # Response processing pipeline
+│   │   ├── reports.py       # Report generation
+│   │   ├── router.py        # Intent routing
+│   │   ├── sanitizer.py     # Input sanitization
+│   │   ├── summarization.py # Conversation summarization
+│   │   ├── tools.py         # Financial tool definitions
+│   │   └── validation.py    # Request validation
+│   ├── db.py                # SQLAlchemy setup + init_db()
+│   ├── ollama.py            # Ollama HTTP client
+│   ├── prompt.py            # System prompts
+│   └── schemas/             # Pydantic models
+├── tests/                   # pytest suite
+└── pyproject.toml           # Project metadata + hatchling build
 ```
 
-Response:
+## Configuration
 
-```json
-{
-  "groups": [
-    {
-      "members": ["t1", "t2"],
-      "matches": [
-        {
-          "a_id": "t1", "b_id": "t2", "score": 0.92, "confidence": "high",
-          "features": {"description_sim": 0.95, "amount_sim": 1.0, "date_sim": 0.75},
-          "explanation": "Same amount ₹2,500.00, 1 day apart, 95% description match."
-        }
-      ]
-    }
-  ]
-}
-```
+Key environment variables:
 
-### `POST /duplicates/score-batch`
-
-Score one incoming transaction against a set of already-saved ones (import time).
-
-```json
-{
-  "candidate": {"id": "new", "date": "2024-02-01", "amount": 1200.0, "description": "Zomato 9981", "type": "expense"},
-  "existing": [ {"id": "t9", "date": "2024-02-02", "amount": 1200.0, "description": "ZOMATO 9981", "type": "expense"} ],
-  "config": { }
-}
-```
-
-Response:
-
-```json
-{ "matches": [ { "a_id": "new", "b_id": "t9", "score": 0.9, "confidence": "high", ... } ] }
-```
-
-## Scoring
-
-1. **Normalize** description: lowercase, strip punctuation, drop trailing
-   reference numbers and bank-noise tokens.
-2. **Block**: only compare pairs whose amounts fall within `amount_tolerance`
-   and whose dates are within `date_window_days` (keeps cost ~O(n) per bucket).
-3. **Features (0–1)**:
-   - `description_sim` — TF-IDF + cosine; falls back to `difflib` ratio for
-     sparse buckets.
-   - `amount_sim` — `1.0` within tolerance, linear decay otherwise.
-   - `date_sim` — `1 - day_gap / window`, clamped ≥ 0.
-4. **Combined score** — weighted sum normalized by total weight.
-   `confidence = high` if `score >= threshold_high`, else `medium` if
-   `>= threshold_medium`, else dropped.
-5. **Grouping** — union-find over pairs ≥ `threshold_medium`.
-
-Transactions are only compared within the **same `type`** (income vs. expense
-are never paired).
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | `sqlite:///./data/ml_backend.db` | SQLAlchemy database URL |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server URL |
+| `OLLAMA_CHAT_MODEL` | `llama3.2:1b` | Chat model |
+| `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Embedding model |
 
 ## Tests
 
 ```bash
-pip install -r requirements.txt
 pytest tests
 ```

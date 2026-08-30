@@ -1,0 +1,61 @@
+{
+  "min_score": 0.85,
+  "cases": {
+    "insights_normal": {
+      "score": 1.0,
+      "status": "pass"
+    },
+    "insights_missing_data": {
+      "score": 1.0,
+      "status": "pass"
+    },
+    "alerts_normal": {
+      "score": 1.0,
+      "status": "pass"
+    },
+    "alerts_no_data": {
+      "score": 1.0,
+      "status": "pass"
+    },
+    "budget_normal": {
+      "score": 1.0,
+      "status": "pass"
+    },
+    "goal_normal": {
+      "score": 1.0,
+      "status": "pass"
+    },
+    "transaction_search": {
+      "score": 1.0,
+      "status": "pass"
+    },
+    "transaction_query": {
+      "score": 1.0,
+      "status": "pass"
+    },
+    "db_context": {
+      "score": 1.0,
+      "status": "pass"
+    },
+    "chart_alert": {
+      "score": 1.0,
+      "status": "pass"
+    },
+    "general_chat_fallback": {
+      "score": 1.0,
+      "status": "pass"
+    },
+    "ambiguous_query": {
+      "score": 1.0,
+      "status": "pass"
+    },
+    "malformed_input": {
+      "score": 1.0,
+      "status": "pass"
+    },
+    "report_generation": {
+      "score": 1.0,
+      "status": "pass"
+    }
+  }
+}

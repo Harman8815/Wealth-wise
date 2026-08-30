@@ -50,12 +50,6 @@
 - `components/dashboard/main-content.tsx`
 - `app/dashboard/page.tsx`
 
-### Notification Toasts
-- **Component**: `components/dashboard/notification-toasts.tsx`
-- Fetches unread alerts via `useAlerts({ read: false }, 1, 5)` and renders each as a `sonner` toast on load
-- Deduplicated per session via `sessionStorage` key `wealthwise_shown_alerts` — viewing a toast does NOT mark the alert as read
-- Returns `null` (no DOM element); toasts are rendered by `sonner` provider
-
 ### Overview Cards (4 Cards via `OverviewCards` component)
 - **Total Balance** — Wallet icon, sum of all account balances
 - **Monthly Income** — TrendingUp icon (green), `₹{value.toLocaleString()}`, subtitle "This month's earnings"

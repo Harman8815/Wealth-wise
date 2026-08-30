@@ -59,6 +59,7 @@ async def maybe_summarize(user_id: str, conversation_id: str) -> None:
                 ],
                 model=DEFAULT_CHAT_MODEL,
                 stream=False,
+                num_predict=100,
             )
             summary = result.get("message", {}).get("content", "").strip()
             if summary:

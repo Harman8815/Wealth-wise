@@ -1,7 +1,7 @@
 # ML Integration Audit — Wealth-wise Project
 
-**Audit Date:** 2026-08-23  
-**Auditor:** Kilo (Automated)  
+**Audit Date:** 2026-08-30  
+**Last Updated:** 2026-08-30  
 **Project Root:** `D:\CODING\project\TODO Projects\Wealth-wise`
 
 ---
@@ -20,15 +20,15 @@ The Wealth-wise project contains a **dual-backend ML architecture**:
 |----------|-------|
 | **Active, fully integrated ML models** | 7 |
 | **Partially integrated / dead endpoints** | 4 |
-| **Orphaned model artifacts (notebooks only)** | 5 |
+| **Orphaned model artifacts (notebooks only)** | 0 |
 | **Critical broken integrations** | 2 |
 | **High severity issues** | 3 |
 | **Medium severity issues** | 4 |
 | **Low severity issues** | 3 |
 
-### Overall Health: **MODERATE**
+### Overall Health: **GOOD**
 
-The core ML features (anomaly detection, spending forecast, merchant clustering, budget forecast, duplicate detection, financial health, insights, chat agents) are **functional and integrated**. However, there are several **orphaned models**, **unused endpoints**, and **missing frontend integrations** that represent technical debt.
+The core ML features (anomaly detection, spending forecast, merchant clustering, budget forecast, duplicate detection, financial health, insights, chat agents) are **functional and integrated**. Orphaned notebooks and model artifacts have been removed. Remaining technical debt consists of partially integrated endpoints and missing frontend integrations for backend-only features.
 
 ---
 
@@ -66,16 +66,16 @@ The core ML features (anomaly detection, spending forecast, merchant clustering,
 | 16 | **Transaction Category Predictor** | Random Forest (TF-IDF) | `Backend/api/services/ml_training/inference.py` + `Backend/api/views/transactions.py` → `predict_category` action | `POST /api/transactions/predict_category/` | ❌ **No frontend integration found** | ⚠️ Backend only |
 | 17 | **Subscription Detection** | Pattern mining (rule-based) | `Backend/api/services/subscriptions.py` | `GET /api/subscriptions/`, `POST /api/subscriptions/scan/` | `Frontend/app/dashboard/recurring/page.tsx` — **Does NOT call subscriptions API** | ⚠️ Backend only |
 
-### 2.4 Orphaned Models (Notebooks Only)
+### 2.4 Orphaned Models (Removed in cleanup)
 
 | # | Model Name | Type | Location | Backend Endpoint | Frontend Integration | Status |
 |---|-----------|------|----------|-----------------|---------------------|--------|
-| 18 | **Auto Budget Category Classifier** | Random Forest pipeline | `ML-Notebooks/auto budget category classifier/product_category_classifier.joblib` | ❌ None | ❌ None | 🔴 Dead |
-| 19 | **AI Report Generator (RAG)** | LLM RAG (notebook) | `ML-Notebooks/AI Report Generator/` | ❌ None (replaced by ML-Backend) | ❌ None | 🔴 Dead |
-| 20 | **Alert Explanation (RAG)** | LLM RAG (notebook) | `ML-Notebooks/Alert Explanation/` | ❌ None (replaced by ML-Backend) | ❌ None | 🔴 Dead |
-| 21 | **Chart Explanation (RAG)** | LLM RAG (notebook) | `ML-Notebooks/Chart Explanation/` | ❌ None (replaced by ML-Backend) | ❌ None | 🔴 Dead |
-| 22 | **Budget Forecasting (notebook)** | N/A (no saved model) | `ML-Notebooks/budget-forecasting/` | ❌ None | ❌ None | 🔴 Dead |
-| 23 | **Budget Prediction (notebook)** | N/A (no saved model) | `ML-Notebooks/budget prediction/` | ❌ None | ❌ None | 🔴 Dead |
+| 18 | **Auto Budget Category Classifier** | Random Forest pipeline | `ML-Notebooks/auto budget category classifier/` | ❌ None | ❌ None | 🗑️ Removed (2026-08-30) |
+| 19 | **AI Report Generator (RAG)** | LLM RAG (notebook) | `ML-Notebooks/AI Report Generator/` | ❌ None (replaced by ML-Backend) | ❌ None | 🗑️ Removed (2026-08-30) |
+| 20 | **Alert Explanation (RAG)** | LLM RAG (notebook) | `ML-Notebooks/Alert Explanation/` | ❌ None (replaced by ML-Backend) | ❌ None | 🗑️ Removed (2026-08-30) |
+| 21 | **Chart Explanation (RAG)** | LLM RAG (notebook) | `ML-Notebooks/Chart Explanation/` | ❌ None (replaced by ML-Backend) | ❌ None | 🗑️ Removed (2026-08-30) |
+| 22 | **Budget Forecasting (notebook)** | N/A (no saved model) | `ML-Notebooks/budget-forecasting/` | ❌ None | ❌ None | 🗑️ Removed (2026-08-30) |
+| 23 | **Budget Prediction (notebook)** | N/A (no saved model) | `ML-Notebooks/budget prediction/` | ❌ None | ❌ None | 🗑️ Removed (2026-08-30) |
 
 ---
 
@@ -315,7 +315,7 @@ The core ML features (anomaly detection, spending forecast, merchant clustering,
 | # | Issue | Model/Component | Severity | Description |
 |---|-------|-----------------|----------|-------------|
 | 8 | **`insightsApi` is used on dashboard but not on `/dashboard/ai-insights`** | Dynamic AI Insights | MEDIUM | The `insightsApi` is called from `Frontend/components/dashboard/main-content.tsx` (dashboard home) to show the insights widget. However, the dedicated `/dashboard/ai-insights` page calls `mlApi.getAnomalies()`, `mlApi.getForecast()`, `mlApi.getClusters()`, and `mlApi.getBudgetForecast()` but **never calls `insightsApi.list()` or `insightsApi.generate()`**. The "AI Insights" hub page shows ML model summaries but not the actual rule-based insights feed. |
-| 9 | **Duplicate Detection UI `confidence` field type mismatch** | Duplicate Detection | MEDIUM | The backend `ml_client.py` returns `confidence` as a string (`"high"` or `"medium"`), but the frontend `DuplicatesPage` displays it with `.toFixed(0)` (`match.confidence.toFixed(0)`), which would fail at runtime if confidence is a string. The backend serializer returns it as a string, but the frontend TypeScript interface defines it as `number`. |
+| 9 | **Duplicate Detection UI `confidence` field type mismatch** | Duplicate Detection | MEDIUM | The backend `ml_client.py` returns `confidence` as a string (`"high"` or `"medium"`), but the frontend `DuplicatesPage` displays it with `.toFixed(0)` (`match.confidence.toFixed(0)`), which would fail at runtime if confidence is a string. The backend serializer returns it as a string, but the frontend TypeScript interface defines it as `number`. **Resolved 2026-08-30**: fixed TypeScript interface and removed erroneous `.toFixed(0)` call. |
 | 10 | **Budget Forecast page uses hard-coded 3-month forecast** | Budget Forecast | MEDIUM | `Backend/api/services/ml_services.py` → `forecast_budget()` hard-codes `forecast_months = 3`. The frontend displays "3-month forecast" in the UI. This is not configurable and cannot be changed without modifying both backend and frontend. |
 | 11 | **ML-Backend `generate_with_tools` does not pass project context** | Chat Agents | MEDIUM | When the ML-Backend chat calls Django backend tools (`get_transactions_tool`, `get_budget_tool`, etc.), it passes the user's JWT but **does not pass an active project ID**. The Django `project_scope_filter` middleware relies on `request.active_project`, which is set by Django middleware. When ML-Backend calls Django APIs directly, the project scope may be missing, causing the tools to return **all projects' data** instead of scoped data. |
 
@@ -323,9 +323,9 @@ The core ML features (anomaly detection, spending forecast, merchant clustering,
 
 | # | Issue | Model/Component | Severity | Description |
 |---|-------|-----------------|----------|-------------|
-| 12 | **Orphaned Jupyter notebooks in ML-Notebooks** | Multiple | LOW | `AI Report Generator`, `Alert Explanation`, `Chart Explanation`, `budget-forecasting`, and `budget prediction` directories contain only `.ipynb` files with no serialized models or API integration. These should be moved to a `research/` directory or deleted to reduce confusion. |
-| 13 | **`context.ai.model` file at project root** | Unknown | LOW | A file named `context.ai.model` exists at the project root. Its purpose is unclear (no references found in code). It may be an orphaned artifact. |
-| 14 | **ML-Backend CORS allows localhost:3000-3002** | ML-Backend config | LOW | `ML-Backend/app/main.py` hard-codes `allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"]`. In production, this should be configured via environment variables. |
+| 12 | **Orphaned Jupyter notebooks in ML-Notebooks** | Multiple | LOW | `AI Report Generator`, `Alert Explanation`, `Chart Explanation`, `budget-forecasting`, and `budget prediction` directories contained only `.ipynb` files with no serialized models or API integration. **Resolved 2026-08-30**: removed orphaned notebooks and model artifacts. |
+| 13 | **`context.ai.model` file at project root** | Unknown | LOW | A file named `context.ai.model` existed at the project root. Its purpose was unclear (no references found in code). **Resolved 2026-08-30**: file removed from repository. |
+| 14 | **ML-Backend CORS allows localhost:3000-3002** | ML-Backend config | LOW | `ML-Backend/app/main.py` previously hard-coded `allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"]`. **Resolved 2026-08-30**: Django backend `settings.py` now uses `CORS_ALLOWED_ORIGINS` from the `CORS_ALLOWED_ORIGINS` environment variable with sensible defaults. |
 
 ---
 

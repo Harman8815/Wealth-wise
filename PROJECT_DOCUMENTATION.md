@@ -1,8 +1,8 @@
 # WealthWise - System Documentation
 
 **Project**: WealthWise - Personal Finance Management Platform  
-**Version**: 2.0.0  
-**Last Updated**: July 11, 2026  
+**Version**: 3.0.0  
+**Last Updated**: August 30, 2026  
 **Tech Stack**: Next.js 15 (Frontend) + Django REST Framework (Backend)
 
 ---
@@ -64,10 +64,8 @@ WealthWise/
 │   ├── components/
 │   │   ├── dashboard/                  # Dashboard-specific components
 │   │   │   ├── budget-gauge.tsx        # Circular budget gauge
-│   │   │   ├── expense-tracker.tsx     # Quick expense entry
 │   │   │   ├── main-content.tsx        # Main dashboard content
 │   │   │   ├── monthly-chart.tsx       # Monthly stats chart
-│   │   │   ├── notification-toasts.tsx # Dashboard load-time toasts
 │   │   │   ├── overview-cards.tsx      # Dashboard stat cards
 │   │   │   ├── recent-transactions.tsx # Transaction list
 │   │   │   ├── settings-dialog.tsx     # Settings modal
@@ -81,18 +79,8 @@ WealthWise/
 │   │   │       ├── scheduled-reports.tsx # Scheduled reports management
 │   │   │       └── transactions.tsx    # Transaction history
 │   │   ├── ui/                         # shadcn/ui components
-│   │   ├── contact-section.tsx         # Landing page sections
-│   │   ├── features-section.tsx
-│   │   ├── finance-tips-section.tsx
-│   │   ├── footer.tsx
-│   │   ├── gallery-section.tsx
-│   │   ├── hero-section.tsx
-│   │   ├── navbar.tsx
-│   │   ├── newsletter-section.tsx
-│   │   ├── pricing-section.tsx
-│   │   ├── testimonials-section.tsx
-│   │   ├── theme-provider.tsx
-│   │   └── theme-toggle.tsx
+│   │   ├── theme-provider.tsx         # Theme provider
+│   │   └── theme-toggle.tsx           # Theme toggle
 │   ├── api/                            # API layer
 │   │   ├── client.ts                   # Axios client with interceptors
 │   │   ├── provider.tsx                # React Query provider
@@ -119,7 +107,6 @@ WealthWise/
 │   │   ├── use-expenses.ts
 │   │   ├── use-goals.ts
 │   │   ├── use-mobile.tsx
-│   │   ├── use-toast.ts
 │   │   ├── use-transactions.ts
 │   │   └── use-users.ts
 │   ├── lib/                            # Utilities
@@ -222,7 +209,6 @@ WealthWise/
 - **Backend Alert Engine**: Extensible rule registry generates budget/category exceeded and approaching-threshold alerts respecting user settings; de-dupes recent unread alerts
 - **Alert Settings**: Toggle notifications per category with thresholds
 - **Notification Settings Page**: Dedicated `/dashboard/notifications` page with per-category toggles and future-ready Report/Email/Browser categories
-- **Dashboard Toasts**: Load-time notification toasts via `notification-toasts.tsx`
 
 #### 7. Quick Expense Tracking
 - **Fast Entry**: Quick expense logging without full transaction details
@@ -269,13 +255,14 @@ WealthWise/
 ### Key Dependencies
 ```json
 {
-  "@tanstack/react-query": "^5.95.2",
-  "axios": "^1.13.6",
+  "@tanstack/react-query": "^5.59.0",
+  "axios": "^1.7.7",
   "date-fns": "4.1.0",
-  "lucide-react": "^0.454.0",
+  "lucide-react": "^0.468.0",
+  "next": "15.2.4",
   "next-themes": "latest",
-  "recharts": "latest",
-  "zod": "^3.24.1"
+  "recharts": "^2.15.0",
+  "zod": "^3.23.8"
 }
 ```
 
@@ -288,16 +275,29 @@ WealthWise/
 ### Dashboard Navigation
 ```
 /dashboard
-├── /                 # Overview (main-content.tsx)
-├── /transactions     # Transaction history
-├── /budget           # Budget planner
-├── /budget/customize # Customize categories
-├── /budget/[category] # Category detail
-├── /goals            # Financial goals
-├── /alerts           # Notifications
-├── /notifications    # Notification settings
-└── /reports          # Analytics
-    └── /scheduled    # Scheduled reports
+├── /                    # Overview
+├── /account-management  # Account management
+├── /ai-insights         # ML insights hub
+├── /alerts              # Notifications
+├── /budget              # Budget planner
+├── /budget/customize    # Customize categories
+├── /budget/[category]   # Category detail
+├── /chat                # AI chat
+├── /duplicates          # Duplicate detection
+├── /goals               # Financial goals
+├── /import-export       # Import/export wizard
+├── /insights/anomalies  # Anomaly detection
+├── /insights/budget-forecast # Budget forecast
+├── /insights/clusters   # Merchant clusters
+├── /insights/forecast   # Spending forecast
+├── /notifications       # Notification settings
+├── /notifications/settings # Settings sub-page
+├── /projects            # Project management
+├── /recurring           # Recurring transactions
+├── /recurring-budgets   # Recurring budgets
+├── /reports             # Analytics reports
+├── /reports/scheduled   # Scheduled reports
+└── /transactions        # Transaction history
 ```
 
 ---

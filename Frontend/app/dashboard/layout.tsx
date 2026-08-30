@@ -13,6 +13,7 @@ import { NotificationProvider, NotificationSyncBridge } from "@/lib/notification
 import { NotificationPopupProvider } from "@/components/notifications/notification-popup"
 import { NotificationWidget } from "@/components/notifications/notification-widget"
 import { FloatingChatWidget } from "@/components/dashboard/floating-chat-widget"
+import { DebugToggle } from "@/components/debug/debug-toggle"
 
 export default function DashboardLayout({
   children,
@@ -82,6 +83,9 @@ export default function DashboardLayout({
 
           {/* Floating Chat Widget */}
           <FloatingChatWidget />
+
+          {/* Debug Toggle */}
+          <DebugToggle />
         </DashboardSidebarProvider>
       </NotificationPopupProvider>
     </NotificationProvider>
