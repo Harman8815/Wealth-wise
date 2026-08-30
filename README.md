@@ -8,7 +8,7 @@ WealthWise is a full-stack personal finance application:
 
 - **Frontend** — Next.js 15 (React 19, TypeScript, Tailwind CSS, shadcn/ui)
 - **Backend** — Django 5 + Django REST Framework (JWT auth, SQLite/PostgreSQL)
-- **ML-Backend** — stateless FastAPI service for ML-powered duplicate detection
+- **ML-Backend** — FastAPI service for AI chat, Ollama orchestration, duplicate detection, and LLM-powered assistants
 
 ---
 
@@ -18,7 +18,7 @@ WealthWise is a full-stack personal finance application:
 |--------|------------|------|
 | [`Backend/`](./Backend) | Django REST API (auth, transactions, budgets, goals, recurring, financial-health, insights, subscriptions, duplicate detection) | [`Backend/README.md`](./Backend/README.md) · [`Backend/docs/`](./Backend/docs) |
 | [`Frontend/`](./Frontend) | Next.js dashboard web app | [`Frontend/docs/README.md`](./Frontend/docs/README.md) |
-| [`ML-Backend/`](./ML-Backend) | FastAPI service for ML duplicate scoring | [`ML-Backend/README.md`](./ML-Backend/README.md) |
+| [`ML-Backend/`](./ML-Backend) | FastAPI service for AI chat, Ollama orchestration, duplicate detection, and LLM assistants | [`ML-Backend/README.md`](./ML-Backend/README.md) |
 
 ## Feature Highlights
 
