@@ -80,7 +80,7 @@ Language:              Python 3.12+
 
 ```bash
 git clone https://github.com/Harman8815/Wealth-wise.git
-cd Wealth-wise/wealthwise_backend
+cd Wealth-wise/Backend
 ```
 
 ### 2. Create Virtual Environment
@@ -162,7 +162,7 @@ Comprehensive API documentation is available in the [`docs/`](./docs/) directory
 ## 📁 Project Structure
 
 ```
-wealthwise_backend/
+Backend/
 ├── 📂 api/                     # Main application
 │   ├── __init__.py
 │   ├── admin.py               # Django admin configuration
@@ -188,7 +188,7 @@ wealthwise_backend/
 │   ├── expenses.md            # Expenses API
 │   └── utilities.md           # Utility endpoints
 │
-├── 📂 wealthwise_backend/     # Project configuration
+├── 📂 wealthwise_backend/     # Django project configuration
 │   ├── __init__.py
 │   ├── settings.py            # Django settings
 │   ├── urls.py                # Root URL configuration
